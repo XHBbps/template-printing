@@ -12,6 +12,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useDesignerStore } from '../stores/designer';
+import PreviewView from '../views/PreviewView.vue';
 
 const store = useDesignerStore();
 const router = useRouter();
@@ -61,6 +62,8 @@ const paperLabel = computed(() => {
 function doPrint(): void {
   window.print();
 }
+
+const previewOpen = ref(false);
 </script>
 
 <template>
@@ -116,7 +119,7 @@ function doPrint(): void {
 
     <span class="dh-spacer" />
 
-    <ElButton size="small" @click="ElMessage.info('预览将在 T18 实现')">👁 预览</ElButton>
+    <ElButton size="small" @click="previewOpen = true">👁 预览</ElButton>
     <ElButton
       type="primary"
       size="small"
@@ -126,6 +129,7 @@ function doPrint(): void {
     </ElButton>
     <ElButton type="primary" plain size="small" @click="doPrint">立即打印</ElButton>
   </header>
+  <PreviewView v-model="previewOpen" />
 </template>
 
 <style scoped>
