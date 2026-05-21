@@ -8,6 +8,8 @@ const EnvSchema = z.object({
   REDIS_URL: z.string().url(),
 
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 chars'),
+  JWT_TTL_SECONDS: z.coerce.number().int().positive().default(86400), // 24h
+  REFRESH_TTL_SECONDS: z.coerce.number().int().positive().default(2_592_000), // 30d
   FILE_SIG_SECRET: z.string().min(32, 'FILE_SIG_SECRET must be at least 32 chars'),
   MASTER_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'MASTER_KEY must be 64 hex chars (32 bytes)'),
 
@@ -15,10 +17,15 @@ const EnvSchema = z.object({
   LARK_SSO_APP_SECRET: z.string().min(1),
   LARK_SSO_REDIRECT_URI: z.string().url(),
   LARK_API_BASE: z.string().url().default('https://open.feishu.cn'),
+  LARK_PASSPORT_BASE: z.string().url().default('https://passport.feishu.cn'),
+  LARK_ACCOUNTS_BASE: z.string().url().default('https://accounts.feishu.cn'),
   INITIAL_ADMIN_LARK_USER_IDS: z.string().default(''),
 
   INITIAL_ADMIN_LOCAL_USERNAME: z.string().default('emergency_admin'),
-  INITIAL_ADMIN_LOCAL_PASSWORD: z.string().optional(),
+  INITIAL_ADMIN_LOCAL_PASSWORD: z.string().min(8).optional(),
+
+  // Cookie domain for SSO — '' means use request host (default for local dev)
+  COOKIE_DOMAIN: z.string().default(''),
 
   RENDER_BROWSERS: z.coerce.number().int().positive().default(4),
   RENDER_PAGES_PER_BROWSER: z.coerce.number().int().positive().default(2),
