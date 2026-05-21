@@ -1,4 +1,7 @@
 FROM node:20-alpine
+# openssl: required by Prisma to detect libssl version and pick the right query engine.
+# libc6-compat: occasionally needed for native modules under Alpine musl.
+RUN apk add --no-cache openssl libc6-compat
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /workspace
 # Source mounted as volume — install handled by host or first start
