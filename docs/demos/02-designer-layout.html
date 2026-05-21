@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>02 · 模板设计器布局 — 三栏 + 栅格画布 + 双区域交互</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #fafafa;
+    --bg-softer: #f5f6f7;
+    --ink: #1f2328;
+    --ink-soft: #57606a;
+    --ink-faint: #8b949e;
+    --line: #e6e8eb;
+    --line-strong: #d0d7de;
+    --accent: #0969da;
+    --accent-soft: #ddf4ff;
+    --accent-bg: #f6fbff;
+    --warn-soft: #fff8e1;
+    --warn-border: #d4a72c;
+    --warn-ink: #7d5a00;
+    --canvas-cell: #eef1f4;
+    --elem-fill: #ffffff;
+    --elem-border: #c8cdd2;
+    --elem-border-sel: #0969da;
+    --radius: 6px;
+    --shadow-1: 0 1px 0 rgba(31,35,40,0.04);
+    --shadow-2: 0 4px 16px rgba(31,35,40,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica,
+                 Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, .mono { font-family: ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace; font-size: 0.92em; }
+
+  /* ---------- 文档外壳 ---------- */
+  .doc { max-width: 1240px; margin: 0 auto; padding: 56px 24px 96px; }
+  .eyebrow { color: var(--ink-faint); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+  h1 { font-size: 26px; font-weight: 600; margin: 0 0 12px 0; letter-spacing: -0.01em; }
+  .lead { color: var(--ink-soft); font-size: 15px; margin: 0 0 8px 0; }
+  .meta { color: var(--ink-faint); font-size: 13px; margin-bottom: 36px; }
+  .hr { color: var(--ink-faint); margin: 40px 0 28px 0; letter-spacing: 0.4em; user-select: none; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+  .sec-num { font-family: ui-monospace, monospace; color: var(--ink-faint); font-size: 13px; min-width: 22px; }
+  .sec-title { font-size: 17px; font-weight: 600; margin: 0; }
+  .sec-desc { color: var(--ink-soft); font-size: 13.5px; margin: 4px 0 18px 36px; }
+  .sec-desc code { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+
+  /* ---------- 设计器外框（产品截图风） ---------- */
+  .app {
+    margin: 0 0 20px 36px;
+    background: var(--bg);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+    height: 620px;
+    display: grid;
+    grid-template-rows: 48px 1fr;
+    grid-template-columns: 88px 1fr 300px;
+    grid-template-areas:
+      "header header header"
+      "left   middle right";
+  }
+
+  /* ---------- 顶部 Header ---------- */
+  .header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    padding: 0 14px;
+    gap: 10px;
+    background: var(--bg);
+  }
+  .h-name {
+    font-weight: 600;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: text;
+  }
+  .h-name:hover { background: var(--bg-soft); }
+  .h-divider { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+  .h-btn {
+    appearance: none;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink);
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .h-btn:hover { background: var(--bg-soft); }
+  .h-btn.is-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+  .h-btn.is-primary:hover { background: #0860c4; }
+  .h-icon { width: 14px; height: 14px; display: inline-block; opacity: 0.7; }
+  .h-spacer { flex: 1; }
+  .h-input {
+    width: 36px;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    text-align: center;
+    font: inherit;
+    font-size: 12px;
+    padding: 2px 0;
+    color: var(--ink);
+  }
+  .h-input:focus { outline: none; border-color: var(--accent); }
+  .h-label { color: var(--ink-faint); font-size: 12px; }
+  .h-paper {
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .h-paper:hover { background: var(--bg-soft); }
+
+  /* ---------- 左栏：元素 ---------- */
+  .left {
+    grid-area: left;
+    border-right: 1px solid var(--line);
+    padding: 12px 8px;
+    overflow-y: auto;
+    background: var(--bg-softer);
+  }
+  .l-group-title {
+    color: var(--ink-faint);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 8px 4px 6px 4px;
+  }
+  .l-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    cursor: grab;
+    transition: all 120ms ease;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .l-item:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-bg);
+    transform: translateY(-1px);
+  }
+  .l-glyph {
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: var(--ink-soft);
+  }
+  .l-item:hover .l-glyph { color: var(--accent); }
+
+  /* ---------- 中栏：画布 ---------- */
+  .middle {
+    grid-area: middle;
+    background: #f0f2f5;
+    padding: 24px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .canvas {
+    --cell-w: 6px;
+    --cell-h: 6px;
+    position: relative;
+    width: calc(120 * var(--cell-w));     /* 120 列 */
+    height: calc(80 * var(--cell-h));     /* 80 行 */
+    background: #fff;
+    /* 栅格用伪元素承载，默认隐藏；拖拽中才淡入 */
+    border: 1px solid var(--line-strong);
+    box-shadow: 0 2px 8px rgba(31,35,40,0.04);
+    flex-shrink: 0;
+  }
+  .canvas::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--canvas-cell) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--canvas-cell) 1px, transparent 1px);
+    background-size: var(--cell-w) var(--cell-h);
+    opacity: 0;
+    transition: opacity 180ms ease;
+  }
+  /* 模拟"拖拽中"状态：栅格淡入；用户点 toggle 触发 */
+  .canvas.is-dragging::before { opacity: 1; }
+  /* 拖拽中栅格变虚线（更轻） */
+  .canvas.is-dragging::before {
+    background-image:
+      repeating-linear-gradient(to right,
+        var(--canvas-cell) 0 1px, transparent 1px var(--cell-w)),
+      repeating-linear-gradient(to bottom,
+        var(--canvas-cell) 0 1px, transparent 1px var(--cell-h));
+  }
+
+  .elem {
+    position: absolute;
+    background: var(--elem-fill);
+    border: 1px solid var(--elem-border);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--ink);
+    padding: 0 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .elem.is-field {
+    background: var(--accent-bg);
+    color: var(--accent);
+    border-style: dashed;
+    border-color: #a5d4ff;
+    /* 演示：所有字段默认配了 border-bottom（实线黑），由元素自身承载下划线 */
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .elem.is-title { font-size: 16px; font-weight: 600; border: none; background: transparent; }
+  .elem.is-static { border: none; background: transparent; }
+  .elem.is-image {
+    background: linear-gradient(135deg, #fafafa, #eef1f4);
+    color: var(--ink-faint);
+    font-size: 11px;
+    border-style: dashed;
+  }
+
+  /* —— 选中态：飞书仪表盘风 —— */
+  /* 用 outline 而非 border，不覆盖元素自己的 4 边框配置 */
+  .elem.is-selected {
+    outline: 1.5px solid var(--elem-border-sel);
+    outline-offset: 2px;
+    border-radius: 4px;
+    box-shadow: 0 0 0 5px rgba(9,105,218,0.10);
+  }
+  .hit {
+    position: absolute;
+    z-index: 2;
+  }
+  .hit.h-center { left: 12px; top: 8px; right: 12px; bottom: 8px; cursor: text; }
+  .hit.h-edge-n { left: 12px; top: -4px;  right: 12px; height: 12px; cursor: ns-resize; }
+  .hit.h-edge-s { left: 12px; bottom: -4px; right: 12px; height: 12px; cursor: ns-resize; }
+  .hit.h-edge-w { top: 8px; bottom: 8px; left: -4px;  width: 12px; cursor: ew-resize; }
+  .hit.h-edge-e { top: 8px; bottom: 8px; right: -4px; width: 12px; cursor: ew-resize; }
+  .hit.h-corner { width: 14px; height: 14px; }
+  .hit.c-nw { top: -4px; left: -4px;  cursor: nwse-resize; }
+  .hit.c-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+  .hit.c-sw { bottom: -4px; left: -4px;  cursor: nesw-resize; }
+  .hit.c-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+
+  /* 选中元素四角"手柄"小方块 */
+  .handle {
+    position: absolute;
+    width: 8px; height: 8px;
+    background: #fff;
+    border: 1px solid var(--elem-border-sel);
+    border-radius: 2px;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .handle.t-l { top: -5px; left: -5px; }
+  .handle.t-r { top: -5px; right: -5px; }
+  .handle.b-l { bottom: -5px; left: -5px; }
+  .handle.b-r { bottom: -5px; right: -5px; }
+
+  /* 选中元素顶部中心"6 点 grip"按钮 — 飞书仪表盘风 */
+  .grip {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    border: 1.5px solid var(--elem-border-sel);
+    border-radius: 6px;
+    width: 28px;
+    height: 18px;
+    cursor: grab;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(31,35,40,0.08);
+    transition: background 120ms ease;
+  }
+  .grip:hover { background: var(--accent-soft); }
+  .grip:active { cursor: grabbing; }
+  .grip-dots {
+    display: grid;
+    grid-template-columns: repeat(3, 3px);
+    grid-template-rows: repeat(2, 3px);
+    gap: 2px;
+  }
+  .grip-dots i {
+    background: var(--elem-border-sel);
+    border-radius: 50%;
+    width: 3px; height: 3px;
+    display: block;
+  }
+
+  /* hover 提示气泡 */
+  .hint {
+    position: fixed;
+    pointer-events: none;
+    background: var(--ink);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 100ms ease;
+    transform: translate(8px, 8px);
+    white-space: nowrap;
+  }
+  .hint.is-on { opacity: 1; }
+
+  /* ---------- 右栏：字段 + 属性 ---------- */
+  .right {
+    grid-area: right;
+    border-left: 1px solid var(--line);
+    background: var(--bg);
+    overflow-y: auto;
+  }
+  .r-section { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .r-section:last-child { border-bottom: none; }
+  .r-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0 0 10px 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .r-add {
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+  }
+  .field-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: var(--bg);
+  }
+  .field-card .k { font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink); font-weight: 500; }
+  .field-card .l { color: var(--ink-soft); font-size: 12px; margin-left: 6px; }
+  .field-card .t { display: inline-block; margin-top: 2px; font-size: 11px; color: var(--ink-faint); }
+  .field-card .t.req::after { content: "·"; color: var(--accent); margin: 0 4px; }
+  .field-card.is-unused {
+    background: var(--warn-soft);
+    border-color: #f0d178;
+  }
+
+  .prop-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 13px; }
+  .prop-label { color: var(--ink-soft); }
+  .prop-val { color: var(--ink); }
+  .prop-input {
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font: inherit;
+    font-size: 12px;
+    width: 80px;
+    text-align: right;
+  }
+  .prop-input:focus { outline: none; border-color: var(--accent); }
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .seg-btn {
+    padding: 2px 8px;
+    font-size: 11px;
+    background: var(--bg);
+    border: none;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-family: ui-monospace, monospace;
+  }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--line); }
+  .seg-btn.is-on { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+
+  .empty-hint {
+    text-align: center;
+    color: var(--ink-faint);
+    font-size: 12px;
+    padding: 24px 0;
+  }
+
+  /* 边框 4 方向控制：田字格图示 */
+  .border-pad {
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr;
+    grid-template-rows: 28px 1fr 28px;
+    width: 100%;
+    height: 96px;
+    border: 1px dashed var(--line-strong);
+    border-radius: 4px;
+    padding: 4px;
+    position: relative;
+  }
+  .bp-cell {
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    border-radius: 3px;
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+  }
+  .bp-cell:hover { background: var(--bg-soft); }
+  .bp-cell.is-on {
+    color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 600;
+  }
+  .bp-cell.bp-t { grid-area: 1 / 1 / 2 / 4; }
+  .bp-cell.bp-b { grid-area: 3 / 1 / 4 / 4; }
+  .bp-cell.bp-l { grid-area: 2 / 1 / 3 / 2; }
+  .bp-cell.bp-r { grid-area: 2 / 3 / 3 / 4; }
+  .bp-center {
+    grid-area: 2 / 2 / 3 / 3;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--bg-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    color: var(--ink-faint);
+  }
+  .bp-style {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 11px;
+  }
+  .bp-style select, .bp-style input {
+    flex: 1;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font: inherit;
+    font-size: 11px;
+    background: var(--bg);
+  }
+
+  /* 内边距 4 输入 */
+  .pad-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .pad-grid label {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .pad-grid input {
+    width: 100%;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font: inherit;
+    font-size: 11px;
+    text-align: right;
+  }
+  .prop-block { padding: 4px 0; }
+  .prop-block-title {
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+    display: flex; justify-content: space-between;
+  }
+  .prop-block-title .hint-x {
+    color: var(--ink-faint);
+    font-weight: normal;
+    font-size: 10.5px;
+  }
+
+  /* 选中元素下方的尺寸提示 */
+  .size-tip {
+    position: absolute;
+    bottom: -22px; right: -1px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: ui-monospace, monospace;
+    pointer-events: none;
+  }
+
+  /* 底部"未绑定/未使用"提示条 */
+  .footer-warn {
+    background: var(--warn-soft);
+    border-top: 1px solid #f0d178;
+    color: var(--warn-ink);
+    font-size: 12px;
+    padding: 6px 14px;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* 说明条 */
+  .legend {
+    margin: 16px 0 0 36px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .legend ul { margin: 8px 0 0 0; padding-left: 18px; }
+  .legend li { margin-bottom: 4px; }
+  .legend kbd {
+    background: #fff;
+    border: 1px solid var(--line-strong);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink);
+  }
+
+  .choose {
+    margin: 40px 0 0 0;
+    padding: 20px 24px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .choose h2 { margin: 0 0 8px 0; font-size: 15px; font-weight: 600; }
+  .choose p { margin: 0; color: var(--ink-soft); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <div class="eyebrow">Demo · 模板打印平台 · 设计确认</div>
+  <h1>设计器布局原型</h1>
+  <p class="lead">三栏布局 / 栅格画布 / 选中元素的"边·角·中心"三类 hit-zone。鼠标移到画布中的选中元素，能看到不同区域的光标差异。</p>
+  <p class="meta">这是静态展示，没有真正的拖拽。仅用于确认布局、信息层级、视觉密度。</p>
+
+  <div class="hr">— — —</div>
+  <div class="sec-head"><span class="sec-num">01</span><h2 class="sec-title">完整界面截图</h2></div>
+  <p class="sec-desc">Header（48px） + 左栏元素源（88px） + 中央画布（自适应） + 右栏字段/属性（300px）。</p>
+
+  <div class="app">
+    <!-- ============ Header ============ -->
+    <div class="header">
+      <span class="h-name">扬力出门证 · v3</span>
+      <span class="h-divider"></span>
+      <button class="h-btn" title="撤销 (Ctrl+Z)">↶</button>
+      <button class="h-btn" title="重做 (Ctrl+Shift+Z)">↷</button>
+      <span class="h-divider"></span>
+      <button class="h-btn">👁 预览</button>
+      <span class="h-spacer"></span>
+      <button class="h-btn" id="toggleGrid" title="点这里模拟"拖拽中"状态，看栅格淡入">⊞ 模拟拖拽</button>
+      <span class="h-divider"></span>
+      <span class="h-label mono">cell</span>
+      <input class="h-input mono" value="6" title="格子宽 (px)">
+      <span class="h-label mono">×</span>
+      <input class="h-input mono" value="6" title="格子高 (px)">
+      <span class="h-label mono">px</span>
+      <span class="h-paper">A4 横向 ▾</span>
+      <span class="h-divider"></span>
+      <button class="h-btn">保存</button>
+      <button class="h-btn is-primary">立即打印</button>
+    </div>
+
+    <!-- ============ 左栏 ============ -->
+    <div class="left">
+      <div class="l-group-title">基础</div>
+      <div class="l-item"><span class="l-glyph">T</span>文字</div>
+      <div class="l-item"><span class="l-glyph">{ }</span>字段</div>
+      <div class="l-item"><span class="l-glyph">▤</span>图片</div>
+      <div class="l-item"><span class="l-glyph">▢</span>矩形</div>
+
+      <div class="l-group-title">表格</div>
+      <div class="l-item"><span class="l-glyph">▦</span>明细表</div>
+
+      <div class="l-group-title">编码</div>
+      <div class="l-item"><span class="l-glyph">▣</span>二维码</div>
+      <div class="l-item"><span class="l-glyph">|||</span>条码</div>
+      <div class="l-item"><span class="l-glyph">№</span>编号</div>
+
+      <div class="l-group-title">系统</div>
+      <div class="l-item"><span class="l-glyph">#</span>页码</div>
+      <div class="l-item"><span class="l-glyph">⌚</span>日期</div>
+    </div>
+
+    <!-- ============ 中栏画布 ============ -->
+    <div class="middle">
+      <div class="canvas" id="canvas">
+        <!-- 标题 -->
+        <div class="elem is-title" style="left: 24px; top: 18px; width: 360px; height: 40px;">扬 力 集 团 · 出 门 证</div>
+        <!-- 编号 -->
+        <div class="elem is-static" style="left: 540px; top: 24px; width: 144px; height: 24px; color: #d23631; font-family: ui-monospace, monospace; justify-content: flex-end;">№ 0004917</div>
+        <!-- Logo 图片 -->
+        <div class="elem is-image" style="left: 24px; top: 78px; width: 72px; height: 72px;">LOGO</div>
+        <!-- 提货单位 label -->
+        <div class="elem is-static" style="left: 120px; top: 90px; width: 80px; height: 24px; justify-content: flex-start;">提货单位</div>
+        <!-- 提货单位 字段（选中） -->
+        <div class="elem is-field is-selected" id="sel" style="left: 204px; top: 90px; width: 240px; height: 24px;">
+          <div class="grip" data-hint="⠿ 拖动以移动元素">
+            <span class="grip-dots"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          </div>
+          {{ 提货单位 }}
+          <span class="size-tip">36×4 格</span>
+          <!-- 8 个 hit zones（边/角） -->
+          <div class="hit h-edge-n" data-hint="↕ 调高度（上边）"></div>
+          <div class="hit h-edge-s" data-hint="↕ 调高度（下边）"></div>
+          <div class="hit h-edge-w" data-hint="↔ 调宽度（左边）"></div>
+          <div class="hit h-edge-e" data-hint="↔ 调宽度（右边）"></div>
+          <div class="hit h-corner c-nw" data-hint="⤡ 同时调宽高"></div>
+          <div class="hit h-corner c-ne" data-hint="⤢ 同时调宽高"></div>
+          <div class="hit h-corner c-sw" data-hint="⤢ 同时调宽高"></div>
+          <div class="hit h-corner c-se" data-hint="⤡ 同时调宽高"></div>
+          <div class="hit h-center" data-hint="✎ 单击进入编辑"></div>
+          <!-- 4 角小手柄 -->
+          <div class="handle t-l"></div>
+          <div class="handle t-r"></div>
+          <div class="handle b-l"></div>
+          <div class="handle b-r"></div>
+        </div>
+        <!-- 提货人 label & field（下划线由字段自身 border-bottom 承载） -->
+        <div class="elem is-static" style="left: 480px; top: 90px; width: 64px; height: 24px;">提货人</div>
+        <div class="elem is-field" style="left: 552px; top: 90px; width: 132px; height: 24px;">{{ 提货人 }}</div>
+
+        <!-- 品名 -->
+        <div class="elem is-static" style="left: 120px; top: 168px; width: 80px; height: 24px;">品 名</div>
+        <div class="elem is-field" style="left: 204px; top: 168px; width: 240px; height: 24px;">{{ 品名 }}</div>
+
+        <!-- 件重 -->
+        <div class="elem is-static" style="left: 480px; top: 168px; width: 64px; height: 24px;">件重</div>
+        <div class="elem is-field" style="left: 552px; top: 168px; width: 132px; height: 24px;">{{ 件重 }}</div>
+
+        <!-- 数量 -->
+        <div class="elem is-static" style="left: 120px; top: 240px; width: 80px; height: 24px;">数 量</div>
+        <div class="elem is-field" style="left: 204px; top: 240px; width: 240px; height: 24px;">{{ 数量 }}</div>
+
+        <!-- 日期 -->
+        <div class="elem is-static" style="left: 120px; top: 336px; width: 110px; height: 24px;">出公司日期：</div>
+        <div class="elem is-field" style="left: 240px; top: 336px; width: 240px; height: 24px;">{{ date }}</div>
+
+        <!-- 二维码 -->
+        <div class="elem is-image" style="left: 612px; top: 312px; width: 72px; height: 72px;">▣ QR</div>
+      </div>
+    </div>
+
+    <!-- ============ 右栏 ============ -->
+    <div class="right">
+      <!-- 字段管理 -->
+      <div class="r-section">
+        <div class="r-title">数据字段 <span class="r-add">+ 添加字段</span></div>
+        <div class="field-card">
+          <span class="k">tihuoDanwei</span><span class="l">· 提货单位</span>
+          <div class="t req">string</div>
+          <span class="t">必填</span>
+        </div>
+        <div class="field-card">
+          <span class="k">tihuoRen</span><span class="l">· 提货人</span>
+          <div class="t">string</div>
+        </div>
+        <div class="field-card">
+          <span class="k">pinming</span><span class="l">· 品名</span>
+          <div class="t">string</div>
+        </div>
+        <div class="field-card">
+          <span class="k">shuliang</span><span class="l">· 数量</span>
+          <div class="t">number</div>
+        </div>
+        <div class="field-card">
+          <span class="k">jianzhong</span><span class="l">· 件重</span>
+          <div class="t">number</div>
+        </div>
+        <div class="field-card">
+          <span class="k">date</span><span class="l">· 出公司日期</span>
+          <div class="t">date</div>
+        </div>
+        <div class="field-card is-unused">
+          <span class="k">beizhu</span><span class="l">· 备注</span>
+          <div class="t">string</div>
+          <span class="t" style="color:var(--warn-ink)">⚠ 未在模板中使用</span>
+        </div>
+      </div>
+
+      <!-- 选中元素属性 -->
+      <div class="r-section">
+        <div class="r-title">属性 · 已选 1 个</div>
+        <div class="prop-row">
+          <span class="prop-label">类型</span>
+          <span class="prop-val mono">field</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-label">绑定</span>
+          <span class="prop-val mono">tihuoDanwei ▾</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-label">位置 (格)</span>
+          <span class="prop-val mono">34, 15</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-label">尺寸 (格)</span>
+          <span class="prop-val mono">40 × 4</span>
+        </div>
+        <div class="prop-row">
+          <span class="prop-label">字号</span>
+          <input class="prop-input mono" value="12">
+        </div>
+        <div class="prop-row">
+          <span class="prop-label">对齐</span>
+          <span class="seg">
+            <button class="seg-btn">⫷</button>
+            <button class="seg-btn is-on">⫶</button>
+            <button class="seg-btn">⫸</button>
+          </span>
+        </div>
+
+        <!-- 边框 4 方向 -->
+        <div class="prop-block">
+          <div class="prop-block-title">边框 <span class="hint-x">点方向切换显隐</span></div>
+          <div class="border-pad">
+            <div class="bp-cell bp-t" title="上边">上</div>
+            <div class="bp-cell bp-l" title="左边">左</div>
+            <div class="bp-center">elem</div>
+            <div class="bp-cell bp-r" title="右边">右</div>
+            <div class="bp-cell bp-b is-on" title="下边（已开启）">下 ✓</div>
+          </div>
+          <div class="bp-style">
+            <select title="粗细"><option>1.5 px</option><option>1 px</option><option>2 px</option></select>
+            <select title="样式"><option>实线</option><option>虚线</option><option>点线</option></select>
+            <input type="color" value="#1f2328" title="颜色" style="height: 22px; padding: 0;">
+          </div>
+        </div>
+
+        <!-- 内边距 -->
+        <div class="prop-block">
+          <div class="prop-block-title">内边距 <span class="hint-x">px</span></div>
+          <div class="pad-grid">
+            <label>上 <input value="0"></label>
+            <label>右 <input value="4"></label>
+            <label>下 <input value="2"></label>
+            <label>左 <input value="4"></label>
+          </div>
+        </div>
+
+        <div class="prop-row">
+          <span class="prop-label">缺省值</span>
+          <input class="prop-input" value="—" style="text-align:left">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 提示气泡 -->
+  <div class="hint" id="hint"></div>
+
+  <!-- 图例 -->
+  <div class="legend">
+    <strong style="color:var(--ink)">操作说明</strong>
+    <ul>
+      <li><strong>没有独立"线条"元素</strong> — 出门证里的所有横线都是字段元素自己的 <kbd>border-bottom</kbd>。下划线由"字段"承载，跟字段一起移动、一起对齐。</li>
+      <li><strong>右栏新增"边框"控件</strong>：田字格形状的 4 方向切换（上/右/下/左独立显隐）+ 粗细 / 样式 / 颜色。点上面的"上 / 左 / 右"试试 → 画布上的"提货单位"元素对应方向就出边框了。</li>
+      <li><strong>内边距</strong>：4 个 px 数字输入，控制元素内容到自身边框的距离。</li>
+      <li><strong>移动元素</strong>：顶部 <kbd>⠿</kbd> grip 按钮（飞书仪表盘风）拖动。<strong>调整尺寸</strong>：4 条边 + 4 个角的 hit-zone。<strong>编辑内容</strong>：中心单击。</li>
+      <li><strong>栅格默认隐藏</strong>，点 Header <kbd>⊞ 模拟拖拽</kbd> 或 hover grip 按钮才淡入。</li>
+      <li>选中态改用 <kbd>outline</kbd>（不覆盖元素自己的 border 配置）。</li>
+    </ul>
+  </div>
+
+  <div class="choose">
+    <h2>看完跟我说</h2>
+    <p>1) 去掉"线条元素"、改由每个元素自带 4 方向 border + 内边距 的方案是否 OK；2) 右栏"边框田字格"的交互方式合不合直觉（点过去试一下）；3) 还有没有其它要调整的。</p>
+  </div>
+</div>
+
+<script>
+  // hover 提示气泡（hit-zone + grip 都有 data-hint）
+  const hint = document.getElementById('hint');
+  document.querySelectorAll('[data-hint]').forEach(el => {
+    el.addEventListener('mouseenter', (e) => {
+      hint.textContent = el.dataset.hint;
+      hint.classList.add('is-on');
+    });
+    el.addEventListener('mousemove', (e) => {
+      hint.style.left = e.clientX + 'px';
+      hint.style.top  = e.clientY + 'px';
+    });
+    el.addEventListener('mouseleave', () => {
+      hint.classList.remove('is-on');
+    });
+  });
+
+  // 模拟"拖拽中"切换 — 让栅格淡入/淡出
+  const canvas = document.getElementById('canvas');
+  const toggleBtn = document.getElementById('toggleGrid');
+  toggleBtn.addEventListener('click', () => {
+    canvas.classList.toggle('is-dragging');
+    toggleBtn.classList.toggle('is-primary');
+    toggleBtn.textContent = canvas.classList.contains('is-dragging')
+      ? '⊞ 拖拽中 · 栅格已显示'
+      : '⊞ 模拟拖拽';
+  });
+
+  // grip hover 时也让画布短暂"显示栅格"，更真实
+  const grip = document.querySelector('.grip');
+  if (grip) {
+    grip.addEventListener('mouseenter', () => canvas.classList.add('is-dragging'));
+    grip.addEventListener('mouseleave', () => {
+      if (!toggleBtn.classList.contains('is-primary')) {
+        canvas.classList.remove('is-dragging');
+      }
+    });
+  }
+
+  // 边框 4 方向切换：点击 + 同步到画布"提货单位"元素
+  const sel = document.getElementById('sel');
+  document.querySelectorAll('.bp-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      cell.classList.toggle('is-on');
+      const cls = [...cell.classList].find(c => c.startsWith('bp-'));
+      const cssProp = ({
+        'bp-t': 'borderTop', 'bp-r': 'borderRight',
+        'bp-b': 'borderBottom', 'bp-l': 'borderLeft'
+      })[cls];
+      if (!cssProp) return;
+      if (cell.classList.contains('is-on')) {
+        sel.style[cssProp] = '1.5px solid #1f2328';
+        cell.textContent = cell.textContent.includes('✓')
+          ? cell.textContent
+          : cell.textContent.trim() + ' ✓';
+      } else {
+        sel.style[cssProp] = '';
+        cell.textContent = cell.textContent.replace(/ ✓$/, '').trim();
+      }
+    });
+  });
+</script>
+</body>
+</html>

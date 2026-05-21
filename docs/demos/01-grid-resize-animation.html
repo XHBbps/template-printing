@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>01 · 画布与格子尺寸切换动画 — 方案对比</title>
+<style>
+  /* ---------- 设计 Token：参考 html-effectiveness-cn 极简风 ---------- */
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #fafafa;
+    --ink: #1f2328;
+    --ink-soft: #57606a;
+    --ink-faint: #8b949e;
+    --line: #e6e8eb;
+    --line-strong: #d0d7de;
+    --accent: #0969da;
+    --accent-soft: #ddf4ff;
+    --canvas-cell: #eef1f4;
+    --canvas-cell-strong: #d0d7de;
+    --elem-bg: #ffffff;
+    --elem-border: #0969da;
+    --elem-fill: #ddf4ff;
+    --radius: 6px;
+    --shadow-faint: 0 1px 0 rgba(31,35,40,0.04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica,
+                 Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  /* ---------- 容器 ---------- */
+  main { max-width: 920px; margin: 0 auto; padding: 64px 32px 96px; }
+
+  /* ---------- 头部 ---------- */
+  .doc-eyebrow {
+    color: var(--ink-faint);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    letter-spacing: -0.01em;
+  }
+  .doc-lead {
+    color: var(--ink-soft);
+    font-size: 16px;
+    margin: 0 0 8px 0;
+  }
+  .doc-meta {
+    color: var(--ink-faint);
+    font-size: 13px;
+    margin-bottom: 56px;
+  }
+
+  /* ---------- 横线分隔 ---------- */
+  .hr {
+    color: var(--ink-faint);
+    margin: 56px 0 32px 0;
+    letter-spacing: 0.4em;
+    user-select: none;
+  }
+
+  /* ---------- 章节 ---------- */
+  section { margin-bottom: 24px; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .sec-num {
+    font-family: ui-monospace, "SF Mono", monospace;
+    color: var(--ink-faint);
+    font-size: 14px;
+    font-weight: 500;
+    min-width: 24px;
+  }
+  .sec-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.005em;
+  }
+  .sec-desc {
+    color: var(--ink-soft);
+    margin: 4px 0 20px 40px;
+    font-size: 14px;
+  }
+  .sec-desc code {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+
+  /* ---------- 控制条 ---------- */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px 40px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .control-label {
+    color: var(--ink-faint);
+    margin-right: 4px;
+  }
+  .btn {
+    appearance: none;
+    border: 1px solid var(--line-strong);
+    background: var(--bg);
+    color: var(--ink);
+    padding: 4px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .btn:hover { background: var(--bg-soft); border-color: var(--ink-soft); }
+  .btn.is-active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ---------- 画布外框 ---------- */
+  .stage {
+    margin: 0 0 8px 40px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 360px;
+    overflow: hidden;
+  }
+  .canvas {
+    position: relative;
+    background: var(--bg);
+    /* 栅格用 background 实现，方便切换时一并 transition */
+    background-image:
+      linear-gradient(to right, var(--canvas-cell) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--canvas-cell) 1px, transparent 1px);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--shadow-faint);
+  }
+  .elem {
+    position: absolute;
+    background: var(--elem-fill);
+    border: 1px solid var(--elem-border);
+    border-radius: 4px;
+    color: var(--accent);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  /* ---------- 方案 A：整体淡入淡出 ---------- */
+  .demo-a .canvas { transition: opacity 220ms ease; }
+  .demo-a.is-switching .canvas { opacity: 0; }
+
+  /* ---------- 方案 B：平滑形变 (size + 元素同步) ---------- */
+  .demo-b .canvas {
+    transition:
+      width 420ms cubic-bezier(.4,0,.2,1),
+      height 420ms cubic-bezier(.4,0,.2,1),
+      background-size 420ms cubic-bezier(.4,0,.2,1);
+  }
+  .demo-b .elem {
+    transition:
+      left 420ms cubic-bezier(.4,0,.2,1),
+      top  420ms cubic-bezier(.4,0,.2,1),
+      width 420ms cubic-bezier(.4,0,.2,1),
+      height 420ms cubic-bezier(.4,0,.2,1);
+  }
+
+  /* ---------- 方案 C：栅格先褪色 → 形变 → 栅格再淡入 ---------- */
+  .demo-c .canvas {
+    transition:
+      width 360ms cubic-bezier(.4,0,.2,1),
+      height 360ms cubic-bezier(.4,0,.2,1),
+      background-image 0ms;
+  }
+  .demo-c .elem {
+    transition:
+      left 360ms cubic-bezier(.4,0,.2,1),
+      top  360ms cubic-bezier(.4,0,.2,1),
+      width 360ms cubic-bezier(.4,0,.2,1),
+      height 360ms cubic-bezier(.4,0,.2,1);
+  }
+  .demo-c.is-switching .canvas {
+    background-image:
+      linear-gradient(to right, transparent 1px, transparent 1px),
+      linear-gradient(to bottom, transparent 1px, transparent 1px);
+  }
+
+  /* ---------- 评价区 ---------- */
+  .pros {
+    margin: 0 0 0 40px;
+    color: var(--ink-soft);
+    font-size: 13px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .pros span::before {
+    content: "→ ";
+    color: var(--ink-faint);
+    margin-right: 2px;
+  }
+
+  /* ---------- 选择区 ---------- */
+  .choose {
+    margin-top: 56px;
+    padding: 20px 24px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .choose h2 {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .choose p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+  .choose code {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="doc-eyebrow">Demo · 模板打印平台 · 设计确认</div>
+  <h1>画布与格子尺寸切换的动画方案</h1>
+  <p class="doc-lead">用户调整 <code class="mono">cell size</code> 或画布尺寸时，三种过渡效果对比。请挑一个，或告诉我要不要混搭。</p>
+  <p class="doc-meta">每个 demo 下方点击三档格子尺寸 <span class="mono">12 / 18 / 24px</span> 即可触发动画。</p>
+
+  <!-- ========== 方案 A ========== -->
+  <div class="hr">— — —</div>
+  <section class="demo demo-a" data-demo="a">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2 class="sec-title">方案 A · 整体淡出 → 重排 → 淡入</h2>
+    </div>
+    <p class="sec-desc">画布整体 <code>opacity</code> 降到 0，瞬间完成尺寸/格子变更，再淡入。最稳的"看不到中间状态"路线。</p>
+
+    <div class="controls">
+      <span class="control-label">cell size</span>
+      <button class="btn" data-cell="12">12 px</button>
+      <button class="btn is-active" data-cell="18">18 px</button>
+      <button class="btn" data-cell="24">24 px</button>
+    </div>
+
+    <div class="stage">
+      <div class="canvas"></div>
+    </div>
+
+    <div class="pros">
+      <span>实现简单</span>
+      <span>看不到错位</span>
+      <span>缺点：切换有"中断感"，节奏稍慢</span>
+    </div>
+  </section>
+
+  <!-- ========== 方案 B ========== -->
+  <div class="hr">— — —</div>
+  <section class="demo demo-b" data-demo="b">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2 class="sec-title">方案 B · 画布与元素同步平滑形变</h2>
+    </div>
+    <p class="sec-desc">画布的 <code>width/height/background-size</code> 与每个元素的 <code>left/top/width/height</code> 用同一条 ease 曲线一起动。最有"活物"感。</p>
+
+    <div class="controls">
+      <span class="control-label">cell size</span>
+      <button class="btn" data-cell="12">12 px</button>
+      <button class="btn is-active" data-cell="18">18 px</button>
+      <button class="btn" data-cell="24">24 px</button>
+    </div>
+
+    <div class="stage">
+      <div class="canvas"></div>
+    </div>
+
+    <div class="pros">
+      <span>视觉最自然</span>
+      <span>用户能"看懂"格子变了</span>
+      <span>缺点：元素多时性能压力大；过程中可能短暂越界</span>
+    </div>
+  </section>
+
+  <!-- ========== 方案 C ========== -->
+  <div class="hr">— — —</div>
+  <section class="demo demo-c" data-demo="c">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2 class="sec-title">方案 C · 栅格隐去 → 形变 → 栅格回来（推荐）</h2>
+    </div>
+    <p class="sec-desc">先把栅格线淡掉（视觉噪音降低），画布与元素平滑形变，结束再让新栅格淡入。兼具 A 的克制 + B 的连续。</p>
+
+    <div class="controls">
+      <span class="control-label">cell size</span>
+      <button class="btn" data-cell="12">12 px</button>
+      <button class="btn is-active" data-cell="18">18 px</button>
+      <button class="btn" data-cell="24">24 px</button>
+    </div>
+
+    <div class="stage">
+      <div class="canvas"></div>
+    </div>
+
+    <div class="pros">
+      <span>切换观感最克制</span>
+      <span>视线聚焦在元素上</span>
+      <span>缺点：实现略复杂，时序要调好</span>
+    </div>
+  </section>
+
+  <!-- ========== 选择区 ========== -->
+  <div class="choose">
+    <h2>你想用哪个？</h2>
+    <p>告诉我 <code>A</code> / <code>B</code> / <code>C</code>，或描述一个混搭（例如"用 C 但动画时长再短一点"）。</p>
+  </div>
+</main>
+
+<script>
+  // ---------- 元素布局（按"格子数"声明，与具体 cell size 解耦） ----------
+  // 单位都是"格子数"
+  const ELEMENTS = [
+    { col:  2, row:  1, w: 16, h: 2, label: "扬力集团股份有限公司 · 出门证" },
+    { col:  2, row:  4, w:  4, h: 2, label: "提货单位" },
+    { col:  7, row:  4, w: 11, h: 2, label: "{{ 提货单位 }}" },
+    { col:  2, row:  7, w:  4, h: 2, label: "品名" },
+    { col:  7, row:  7, w: 11, h: 2, label: "{{ 品名 }}" },
+    { col:  2, row: 10, w:  4, h: 2, label: "数量" },
+    { col:  7, row: 10, w:  5, h: 2, label: "{{ 数量 }}" },
+    { col: 13, row: 10, w:  5, h: 2, label: "{{ 件重 }}" },
+    { col:  2, row: 13, w: 16, h: 2, label: "出公司日期：{{ date }}" },
+  ];
+
+  // 画布大小：固定"格子数"，cell 一变，像素一变（这才是用户要看的动画）
+  const CANVAS_COLS = 20;
+  const CANVAS_ROWS = 16;
+
+  function render(demo, cell) {
+    const canvas = demo.querySelector('.canvas');
+    canvas.style.width  = (CANVAS_COLS * cell) + 'px';
+    canvas.style.height = (CANVAS_ROWS * cell) + 'px';
+    canvas.style.backgroundSize = `${cell}px ${cell}px`;
+
+    // 元素：第一次创建，之后更新
+    let nodes = canvas.querySelectorAll('.elem');
+    if (nodes.length === 0) {
+      ELEMENTS.forEach(e => {
+        const n = document.createElement('div');
+        n.className = 'elem';
+        n.textContent = e.label;
+        canvas.appendChild(n);
+      });
+      nodes = canvas.querySelectorAll('.elem');
+    }
+    nodes.forEach((n, i) => {
+      const e = ELEMENTS[i];
+      n.style.left   = (e.col * cell) + 'px';
+      n.style.top    = (e.row * cell) + 'px';
+      n.style.width  = (e.w   * cell) + 'px';
+      n.style.height = (e.h   * cell) + 'px';
+      n.style.fontSize = Math.max(10, Math.round(cell * 0.65)) + 'px';
+    });
+  }
+
+  function switchCell(demo, newCell, kind) {
+    if (kind === 'a') {
+      // 整体淡出 → 切换 → 淡入
+      demo.classList.add('is-switching');
+      setTimeout(() => {
+        render(demo, newCell);
+        demo.classList.remove('is-switching');
+      }, 230);
+    } else if (kind === 'b') {
+      // 直接切换，CSS transition 自然处理
+      render(demo, newCell);
+    } else if (kind === 'c') {
+      // 栅格淡出 → 形变 → 栅格回来
+      demo.classList.add('is-switching');
+      render(demo, newCell);
+      setTimeout(() => {
+        demo.classList.remove('is-switching');
+      }, 380);
+    }
+  }
+
+  // ---------- 初始化 + 绑定 ----------
+  document.querySelectorAll('.demo').forEach(demo => {
+    const kind = demo.dataset.demo;
+    const initial = parseInt(demo.querySelector('.btn.is-active').dataset.cell, 10);
+    render(demo, initial);
+
+    demo.querySelectorAll('.controls .btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        demo.querySelectorAll('.controls .btn').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+        switchCell(demo, parseInt(btn.dataset.cell, 10), kind);
+      });
+    });
+  });
+</script>
+</body>
+</html>
