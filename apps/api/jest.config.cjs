@@ -8,5 +8,6 @@ module.exports = {
   moduleNameMapper: {
     '^@template-printing/types$': '<rootDir>/../../packages/types/src/index.ts',
     '^@template-printing/schema$': '<rootDir>/../../packages/schema/src/index.ts',
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
 };
