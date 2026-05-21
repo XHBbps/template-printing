@@ -1,11 +1,16 @@
 import { describe, it, expect } from '@jest/globals';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 // eslint-disable-next-line import/no-unresolved
 import { CsrfGuard } from '../src/auth/guards/csrf.guard.js';
 
 describe('CsrfGuard', () => {
-  const guard = new CsrfGuard();
+  // Reflector returning undefined → no @Public on the handler.
+  const reflector = {
+    getAllAndOverride: (): boolean | undefined => undefined,
+  } as unknown as Reflector;
+  const guard = new CsrfGuard(reflector);
 
   function mockCtx(
     method: string,
@@ -15,6 +20,8 @@ describe('CsrfGuard', () => {
     const req: Record<string, unknown> = { method, headers, user };
     return {
       switchToHttp: () => ({ getRequest: () => req }),
+      getHandler: () => undefined,
+      getClass: () => undefined,
     } as unknown as ExecutionContext;
   }
 
