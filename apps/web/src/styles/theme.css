@@ -1,0 +1,42 @@
+/* 飞书风调色板 (Lark inspired). Apply by importing in main.ts AFTER element-plus styles. */
+:root {
+  --el-color-primary: #3370ff;
+  --el-color-primary-light-3: #688aff;
+  --el-color-primary-light-5: #94a8ff;
+  --el-color-primary-light-7: #c0c7ff;
+  --el-color-primary-light-8: #d5dcff;
+  --el-color-primary-light-9: #eaedff;
+  --el-color-primary-dark-2: #2954cc;
+
+  --el-color-success: #00a870;
+  --el-color-warning: #ff8800;
+  --el-color-danger: #f54a45;
+  --el-color-info: #6b7785;
+
+  --el-text-color-primary: #1f2329;
+  --el-text-color-regular: #4e5969;
+  --el-text-color-secondary: #86909c;
+  --el-text-color-placeholder: #c9cdd4;
+
+  --el-border-color: #e5e6eb;
+  --el-border-color-light: #f0f1f5;
+  --el-border-color-lighter: #f7f8fa;
+
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f7f8fa;
+
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: 20px;
+
+  --el-font-family:
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--el-font-family);
+  background: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+  -webkit-font-smoothing: antialiased;
+}

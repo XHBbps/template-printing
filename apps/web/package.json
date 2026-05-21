@@ -12,9 +12,11 @@
     "test": "echo 'no tests yet' && exit 0"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "2.3.1",
+    "@template-printing/schema": "workspace:*",
     "@template-printing/template-renderer": "workspace:*",
     "@template-printing/types": "workspace:*",
-    "@template-printing/schema": "workspace:*",
+    "element-plus": "2.7.7",
     "pinia": "2.1.7",
     "vue": "3.4.27",
     "vue-router": "4.4.0"
