@@ -1,0 +1,26 @@
+{
+  "name": "@template-printing/render",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@template-printing/types": "workspace:*",
+    "bullmq": "5.10.4",
+    "ioredis": "5.4.1",
+    "puppeteer": "22.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "tsx": "4.16.2",
+    "typescript": "5.4.5",
+    "vitest": "1.6.0"
+  }
+}

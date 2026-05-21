@@ -1,0 +1,31 @@
+{
+  "name": "@template-printing/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "echo 'no tests yet' && exit 0"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "2.3.1",
+    "@template-printing/schema": "workspace:*",
+    "@template-printing/template-renderer": "workspace:*",
+    "@template-printing/types": "workspace:*",
+    "element-plus": "2.7.7",
+    "pinia": "2.1.7",
+    "vue": "3.4.27",
+    "vue-router": "4.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "5.0.5",
+    "@vue/tsconfig": "0.5.1",
+    "typescript": "5.4.5",
+    "vite": "5.3.3",
+    "vue-tsc": "2.0.19"
+  }
+}

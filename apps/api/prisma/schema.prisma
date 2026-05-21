@@ -1,0 +1,44 @@
+// This is the minimal schema for Plan 0. Business tables added in Plans 1+.
+// Spec reference: § 8.5
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Foundational user table — full fields added in Plan 1
+model User {
+  id            String    @id @default(uuid())
+  larkOpenId    String?   @unique @map("lark_open_id")
+  larkUnionId   String?   @map("lark_union_id")
+  larkUserId    String?   @map("lark_user_id")
+  name          String?
+  email         String?
+  avatarUrl     String?   @map("avatar_url")
+  role          String    @default("user") // admin | user | emergency_admin
+  localUsername String?   @unique @map("local_username")
+  localPasswordHash String? @map("local_password_hash")
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
