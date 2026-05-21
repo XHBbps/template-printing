@@ -1,10 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 
 // eslint-disable-next-line import/no-unresolved
 import { AuthModule } from './auth/auth.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { pinoConfig } from './common/logger.js';
+// eslint-disable-next-line import/no-unresolved
+import { SecurityHeadersMiddleware } from './common/security-headers.middleware.js';
 // eslint-disable-next-line import/no-unresolved
 import { HealthModule } from './health/health.module.js';
 // eslint-disable-next-line import/no-unresolved
@@ -18,4 +20,8 @@ import { PrismaModule } from './prisma/prisma.module.js';
     AuthModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(SecurityHeadersMiddleware).forRoutes('*');
+  }
+}
