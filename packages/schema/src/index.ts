@@ -20,3 +20,6 @@ export const ApiErrorSchema = z.object({
   }),
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
+
+// eslint-disable-next-line import/no-unresolved
+export * from './template.js';
