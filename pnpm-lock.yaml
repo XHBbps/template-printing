@@ -39,6 +39,8 @@ importers:
         specifier: 5.4.5
         version: 5.4.5
 
+  packages/types: {}
+
 packages:
 
   '@eslint-community/eslint-utils@4.9.1':
