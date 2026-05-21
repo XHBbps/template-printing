@@ -18,6 +18,12 @@ ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
+# Use Aliyun mirror for apt to ensure reliable access from China.
+# Switch back to Debian default mirrors in non-China deployments by overriding APT_MIRROR.
+ARG APT_MIRROR=mirrors.aliyun.com
+RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g; s|security.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
+    || sed -i "s|deb.debian.org|${APT_MIRROR}|g; s|security.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list
+
 # Install Chromium + 思源黑体 / 思源宋体 + fontconfig
 RUN apt-get update && apt-get install -y --no-install-recommends \
       chromium \
