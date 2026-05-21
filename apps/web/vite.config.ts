@@ -1,7 +1,13 @@
 import { fileURLToPath, URL } from 'node:url';
 
+// eslint-disable-next-line import/no-unresolved
 import vue from '@vitejs/plugin-vue';
+// eslint-disable-next-line import/no-unresolved
 import { defineConfig } from 'vite';
+
+// Proxy target: defaults to host-side localhost (works when running `pnpm dev` on host).
+// Override via VITE_API_PROXY env var so docker-compose can point to the api container hostname.
+const apiTarget = process.env.VITE_API_PROXY ?? 'http://localhost:3000';
 
 export default defineConfig({
   plugins: [vue()],
@@ -11,11 +17,13 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: apiTarget,
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

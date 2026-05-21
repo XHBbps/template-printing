@@ -50,6 +50,8 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile.dev
+    environment:
+      VITE_API_PROXY: http://api:3000
     volumes:
       - ./:/workspace
       - /workspace/node_modules
