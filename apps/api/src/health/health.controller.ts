@@ -1,6 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 
+// eslint-disable-next-line import/no-unresolved
+import { Public } from '../auth/decorators/public.decorator.js';
+
 @Controller('healthz')
+@Public()
 export class HealthController {
   private readonly startedAt = Date.now();
 
