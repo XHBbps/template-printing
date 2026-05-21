@@ -6,21 +6,18 @@ import { useAuthStore } from '../stores/auth';
 
 const route = useRoute();
 const router = useRouter();
-const auth = useAuthStore();
+const authStore = useAuthStore();
 
 onMounted(async () => {
   const csrf = route.query.csrf as string | undefined;
-  if (csrf) {
-    auth.csrf = csrf;
-    await auth.hydrate();
-    await router.replace({ path: route.path, query: { ...route.query, csrf: undefined } });
-  }
+  if (csrf) authStore.csrf = csrf;
+  await authStore.hydrate();
+  await router.replace({ path: route.path, query: { ...route.query, csrf: undefined } });
 });
 </script>
 
 <template>
   <main style="padding: 32px">
-    <h1>欢迎回来{{ auth.user?.name ? `, ${auth.user.name}` : '' }}</h1>
-    <p>设计器 + 模板中心将在 Plan 2 + Plan 3 中实现。</p>
+    <p>正在登录...</p>
   </main>
 </template>
