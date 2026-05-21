@@ -15,13 +15,14 @@ import type { Request, Response } from 'express';
 import { CurrentUser } from '../decorators/current-user.decorator.js';
 // eslint-disable-next-line import/no-unresolved
 import { Public } from '../decorators/public.decorator.js';
-// eslint-disable-next-line import/no-unresolved
+/* eslint-disable import/no-unresolved */
 import {
   REFRESH_COOKIE,
   clearAuthCookies,
   setAuthCookies,
   type CookieEnv,
 } from '../jwt/jwt-cookie.helper.js';
+/* eslint-enable import/no-unresolved */
 // eslint-disable-next-line import/no-unresolved
 import { JwtAuthService, type JwtClaims } from '../jwt/jwt.service.js';
 // eslint-disable-next-line import/no-unresolved
