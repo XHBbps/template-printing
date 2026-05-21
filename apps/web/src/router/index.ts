@@ -18,6 +18,18 @@ const router = createRouter({
       component: () => import('../views/LoginView.vue'),
     },
     {
+      path: '/designer/new',
+      name: 'designer-new',
+      meta: { requiresAuth: true },
+      component: () => import('../views/DesignerView.vue'),
+    },
+    {
+      path: '/designer/:id',
+      name: 'designer-edit',
+      meta: { requiresAuth: true },
+      component: () => import('../views/DesignerView.vue'),
+    },
+    {
       path: '/login/callback',
       name: 'login-callback',
       meta: { requiresAuth: false },
