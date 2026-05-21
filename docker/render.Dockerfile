@@ -4,6 +4,7 @@
 FROM node:20-bookworm-slim AS build
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY apps/render/package.json ./apps/render/
 COPY packages/types/package.json ./packages/types/
