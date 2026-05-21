@@ -8,7 +8,7 @@
     "start": "node dist/src/main.js",
     "lint": "eslint src test",
     "test": "jest --config jest.config.cjs",
-    "test:e2e": "jest --config jest.config.cjs --testRegex '.e2e.spec.ts$'",
+    "test:e2e": "jest --config jest.config.cjs --testRegex \"\\.e2e\\.spec\\.ts$\"",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",

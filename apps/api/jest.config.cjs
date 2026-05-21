@@ -3,7 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   rootDir: '.',
   roots: ['<rootDir>/src', '<rootDir>/test'],
-  testMatch: ['**/*.spec.ts'],
+  testRegex: '\\.spec\\.ts$',
   moduleFileExtensions: ['ts', 'tsx', 'js'],
   moduleNameMapper: {
     '^@template-printing/types$': '<rootDir>/../../packages/types/src/index.ts',
