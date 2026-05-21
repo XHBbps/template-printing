@@ -1,0 +1,106 @@
+.designer-root {
+  --header-h: 48px;
+  --left-w: 88px;
+  --right-w: 300px;
+  --bg-canvas: #f0f2f5;
+  --grid-line: #eef1f4;
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr;
+  grid-template-columns: var(--left-w) 1fr var(--right-w);
+  grid-template-areas:
+    'header header header'
+    'left   middle right';
+  height: 100vh;
+  background: var(--el-bg-color);
+}
+
+.designer-header {
+  grid-area: header;
+  border-bottom: 1px solid var(--el-border-color);
+}
+.designer-left {
+  grid-area: left;
+  border-right: 1px solid var(--el-border-color);
+  background: #fafafa;
+  overflow-y: auto;
+}
+.designer-middle {
+  grid-area: middle;
+  background: var(--bg-canvas);
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.designer-right {
+  grid-area: right;
+  border-left: 1px solid var(--el-border-color);
+  overflow-y: auto;
+}
+
+.designer-paper {
+  position: relative;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(31, 35, 40, 0.04);
+}
+.designer-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--cell-w) var(--cell-h);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.designer-paper.is-dragging::before {
+  opacity: 1;
+}
+
+.designer-paper {
+  transition:
+    width 360ms cubic-bezier(0.4, 0, 0.2, 1),
+    height 360ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.designer-paper .tp-element {
+  transition:
+    left 360ms cubic-bezier(0.4, 0, 0.2, 1),
+    top 360ms cubic-bezier(0.4, 0, 0.2, 1),
+    width 360ms cubic-bezier(0.4, 0, 0.2, 1),
+    height 360ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.designer-paper.heavy .tp-element {
+  transition: none !important;
+}
+
+@media print {
+  .designer-header,
+  .designer-left,
+  .designer-right {
+    display: none !important;
+  }
+  .designer-root {
+    display: block;
+    height: auto;
+  }
+  .designer-middle {
+    padding: 0;
+    background: #fff;
+  }
+  .designer-paper::before,
+  .designer-paper::after {
+    display: none !important;
+  }
+  .tp-element.is-selected {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .grip,
+  .hit-zones,
+  .size-badge {
+    display: none !important;
+  }
+}
