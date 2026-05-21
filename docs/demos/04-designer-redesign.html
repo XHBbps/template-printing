@@ -3,31 +3,33 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>04 · Designer 重设计 — 浮卡 / 紫色 / 大圆角</title>
+<title>04 · Designer 重设计（精简版）</title>
 <style>
   /* =========================================================
-     设计 Token（参考图：Linear/Framer 风 + 浮卡 + 紫色 accent）
+     设计 Token
      ========================================================= */
   :root {
-    --bg:           #ECECEF;          /* 整体浅灰底 */
-    --panel:        #FFFFFF;          /* 卡片底 */
-    --canvas-bg:    #F2F2F5;          /* 画布区域底（比 bg 略亮） */
-    --ink:          #1F1F23;          /* 主文字 */
-    --ink-soft:     #5E5E66;          /* 次文字 */
-    --ink-faint:    #9C9CA3;          /* 三级文字 */
-    --line:         #ECECEF;          /* 弱分隔线（几乎隐形） */
+    --bg:           #ECECEF;
+    --panel:        #FFFFFF;
+    --canvas-bg:    #F2F2F5;
+    --ink:          #1F1F23;
+    --ink-soft:     #5E5E66;
+    --ink-faint:    #9C9CA3;
+    --line:         #ECECEF;
     --line-strong:  #E0E0E4;
-    --accent:       #6C5CE7;          /* 主紫色 */
-    --accent-bg:    #F0EEFF;          /* 选中浅紫底 */
-    --accent-ink:   #4F3FCC;          /* 紫色文字 */
+    --accent:       #6C5CE7;
+    --accent-bg:    #F0EEFF;
+    --accent-ink:   #4F3FCC;
     --accent-shadow:0 4px 16px rgba(108,92,231,0.20);
-    --radius-panel: 18px;             /* 卡片大圆角 */
-    --radius-pill:  999px;            /* 胶囊 */
+    --warn-bg:      #FFF7E0;
+    --warn-line:    #F0CC68;
+    --warn-ink:     #8A6500;
+    --radius-panel: 18px;
+    --radius-pill:  999px;
     --radius-btn:   10px;
     --radius-item:  8px;
     --shadow-panel: 0 1px 0 rgba(20,20,30,0.04), 0 4px 12px rgba(20,20,30,0.04), 0 16px 32px rgba(20,20,30,0.06);
     --shadow-pill:  0 1px 0 rgba(20,20,30,0.06), 0 4px 16px rgba(20,20,30,0.08);
-    --shadow-hover: 0 1px 0 rgba(20,20,30,0.04), 0 6px 16px rgba(20,20,30,0.08);
     --field-bg:     rgba(108,92,231,0.06);
   }
 
@@ -46,20 +48,19 @@
   button { font-family: inherit; }
 
   /* =========================================================
-     A) 整页布局 — 左右浮卡 + 中间画布 + 顶部浮动 toolbar
+     A) 整页布局
      ========================================================= */
   .root {
     height: 100vh;
     display: grid;
-    grid-template-rows: 1fr;
-    grid-template-columns: 260px 1fr 320px;
+    grid-template-columns: 260px minmax(0, 1fr) 320px;
     grid-template-areas: "left center right";
-    gap: 16px;
-    padding: 16px;
+    gap: 14px;
+    padding: 14px;
   }
 
   /* =========================================================
-     B) 左侧面板（项目 / 字段 / 元素库 / 搜索 / 底部工具）
+     B) 左侧面板（项目 / 字段 / 画布元素 / 元素库）
      ========================================================= */
   .left {
     grid-area: left;
@@ -68,179 +69,221 @@
     box-shadow: var(--shadow-panel);
     display: flex; flex-direction: column;
     overflow: hidden;
+    min-height: 0;
   }
   .left-head {
-    padding: 14px 16px 12px;
+    padding: 14px 14px;
     display: flex; align-items: center; gap: 10px;
     border-bottom: 1px solid var(--line);
+    min-width: 0;
   }
   .avatar {
+    flex-shrink: 0;
     width: 32px; height: 32px; border-radius: 50%;
     background: linear-gradient(135deg, #FF8B66, #FF6B9D);
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-weight: 700; font-size: 12px;
   }
-  .head-title { font-weight: 700; font-size: 14px; }
-  .head-sub { font-size: 11px; color: var(--ink-faint); }
-  .head-spacer { flex: 1; }
-  .icon-btn {
-    width: 28px; height: 28px;
-    background: transparent; border: none; border-radius: 6px;
-    cursor: pointer; color: var(--ink-soft);
-    display: inline-flex; align-items: center; justify-content: center;
+  .left-head-text { min-width: 0; flex: 1; }
+  .head-title {
+    font-weight: 700; font-size: 14px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .icon-btn:hover { background: var(--field-bg); color: var(--accent); }
+  .head-sub {
+    font-size: 11px; color: var(--ink-faint);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
 
-  .left-body { flex: 1; overflow-y: auto; padding: 12px 8px; }
-
-  /* 选中 + hover 状态 */
-  .nav-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px;
-    border-radius: var(--radius-item);
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--ink);
-    margin-bottom: 2px;
-    transition: background 120ms ease, color 120ms ease;
-  }
-  .nav-item:hover { background: var(--field-bg); }
-  .nav-item.is-active {
-    background: var(--accent-bg);
-    color: var(--accent-ink);
-    font-weight: 600;
-  }
-  .nav-item.is-active .nav-icon { color: var(--accent); }
-  .nav-icon {
-    width: 18px; height: 18px;
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--ink-soft);
-    font-family: ui-monospace, monospace;
-    font-weight: 600;
-  }
-  .nav-glyph { font-size: 13px; }
-  .nav-label { flex: 1; }
-  .nav-arrow { color: var(--ink-faint); font-size: 14px; }
+  .left-body { flex: 1; overflow-y: auto; padding: 8px 8px 14px; min-height: 0; }
 
   /* 分组小标题 */
   .group-title {
-    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
     color: var(--ink-faint); font-weight: 600;
-    padding: 12px 12px 6px;
+    padding: 14px 10px 6px;
     display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
   }
   .group-add {
-    width: 18px; height: 18px; border-radius: 4px;
+    flex-shrink: 0;
+    width: 20px; height: 20px; border-radius: 5px;
     background: transparent; border: none; cursor: pointer;
-    color: var(--ink-faint); font-size: 14px;
+    color: var(--ink-faint); font-size: 14px; line-height: 1;
     display: inline-flex; align-items: center; justify-content: center;
   }
   .group-add:hover { color: var(--accent); background: var(--field-bg); }
 
-  /* 元素卡（缩进） */
-  .sub-list { padding-left: 10px; }
-  .sub-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 10px; border-radius: 6px;
-    cursor: pointer; color: var(--ink); font-size: 12px;
-    margin-bottom: 1px;
+  /* 字段卡片 */
+  .field-card {
+    margin: 0 4px 4px;
+    padding: 8px 10px;
+    border-radius: var(--radius-item);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
   }
-  .sub-item:hover { background: var(--field-bg); }
-  .sub-item .sub-glyph {
-    width: 20px; height: 20px; border-radius: 5px;
-    background: rgba(108,92,231,0.08);
+  .field-card:hover { border-color: var(--line-strong); background: #FAFAFB; }
+  .field-card.unused {
+    background: var(--warn-bg); border-color: var(--warn-line);
+  }
+  .fc-row1 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .fc-k {
+    font-family: ui-monospace, monospace;
+    font-weight: 600; font-size: 12px; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex-shrink: 1; min-width: 0;
+  }
+  .fc-l {
+    color: var(--ink-faint); font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+  .fc-meta {
+    display: flex; gap: 6px; font-size: 10.5px; color: var(--ink-faint);
+    margin-top: 3px;
+  }
+  .fc-required { color: var(--accent); }
+  .fc-warn { color: var(--warn-ink); }
+
+  /* 画布元素列表 */
+  .elem-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius-item);
+    cursor: pointer;
+    color: var(--ink); font-size: 12.5px;
+    margin: 0 4px 2px;
+  }
+  .elem-row:hover { background: var(--field-bg); }
+  .elem-row.is-active {
+    background: var(--accent-bg);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .elem-row.is-active .elem-icon {
+    background: var(--accent); color: #fff;
+  }
+  .elem-icon {
+    flex-shrink: 0;
+    width: 22px; height: 22px; border-radius: 5px;
+    background: var(--field-bg); color: var(--accent);
     display: inline-flex; align-items: center; justify-content: center;
     font-family: ui-monospace, monospace; font-weight: 600; font-size: 11px;
-    color: var(--accent);
   }
-  .sub-item.muted { color: var(--ink-faint); }
-  .sub-eye {
-    width: 16px; height: 16px; opacity: 0.5;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 12px;
+  .elem-row-label {
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .sub-eye.locked { opacity: 1; color: var(--ink-faint); }
+  .elem-row-vis {
+    flex-shrink: 0;
+    width: 18px; height: 18px;
+    color: var(--ink-faint); font-size: 12px; opacity: 0.6;
+  }
+  .elem-row:hover .elem-row-vis { opacity: 1; }
 
-  /* 底部搜索 + 工具 */
-  .left-search {
-    padding: 8px 12px;
-    border-top: 1px solid var(--line);
+  /* 元素库（4 列网格） */
+  .lib-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 4px 4px 8px;
   }
-  .search-box {
-    display: flex; align-items: center; gap: 6px;
-    background: var(--bg);
-    border-radius: 8px;
-    padding: 6px 10px;
-    color: var(--ink-faint); font-size: 12px;
+  .lib-btn {
+    padding: 10px 4px;
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-item);
+    cursor: grab;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    transition: all 120ms ease;
+    user-select: none;
   }
-  .search-box input {
-    flex: 1; background: transparent; border: none; outline: none;
-    font: inherit; color: var(--ink);
+  .lib-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(108,92,231,0.12);
   }
-  .search-box .kbd {
-    background: #fff; border: 1px solid var(--line-strong);
-    padding: 0 5px; font-size: 10px; border-radius: 4px; color: var(--ink-faint);
+  .lib-btn:active { cursor: grabbing; transform: none; }
+  .lib-glyph {
+    font-family: ui-monospace, monospace; font-weight: 700; font-size: 14px;
   }
-  .left-foot {
-    padding: 8px; border-top: 1px solid var(--line);
-    display: flex; gap: 2px;
-  }
-  .left-foot .icon-btn { flex: 1; height: 32px; }
 
   /* =========================================================
-     C) 中间画布 + 顶部 + 底部浮动 toolbar
+     C) 中间画布 + 顶部 toolbar
      ========================================================= */
   .center {
-    grid-area: center; position: relative;
+    grid-area: center;
+    position: relative;
     background: var(--canvas-bg);
     border-radius: var(--radius-panel);
     overflow: hidden;
     box-shadow: var(--shadow-panel);
+    min-width: 0;
   }
-  /* 顶部浮动 toolbar（pill 胶囊） */
   .top-toolbar {
-    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
     background: var(--panel);
     border-radius: var(--radius-pill);
     box-shadow: var(--shadow-pill);
-    padding: 6px;
-    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px;
+    display: inline-flex; align-items: center; gap: 2px;
     z-index: 10;
+    max-width: calc(100% - 28px);
+    white-space: nowrap;
   }
-  .tt-btn {
-    width: 36px; height: 36px;
-    background: transparent; border: none; border-radius: 10px;
+  .tt-icon-btn {
+    width: 32px; height: 32px;
+    background: transparent; border: none; border-radius: 8px;
     cursor: pointer; color: var(--ink);
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 16px;
+    font-size: 15px; line-height: 1;
   }
-  .tt-btn:hover { background: var(--field-bg); }
-  .tt-btn.is-active { background: var(--accent-bg); color: var(--accent); }
-  .tt-divider { width: 1px; height: 20px; background: var(--line-strong); margin: 0 4px; }
+  .tt-icon-btn:hover { background: var(--field-bg); }
+  .tt-icon-btn[disabled] { color: var(--ink-faint); cursor: not-allowed; }
+  .tt-divider { width: 1px; height: 18px; background: var(--line-strong); margin: 0 4px; flex-shrink: 0; }
   .tt-pill {
-    height: 36px; padding: 0 14px;
-    border-radius: 10px;
-    background: transparent; border: none;
-    cursor: pointer; color: var(--ink); font: inherit;
+    height: 32px; padding: 0 12px;
+    background: transparent; border: none; border-radius: 8px;
+    cursor: pointer; color: var(--ink); font: inherit; font-size: 12.5px;
     display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap;
   }
   .tt-pill:hover { background: var(--field-bg); }
+  .tt-pill .pill-faint { color: var(--ink-faint); }
+  .tt-name {
+    max-width: 160px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-weight: 600;
+  }
+  .tt-btn {
+    height: 32px; padding: 0 14px;
+    border-radius: 8px;
+    background: transparent; border: none;
+    cursor: pointer; color: var(--ink); font: inherit; font-size: 12.5px;
+    display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .tt-btn:hover { background: var(--field-bg); }
   .tt-primary {
-    height: 36px; padding: 0 20px;
+    height: 32px; padding: 0 16px;
     background: var(--accent); color: #fff;
-    border: none; border-radius: 10px;
-    cursor: pointer; font: inherit; font-weight: 600;
+    border: none; border-radius: 8px;
+    cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600;
     box-shadow: var(--accent-shadow);
+    white-space: nowrap;
   }
   .tt-primary:hover { background: #5847cc; }
 
   /* 画布纸张 */
   .canvas-area {
-    position: absolute; inset: 100px 32px 100px 32px;
+    position: absolute; inset: 80px 24px 24px 24px;
     display: flex; justify-content: center; align-items: flex-start;
     overflow: auto;
-    /* 极淡点状栅格背景 */
-    background-image: radial-gradient(circle, rgba(108,92,231,0.08) 1px, transparent 1px);
+    background-image: radial-gradient(circle, rgba(108,92,231,0.07) 1px, transparent 1px);
     background-size: 16px 16px;
   }
   .paper {
@@ -255,7 +298,10 @@
     flex-shrink: 0;
   }
   .elem { position: absolute; box-sizing: border-box; }
-  .elem.text { left: 32px; top: 24px; font-size: 22px; font-weight: 700; color: var(--ink); }
+  .elem.text {
+    font-size: 22px; font-weight: 700; color: var(--ink);
+    white-space: nowrap;
+  }
   .elem.label { color: var(--ink-soft); font-size: 13px; padding: 4px 0; }
   .elem.field { color: var(--accent); font-weight: 500; padding: 4px 0; border-bottom: 1.5px solid var(--ink); }
   .elem.qr {
@@ -265,12 +311,10 @@
     color: var(--ink-faint); font-size: 11px;
   }
   .elem.is-sel {
-    /* 选中态：紧贴元素边的实线 1.5px 紫色边 + 内嵌光晕 */
     border: 1.5px solid var(--accent) !important;
     border-radius: 4px;
     box-shadow: 0 0 0 1px rgba(108,92,231,0.15), 0 0 24px rgba(108,92,231,0.18);
   }
-  /* 4 角小圆点 handle */
   .handle {
     position: absolute; width: 9px; height: 9px;
     background: #fff; border: 1.5px solid var(--accent);
@@ -280,7 +324,6 @@
   .handle.t-r { top: -5px; right: -5px; }
   .handle.b-l { bottom: -5px; left: -5px; }
   .handle.b-r { bottom: -5px; right: -5px; }
-  /* grip */
   .grip {
     position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
     background: var(--panel); border: 1.5px solid var(--accent);
@@ -291,43 +334,17 @@
   }
   .grip-dots { display: grid; grid-template-columns: repeat(3, 3px); grid-template-rows: repeat(2, 3px); gap: 2.5px; }
   .grip-dots i { background: var(--accent); border-radius: 50%; width: 3px; height: 3px; display: block; }
-  /* 尺寸徽标 */
   .size-badge {
-    position: absolute; bottom: -24px; right: -1px;
+    position: absolute; bottom: -26px; right: -1px;
     background: var(--ink); color: #fff;
-    font-family: ui-monospace, monospace; font-size: 10px;
-    padding: 2px 7px; border-radius: 4px;
+    font-family: ui-monospace, monospace; font-size: 11px;
+    padding: 2px 8px; border-radius: 5px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    white-space: nowrap;
   }
-
-  /* 底部浮动 controls（pill 胶囊） */
-  .bottom-toolbar {
-    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-    background: var(--panel);
-    border-radius: var(--radius-pill);
-    box-shadow: var(--shadow-pill);
-    padding: 6px;
-    display: inline-flex; align-items: center; gap: 2px;
-    z-index: 10;
-  }
-  .bt-chip {
-    height: 32px; padding: 0 14px;
-    background: transparent; border: none; border-radius: 8px;
-    cursor: pointer; color: var(--ink); font: inherit; font-size: 12px;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .bt-chip:hover { background: var(--field-bg); }
-  .bt-chip.is-on { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
-  .bt-chip .chip-glyph {
-    width: 14px; height: 14px;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: rgba(108,92,231,0.18); color: var(--accent);
-    border-radius: 4px; font-size: 10px;
-  }
-  .bt-chip.is-on .chip-glyph { background: var(--accent); color: #fff; }
 
   /* =========================================================
-     D) 右侧面板（顶部头像 / Tabs / 多个 section）
+     D) 右侧面板（仅属性，移除 tabs / 头像）
      ========================================================= */
   .right {
     grid-area: right;
@@ -336,107 +353,103 @@
     box-shadow: var(--shadow-panel);
     display: flex; flex-direction: column;
     overflow: hidden;
+    min-height: 0;
   }
   .right-head {
     padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
     display: flex; align-items: center; gap: 8px;
-    border-bottom: 1px solid var(--line);
   }
-  .avatar-row { display: flex; }
-  .avatar-row .av {
-    width: 24px; height: 24px; border-radius: 50%;
-    border: 2px solid var(--panel);
-    margin-left: -6px;
-    display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 10px; font-weight: 700;
+  .right-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .right-type-pill {
+    background: var(--accent-bg); color: var(--accent);
+    font-family: ui-monospace, monospace; font-weight: 600; font-size: 11px;
+    padding: 2px 8px; border-radius: 999px;
   }
-  .avatar-row .av:first-child { margin-left: 0; }
-  .avatar-row .av:nth-child(1) { background: #FF8B66; }
-  .avatar-row .av:nth-child(2) { background: #4ECDC4; }
-  .avatar-row .av:nth-child(3) { background: #FFD93D; color: var(--ink); }
-  .av-more { color: var(--ink-soft); font-size: 12px; font-weight: 600; margin-left: 4px; }
-  .right-head .share {
-    margin-left: auto;
-    background: transparent; border: 1px solid var(--line-strong); border-radius: 8px;
-    padding: 6px 12px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 500;
-  }
-  .right-head .share:hover { border-color: var(--accent); color: var(--accent); }
 
-  .tabs {
-    display: flex; gap: 4px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--line);
+  .right-body { flex: 1; overflow-y: auto; min-height: 0; }
+  .empty-state {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--ink-faint);
+    font-size: 13px;
   }
-  .tab {
-    flex: 1; height: 32px; padding: 0 12px;
-    background: transparent; border: none; border-radius: 8px;
-    cursor: pointer; font: inherit; font-size: 12px; color: var(--ink-soft);
-    font-weight: 500;
-  }
-  .tab:hover { color: var(--ink); }
-  .tab.is-active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
-
-  .right-body { flex: 1; overflow-y: auto; }
   .section { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .section:last-child { border-bottom: none; }
   .sec-head {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 10px;
   }
-  .sec-title { font-size: 13px; font-weight: 600; color: var(--ink); }
-  .sec-add {
-    width: 22px; height: 22px; border-radius: 6px;
-    background: var(--field-bg); border: none; cursor: pointer;
-    color: var(--accent); font-size: 14px;
-    display: inline-flex; align-items: center; justify-content: center;
-  }
-  .sec-add:hover { background: var(--accent); color: #fff; }
+  .sec-title { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .sec-hint { font-size: 11px; color: var(--ink-faint); font-weight: normal; }
 
-  /* 位置 / 尺寸 行（带带胶囊 axis label） */
+  /* row 模板（label 左, control 右） */
   .row {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 0;
+    min-width: 0;
   }
-  .row .lbl { width: 56px; color: var(--ink-soft); font-size: 12px; }
-  .axis-group { display: flex; gap: 6px; }
+  .row .lbl {
+    flex-shrink: 0; width: 48px;
+    color: var(--ink-soft); font-size: 12px;
+  }
+  .row .ctrl { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; }
+
+  /* binding 下拉胶囊 */
+  .bind-pill {
+    flex: 1;
+    height: 30px; padding: 0 10px;
+    background: var(--bg); border: none; border-radius: 7px;
+    cursor: pointer; font: inherit; font-size: 12px; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: space-between;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bind-pill:hover { background: var(--field-bg); }
+  .bind-pill .mono { color: var(--ink); }
+
+  /* axis input */
+  .axis-group { display: flex; gap: 6px; flex: 1; }
   .axis {
+    flex: 1;
     display: inline-flex; align-items: center;
     background: var(--bg);
-    border-radius: 8px;
-    padding: 4px;
-    min-width: 78px;
+    border-radius: 7px;
+    padding: 3px 4px 3px 3px;
+    min-width: 0;
   }
-  .axis .axis-lbl {
+  .axis-lbl {
+    flex-shrink: 0;
     background: var(--accent-bg); color: var(--accent);
     font-family: ui-monospace, monospace; font-weight: 600; font-size: 10.5px;
     padding: 2px 6px; border-radius: 5px;
-    margin-right: 4px;
+    margin-right: 6px;
   }
   .axis input {
+    flex: 1; min-width: 0;
     border: none; background: transparent; outline: none;
-    width: 36px; text-align: right; font: inherit; font-size: 12px;
-    color: var(--ink);
+    text-align: right; font: inherit; font-size: 12px; color: var(--ink);
   }
 
-  /* 边框 田字格（无 ✓） */
+  /* 田字格 — 无对勾，只用颜色态 */
   .border-pad {
     display: grid;
     grid-template-columns: 1fr 60px 1fr;
-    grid-template-rows: 28px 1fr 28px;
-    height: 96px;
+    grid-template-rows: 26px 1fr 26px;
+    height: 88px;
     background: var(--bg);
     border-radius: 8px;
-    padding: 4px;
+    padding: 3px;
+    gap: 2px;
   }
   .bp-cell {
     background: transparent; border: none; cursor: pointer;
-    border-radius: 6px;
+    border-radius: 5px;
     font-family: ui-monospace, monospace; font-size: 10.5px;
     color: var(--ink-soft);
     transition: all 120ms ease;
   }
   .bp-cell:hover { background: rgba(108,92,231,0.08); }
   .bp-cell.is-on {
-    color: var(--accent);
     background: var(--accent);
     color: #fff;
     font-weight: 600;
@@ -448,57 +461,47 @@
   .bp-center {
     grid-area: 2 / 2 / 3 / 3;
     background: var(--panel);
-    border-radius: 6px;
+    border-radius: 5px;
     display: flex; align-items: center; justify-content: center;
     font-size: 10px; color: var(--ink-faint);
+  }
+  .border-style-row {
+    display: flex; gap: 6px; margin-top: 8px;
+  }
+  .border-style-row select {
+    flex: 1; min-width: 0;
+    padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px;
+    font: inherit; font-size: 11px; background: var(--panel); color: var(--ink);
+  }
+  .border-style-row input[type="color"] {
+    flex-shrink: 0;
+    width: 28px; height: 28px; padding: 0;
+    border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--panel);
   }
 
   /* padding 4 输入 */
   .pad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .pad-grid label {
-    display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-soft);
+    display: flex; align-items: center; gap: 4px;
+    font-size: 11px; color: var(--ink-soft);
+    min-width: 0;
   }
   .pad-grid input {
-    flex: 1; padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 6px;
+    flex: 1; min-width: 0;
+    padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 6px;
     font: inherit; font-size: 11px; text-align: right; background: var(--panel);
   }
 
-  /* 滑块（背景透明度) */
-  .slider-row {
-    display: flex; align-items: center; gap: 8px;
-    padding: 4px 0;
+  /* 删除按钮 */
+  .delete-btn {
+    width: 100%; padding: 8px;
+    background: transparent; border: 1px solid #FFC9C9; border-radius: 8px;
+    color: #DC2626; font: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: all 120ms ease;
   }
-  .slider-row .track {
-    flex: 1; height: 6px; background: var(--line-strong); border-radius: 3px;
-    position: relative;
-  }
-  .slider-row .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 3px; width: 65%; }
-  .slider-row .knob {
-    position: absolute; left: 65%; top: 50%; transform: translate(-50%, -50%);
-    width: 14px; height: 14px; background: #fff; border: 2px solid var(--accent);
-    border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-  .slider-row .val { color: var(--ink); font-size: 12px; font-family: ui-monospace, monospace; min-width: 36px; text-align: right; }
-
-  /* toggle */
-  .toggle {
-    width: 36px; height: 20px; border-radius: 10px;
-    background: var(--accent);
-    position: relative; cursor: pointer;
-  }
-  .toggle::after {
-    content: ''; position: absolute; left: 18px; top: 2px;
-    width: 16px; height: 16px; background: #fff; border-radius: 50%;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-  }
-
-  /* ==== 资讯条 footer ==== */
-  .footer-note {
-    position: fixed; bottom: 16px; right: 16px;
-    background: var(--panel); border-radius: 12px;
-    padding: 8px 14px; font-size: 11px; color: var(--ink-faint);
-    box-shadow: var(--shadow-pill);
-  }
+  .delete-btn:hover { background: #FEF2F2; border-color: #DC2626; }
 </style>
 </head>
 <body>
@@ -508,107 +511,110 @@
   <aside class="left">
     <div class="left-head">
       <div class="avatar">扬</div>
-      <div>
+      <div class="left-head-text">
         <div class="head-title">扬力出门证</div>
-        <div class="head-sub">v3 · 草稿</div>
+        <div class="head-sub">v3 · 草稿已保存</div>
       </div>
-      <div class="head-spacer"></div>
-      <button class="icon-btn" title="折叠">⇤</button>
     </div>
 
     <div class="left-body">
-      <!-- 数据字段 -->
-      <div class="group-title">数据字段 <button class="group-add" title="添加字段">+</button></div>
-      <div class="sub-list">
-        <div class="sub-item">
-          <span class="sub-glyph">{}</span>
-          <span style="flex:1">tihuoDanwei <span style="color:var(--ink-faint)">· 提货单位</span></span>
+      <!-- 1. 数据字段 -->
+      <div class="group-title">
+        数据字段
+        <button class="group-add" title="添加字段">+</button>
+      </div>
+      <div class="field-card">
+        <div class="fc-row1">
+          <span class="fc-k">tihuoDanwei</span>
+          <span class="fc-l">提货单位</span>
         </div>
-        <div class="sub-item">
-          <span class="sub-glyph">{}</span>
-          <span style="flex:1">tihuoRen <span style="color:var(--ink-faint)">· 提货人</span></span>
+        <div class="fc-meta">
+          <span>string</span><span class="fc-required">必填</span>
         </div>
-        <div class="sub-item muted">
-          <span class="sub-glyph">{}</span>
-          <span style="flex:1">beizhu <span style="color:var(--ink-faint)">· 备注</span></span>
-          <span title="未使用" style="color:#f0b400">⚠</span>
+      </div>
+      <div class="field-card">
+        <div class="fc-row1">
+          <span class="fc-k">pinming</span>
+          <span class="fc-l">品名</span>
+        </div>
+        <div class="fc-meta"><span>string</span></div>
+      </div>
+      <div class="field-card unused">
+        <div class="fc-row1">
+          <span class="fc-k">beizhu</span>
+          <span class="fc-l">备注</span>
+        </div>
+        <div class="fc-meta">
+          <span>string</span><span class="fc-warn">⚠ 未使用</span>
         </div>
       </div>
 
-      <!-- 元素 -->
-      <div class="group-title">元素 <button class="group-add" title="添加元素">+</button></div>
-      <div class="nav-item is-active">
-        <span class="nav-icon">{}</span>
-        <span class="nav-label">field · 提货单位</span>
-        <span class="sub-eye">👁</span>
+      <!-- 2. 画布元素 -->
+      <div class="group-title">画布元素</div>
+      <div class="elem-row is-active">
+        <span class="elem-icon">{}</span>
+        <span class="elem-row-label">field · 提货单位</span>
+        <span class="elem-row-vis">👁</span>
       </div>
-      <div class="nav-item">
-        <span class="nav-icon">T</span>
-        <span class="nav-label">text · 标题</span>
-        <span class="sub-eye">👁</span>
+      <div class="elem-row">
+        <span class="elem-icon">T</span>
+        <span class="elem-row-label">text · 标题</span>
+        <span class="elem-row-vis">👁</span>
       </div>
-      <div class="nav-item">
-        <span class="nav-icon">▣</span>
-        <span class="nav-label">qr · 单号</span>
-        <span class="sub-eye">👁</span>
+      <div class="elem-row">
+        <span class="elem-icon">{}</span>
+        <span class="elem-row-label">field · 品名</span>
+        <span class="elem-row-vis">👁</span>
+      </div>
+      <div class="elem-row">
+        <span class="elem-icon">▣</span>
+        <span class="elem-row-label">qr · 单号</span>
+        <span class="elem-row-vis">👁</span>
       </div>
 
-      <!-- 元素库（拖入） -->
-      <div class="group-title">拖入新元素</div>
-      <div class="sub-list">
-        <div class="sub-item"><span class="sub-glyph">T</span><span style="flex:1">文字</span></div>
-        <div class="sub-item"><span class="sub-glyph">{}</span><span style="flex:1">字段</span></div>
-        <div class="sub-item"><span class="sub-glyph">▤</span><span style="flex:1">图片</span></div>
-        <div class="sub-item"><span class="sub-glyph">▦</span><span style="flex:1">明细表</span></div>
-        <div class="sub-item"><span class="sub-glyph">▣</span><span style="flex:1">二维码</span></div>
-        <div class="sub-item"><span class="sub-glyph">|||</span><span style="flex:1">条码</span></div>
+      <!-- 3. 元素库 -->
+      <div class="group-title">添加新元素 <span class="sec-hint">点击或拖入画布</span></div>
+      <div class="lib-grid">
+        <button class="lib-btn"><span class="lib-glyph">T</span>文字</button>
+        <button class="lib-btn"><span class="lib-glyph">{}</span>字段</button>
+        <button class="lib-btn"><span class="lib-glyph">▤</span>图片</button>
+        <button class="lib-btn"><span class="lib-glyph">▢</span>矩形</button>
+        <button class="lib-btn"><span class="lib-glyph">▦</span>明细</button>
+        <button class="lib-btn"><span class="lib-glyph">▣</span>二维码</button>
+        <button class="lib-btn"><span class="lib-glyph">|||</span>条码</button>
+        <button class="lib-btn"><span class="lib-glyph">№</span>编号</button>
       </div>
-    </div>
-
-    <div class="left-search">
-      <div class="search-box">
-        <span>🔍</span>
-        <input placeholder="搜索元素或字段..." />
-        <span class="kbd">⌘K</span>
-      </div>
-    </div>
-    <div class="left-foot">
-      <button class="icon-btn" title="导入">⇪</button>
-      <button class="icon-btn" title="同步">⟳</button>
-      <button class="icon-btn" title="版本">⌛</button>
-      <button class="icon-btn" title="设置">⚙</button>
-      <button class="icon-btn" title="帮助">?</button>
     </div>
   </aside>
 
   <!-- ============== CENTER ============== -->
   <section class="center">
-    <!-- 顶部浮动 toolbar -->
+    <!-- 顶部浮动 toolbar — 仅核心操作 -->
     <div class="top-toolbar">
-      <button class="tt-btn is-active" title="选择">↖</button>
-      <button class="tt-btn" title="移动">✋</button>
-      <button class="tt-btn" title="适合屏幕">⊡</button>
-      <button class="tt-btn" title="重置">⟳</button>
+      <button class="tt-icon-btn" title="返回">←</button>
       <span class="tt-divider"></span>
-      <button class="tt-pill" title="撤销">↶</button>
-      <button class="tt-pill" title="重做">↷</button>
+      <button class="tt-icon-btn" title="撤销">↶</button>
+      <button class="tt-icon-btn" title="重做" disabled>↷</button>
       <span class="tt-divider"></span>
-      <button class="tt-pill" title="纸张">A4 横向 ▾</button>
-      <button class="tt-pill" title="cell">
-        <span style="color:var(--ink-faint)">cell</span>
-        <span class="mono">4×4</span>
-        <span style="color:var(--ink-faint)">px</span>
-        ▾
+      <button class="tt-pill">
+        <span class="pill-faint">纸张</span>
+        <span class="tt-name" style="font-weight:500;max-width:none">A4 横向</span>
+        <span class="pill-faint">▾</span>
+      </button>
+      <button class="tt-pill">
+        <span class="pill-faint">cell</span>
+        <span class="mono" style="font-weight:600">4×4</span>
+        <span class="pill-faint">px ▾</span>
       </button>
       <span class="tt-divider"></span>
-      <button class="tt-pill">👁 预览</button>
-      <button class="tt-primary">导出</button>
+      <button class="tt-btn">👁 预览</button>
+      <button class="tt-btn">🖨 打印</button>
+      <button class="tt-primary">保存</button>
     </div>
 
-    <!-- 画布区 -->
     <div class="canvas-area">
       <div class="paper">
-        <div class="elem text" style="width: 360px; height: 40px">扬 力 集 团 · 出 门 证</div>
+        <div class="elem text" style="left: 32px; top: 24px;">扬 力 集 团 · 出 门 证</div>
 
         <div class="elem label" style="left: 32px; top: 90px; width: 80px; height: 24px">提货单位</div>
         <div class="elem field is-sel" style="left: 120px; top: 90px; width: 280px; height: 24px">
@@ -633,55 +639,24 @@
         <div class="elem field" style="left: 160px; top: 280px; width: 200px; height: 24px">{{ date }}</div>
       </div>
     </div>
-
-    <!-- 底部浮动 controls -->
-    <div class="bottom-toolbar">
-      <button class="bt-chip is-on">
-        <span class="chip-glyph">⊞</span>
-        栅格
-      </button>
-      <button class="bt-chip">
-        <span class="chip-glyph">↔</span>
-        100%
-      </button>
-      <button class="bt-chip">
-        <span class="chip-glyph">⊡</span>
-        适合
-      </button>
-      <button class="bt-chip">
-        <span class="chip-glyph">⌗</span>
-        标尺
-      </button>
-    </div>
   </section>
 
-  <!-- ============== RIGHT PANEL ============== -->
+  <!-- ============== RIGHT PANEL（仅属性） ============== -->
   <aside class="right">
     <div class="right-head">
-      <div class="avatar-row">
-        <div class="av">朱</div>
-        <div class="av">张</div>
-        <div class="av">王</div>
-      </div>
-      <span class="av-more">+2</span>
-      <button class="share">分享</button>
-    </div>
-
-    <div class="tabs">
-      <button class="tab is-active">设计</button>
-      <button class="tab">数据</button>
-      <button class="tab">预览</button>
+      <span class="right-title">属性</span>
+      <span class="right-type-pill">field</span>
     </div>
 
     <div class="right-body">
-      <!-- Properties of selected element -->
+      <!-- 绑定 / 位置 / 尺寸 -->
       <div class="section">
-        <div class="sec-head">
-          <div class="sec-title">属性 <span style="font-weight:normal;color:var(--ink-faint);font-size:11px">· field</span></div>
-        </div>
         <div class="row">
           <span class="lbl">绑定</span>
-          <button class="tt-pill" style="background:var(--bg);padding:4px 10px;height:auto">tihuoDanwei ▾</button>
+          <button class="bind-pill">
+            <span><span class="mono">tihuoDanwei</span> · 提货单位</span>
+            <span class="pill-faint">▾</span>
+          </button>
         </div>
         <div class="row">
           <span class="lbl">位置</span>
@@ -709,20 +684,22 @@
           <button class="bp-cell r">右</button>
           <button class="bp-cell b is-on">下</button>
         </div>
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <select style="flex:1;padding:6px 8px;border:1px solid var(--line-strong);border-radius:6px;font:inherit;font-size:11px;background:#fff">
+        <div class="border-style-row">
+          <select>
             <option>1.5 px</option><option>1 px</option><option>2 px</option>
           </select>
-          <select style="flex:1;padding:6px 8px;border:1px solid var(--line-strong);border-radius:6px;font:inherit;font-size:11px;background:#fff">
+          <select>
             <option>实线</option><option>虚线</option>
           </select>
-          <input type="color" value="#1f1f23" style="width:30px;height:30px;padding:0;border:1px solid var(--line-strong);border-radius:6px">
+          <input type="color" value="#1f1f23">
         </div>
       </div>
 
-      <!-- padding -->
+      <!-- 内边距 -->
       <div class="section">
-        <div class="sec-head"><div class="sec-title">内边距 <span style="font-weight:normal;color:var(--ink-faint);font-size:11px">px</span></div></div>
+        <div class="sec-head">
+          <div class="sec-title">内边距 <span class="sec-hint">px</span></div>
+        </div>
         <div class="pad-grid">
           <label>上 <input value="0"></label>
           <label>右 <input value="4"></label>
@@ -731,39 +708,12 @@
         </div>
       </div>
 
-      <!-- 字体 -->
+      <!-- 删除 -->
       <div class="section">
-        <div class="sec-head"><div class="sec-title">字体</div></div>
-        <div class="row">
-          <span class="lbl">大小</span>
-          <div class="slider-row" style="flex:1">
-            <div class="track"><div class="fill"></div><div class="knob"></div></div>
-            <span class="val">14px</span>
-          </div>
-        </div>
-        <div class="row">
-          <span class="lbl">对齐</span>
-          <div style="display:flex;gap:4px;background:var(--bg);padding:3px;border-radius:8px">
-            <button class="tt-btn is-active" style="width:30px;height:26px">⫷</button>
-            <button class="tt-btn" style="width:30px;height:26px">⫶</button>
-            <button class="tt-btn" style="width:30px;height:26px">⫸</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Grid -->
-      <div class="section">
-        <div class="row">
-          <span class="lbl">栅格</span>
-          <div class="toggle"></div>
-        </div>
+        <button class="delete-btn">删除元素</button>
       </div>
     </div>
   </aside>
-</div>
-
-<div class="footer-note">
-  浮卡设计 · 浅灰底 + 紫色 accent · 大圆角 · 软阴影
 </div>
 </body>
 </html>
