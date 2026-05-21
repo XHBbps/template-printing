@@ -11,6 +11,7 @@
     "test": "echo 'no tests yet' && exit 0"
   },
   "dependencies": {
+    "@template-printing/schema": "workspace:^",
     "@template-printing/types": "workspace:*",
     "bwip-js": "4.5.1",
     "qrcode-generator": "1.4.4",

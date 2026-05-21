@@ -1,1 +1,9 @@
 export { default as TemplateRenderer } from './TemplateRenderer.vue';
+export { default as TextElement } from './elements/TextElement.vue';
+export { default as FieldElement } from './elements/FieldElement.vue';
+export { default as ImageElement } from './elements/ImageElement.vue';
+export { default as TableElement } from './elements/TableElement.vue';
+export { default as BarcodeElement } from './elements/BarcodeElement.vue';
+export { default as AutonumberElement } from './elements/AutonumberElement.vue';
+export { default as SystemElement } from './elements/SystemElement.vue';
+export { default as RectElement } from './elements/RectElement.vue';

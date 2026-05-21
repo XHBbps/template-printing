@@ -234,6 +234,9 @@ importers:
 
   packages/template-renderer:
     dependencies:
+      '@template-printing/schema':
+        specifier: workspace:^
+        version: link:../schema
       '@template-printing/types':
         specifier: workspace:*
         version: link:../types
