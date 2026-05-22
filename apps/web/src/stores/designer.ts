@@ -8,7 +8,7 @@ import { defineStore } from 'pinia';
 // eslint-disable-next-line import/no-unresolved
 import type { z } from 'zod';
 
-import { minMmFor } from '../designer/elementFactory';
+import { minMmFor, allowedFieldTypesForElement } from '../designer/elementFactory';
 
 type FieldDef = z.infer<typeof FieldDefSchema>;
 
@@ -239,6 +239,39 @@ export const useDesignerStore = defineStore('designer', {
         }
         if (!parsed.canvas.orientation) parsed.canvas.orientation = 'portrait';
 
+        // Iteration-5: migrate legacy barcode→qr split + deprecated 1D symbologies.
+        let legacyDeprecatedBarcodeCount = 0;
+        for (const el of parsed.elements as TemplateElement[]) {
+          if (el.type === 'barcode' && (el as { symbology?: string }).symbology === 'qr') {
+            // Convert to new qr type.
+            const old = el as TemplateElement & {
+              symbology?: string;
+              eccLevel?: 'L' | 'M' | 'Q' | 'H';
+              showText?: boolean;
+              textPosition?: 'top' | 'bottom';
+              textFontSize?: number;
+            };
+            (el as { type: string }).type = 'qr';
+            delete old.symbology;
+            delete old.showText;
+            delete old.textPosition;
+            delete old.textFontSize;
+            if (!old.eccLevel) old.eccLevel = 'M';
+          } else if (
+            el.type === 'barcode' &&
+            ((el as { symbology?: string }).symbology === 'ean8' ||
+              (el as { symbology?: string }).symbology === 'upc-a')
+          ) {
+            (el as { symbology: string }).symbology = 'code128';
+            legacyDeprecatedBarcodeCount += 1;
+          }
+        }
+        if (legacyDeprecatedBarcodeCount > 0) {
+          ElMessage.warning(
+            `${legacyDeprecatedBarcodeCount} 个条码已从 EAN-8/UPC-A 转换为 Code 128`,
+          );
+        }
+
         // Step 1 — Migrate iteration-1 drafts: derive anchor from grid + OLD cell.
         const oldCell = parsed.canvas.cell;
         for (const el of parsed.elements as Array<TemplateElement & { anchor?: Anchor }>) {
@@ -379,6 +412,11 @@ export const useDesignerStore = defineStore('designer', {
       this.selectedIds = this.selectedIds.filter((s) => s !== id);
       this.snapshot();
     },
+    deleteAllElements(): void {
+      this.template.elements = [];
+      this.selectedIds = [];
+      this.snapshot();
+    },
     // 关键约束：cell.w 必须整除 paperPxW，cell.h 必须整除 paperPxH。
     // 不满足的尺寸直接拒绝；cols/rows 由 paper 与 cell 派生。
     setCellSize(w: number, h: number): void {
@@ -461,6 +499,29 @@ export const useDesignerStore = defineStore('designer', {
     },
     addField(key: string, def: FieldDef): void {
       this.template.schema[key] = def;
+      this.snapshot();
+    },
+    editField(key: string, def: FieldDef): void {
+      if (!this.template.schema[key]) return;
+      const oldType = this.template.schema[key].type;
+      this.template.schema[key] = def;
+      // If type changed, scan elements that bind to this key.
+      if (oldType !== def.type) {
+        let unbound = 0;
+        for (const el of this.template.elements) {
+          if (!('binding' in el)) continue;
+          const elTyped = el as TemplateElement & { binding?: string };
+          if (elTyped.binding !== key) continue;
+          const allowed = allowedFieldTypesForElement(el.type);
+          if (!allowed.includes(def.type)) {
+            elTyped.binding = '';
+            unbound++;
+          }
+        }
+        if (unbound > 0) {
+          ElMessage.warning(`字段类型变化导致 ${unbound} 个元素绑定已自动解除`);
+        }
+      }
       this.snapshot();
     },
     removeField(key: string): void {
