@@ -290,3 +290,23 @@
     display: none !important;
   }
 }
+
+/* Iteration 7 #B.1 — globally hide native number-input spinners inside the
+   designer and inside Element Plus dialogs (which are teleported to body
+   and therefore not under .designer-root). */
+.designer-root input[type='number']::-webkit-outer-spin-button,
+.designer-root input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.designer-root input[type='number'] {
+  -moz-appearance: textfield;
+}
+.el-dialog input[type='number']::-webkit-outer-spin-button,
+.el-dialog input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.el-dialog input[type='number'] {
+  -moz-appearance: textfield;
+}
