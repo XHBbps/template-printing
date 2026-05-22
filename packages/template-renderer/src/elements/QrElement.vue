@@ -31,8 +31,6 @@ const wrapStyle = computed(() => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  filter: props.isResizing ? 'blur(2px) opacity(0.55)' : 'none',
-  transition: 'filter 120ms ease',
 }));
 
 function render(): void {
@@ -81,7 +79,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="qr-wrap" :style="wrapStyle">
+  <div v-if="props.isResizing" class="qr-placeholder">
+    <div class="qr-icon">▦</div>
+    <span class="qr-label">二维码</span>
+  </div>
+  <div v-else class="qr-wrap" :style="wrapStyle">
     <div
       v-if="hasContent"
       class="qr-svg"
@@ -116,5 +118,25 @@ onMounted(() => {
   justify-content: center;
   color: var(--tp-ink-faint, #9c9ca3);
   font-size: 11px;
+}
+.qr-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--tp-field-bg, #f5f5f5);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.qr-icon {
+  font-size: 28px;
+  color: var(--tp-ink, #333);
+  line-height: 1;
+}
+.qr-label {
+  font-size: 10px;
+  color: var(--tp-ink-soft, #555);
 }
 </style>
