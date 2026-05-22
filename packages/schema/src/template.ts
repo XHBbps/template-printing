@@ -181,7 +181,7 @@ export const CellSchema = z.object({
   h: z.number().positive(),
 });
 
-export const PaperPresetSchema = z.enum(['A3', 'A4', 'A5', 'A6', 'B5', 'Letter']);
+export const PaperPresetSchema = z.enum(['A3', 'A4', 'A5', 'B4', 'B5']);
 export type PaperPreset = z.infer<typeof PaperPresetSchema>;
 
 export const PaperSchema = z.union([

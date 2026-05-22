@@ -25,15 +25,14 @@ import PreviewView from '../views/PreviewView.vue';
 const store = useDesignerStore();
 const router = useRouter();
 
-const paperOptions = ['A3', 'A4', 'A5', 'A6', 'B5', 'Letter'] as const;
+const paperOptions = ['A3', 'A4', 'A5', 'B4', 'B5'] as const;
 
 const paperLabelMap: Record<string, string> = {
   A3: 'A3',
   A4: 'A4',
   A5: 'A5',
-  A6: 'A6',
+  B4: 'B4',
   B5: 'B5',
-  Letter: 'Letter',
 };
 
 const customDialogOpen = ref(false);
