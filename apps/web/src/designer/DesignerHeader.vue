@@ -54,6 +54,15 @@ const cellLabel = computed(() => `${store.template.canvas.cell.w} px`);
 
 const validCells = computed(() => store.validCellOptions());
 
+const zoomLabel = computed(() => `${Math.round(store.view.zoom * 100)}%`);
+const zoomOptions = [0.25, 0.5, 0.75, 1, 1.5, 2, 4];
+function chooseZoom(z: number): void {
+  store.setZoom(z);
+}
+function onFit(): void {
+  store.fitView();
+}
+
 function chooseCell(w: number, h: number): void {
   if (w === store.template.canvas.cell.w && h === store.template.canvas.cell.h) return;
   store.isResizing = true;
@@ -115,6 +124,18 @@ const previewOpen = ref(false);
           >
             {{ opt.w }} px
             <span style="color: #999; margin-left: 6px">({{ opt.cols }}×{{ opt.rows }} 格)</span>
+          </ElDropdownItem>
+        </ElDropdownMenu>
+      </template>
+    </ElDropdown>
+
+    <ElDropdown trigger="click">
+      <button class="tt-btn">🔍 {{ zoomLabel }}</button>
+      <template #dropdown>
+        <ElDropdownMenu>
+          <ElDropdownItem @click="onFit">Fit (自动适配)</ElDropdownItem>
+          <ElDropdownItem v-for="z in zoomOptions" :key="z" @click="chooseZoom(z)">
+            {{ Math.round(z * 100) }}%
           </ElDropdownItem>
         </ElDropdownMenu>
       </template>
