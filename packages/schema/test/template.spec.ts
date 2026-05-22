@@ -6,6 +6,7 @@ import {
   ElementSchema,
   TextElementSchema,
   TableElementSchema,
+  StyleSchema,
   type Template,
   // eslint-disable-next-line import/no-unresolved
 } from '../src/template.js';
@@ -154,5 +155,41 @@ describe('ElementSchema', () => {
       };
       expect(() => ElementSchema.parse(el)).toThrow();
     });
+  });
+});
+
+describe('expanded StyleSchema', () => {
+  it('accepts new optional style fields', () => {
+    const style = {
+      ...baseStyle,
+      color: '#222',
+      fontFamily: 'serif' as const,
+      fontSize: 14,
+      fontWeight: 600 as const,
+      letterSpacing: 0.5,
+      lineHeight: 1.5,
+      textDecoration: 'underline' as const,
+      backgroundColor: '#fff',
+      textAlign: 'center' as const,
+      verticalAlign: 'middle' as const,
+      zIndex: 5,
+      rotation: 30,
+      opacity: 0.8,
+      textOverflow: 'ellipsis' as const,
+    };
+    expect(StyleSchema.parse(style)).toMatchObject({
+      color: '#222',
+      fontWeight: 600,
+      rotation: 30,
+      opacity: 0.8,
+    });
+  });
+
+  it('rejects opacity > 1', () => {
+    expect(() => StyleSchema.parse({ ...baseStyle, opacity: 1.5 })).toThrow();
+  });
+
+  it('rejects fontWeight outside the enum', () => {
+    expect(() => StyleSchema.parse({ ...baseStyle, fontWeight: 800 })).toThrow();
   });
 });

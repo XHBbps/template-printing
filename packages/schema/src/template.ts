@@ -30,11 +30,26 @@ export const StyleSchema = z.object({
   padding: PaddingSchema,
   background: z.string().nullable().default(null),
   borderRadius: z.number().nonnegative().default(0),
-  fontSize: z.number().positive().optional(),
-  fontWeight: z.enum(['normal', 'bold']).optional(),
-  align: z.enum(['left', 'center', 'right']).optional(),
+
+  // Text-style fields (iteration 2). All optional; renderers treat undefined
+  // as "inherit / use default".
   color: z.string().optional(),
-  fontFamily: z.string().optional(),
+  fontFamily: z.enum(['sans', 'serif', 'mono']).optional(),
+  fontSize: z.number().positive().optional(),
+  fontWeight: z.union([z.literal(400), z.literal(500), z.literal(600), z.literal(700)]).optional(),
+  letterSpacing: z.number().optional(),
+  lineHeight: z.number().positive().optional(),
+  textDecoration: z.enum(['none', 'underline', 'overline', 'line-through']).optional(),
+  backgroundColor: z.string().optional(),
+  textAlign: z.enum(['left', 'center', 'right', 'justify', 'default']).optional(),
+  verticalAlign: z.enum(['top', 'middle', 'bottom']).optional(),
+  zIndex: z.number().int().optional(),
+  rotation: z.number().optional(),
+  opacity: z.number().min(0).max(1).optional(),
+  textOverflow: z.enum(['clip', 'ellipsis', 'wrap']).optional(),
+
+  // Legacy field kept for backward compat — superseded by `textAlign`.
+  align: z.enum(['left', 'center', 'right']).optional(),
 });
 export type ElementStyle = z.infer<typeof StyleSchema>;
 
