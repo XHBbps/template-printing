@@ -10,6 +10,7 @@ import DesignerHeader from '../designer/DesignerHeader.vue';
 import ElementLibrary from '../designer/ElementLibrary.vue';
 import FieldManager from '../designer/FieldManager.vue';
 import PropertyPanel from '../designer/PropertyPanel.vue';
+import TemplateNameEditor from '../designer/TemplateNameEditor.vue';
 import { useDesignerStore } from '../stores/designer';
 
 const route = useRoute();
@@ -31,7 +32,7 @@ onMounted(() => {
     <aside class="designer-left tp-panel">
       <div class="tp-panel-head">
         <div class="tp-head-text">
-          <div class="tp-head-title">{{ store.template.meta.name }}</div>
+          <TemplateNameEditor />
           <div class="tp-head-sub">v{{ store.template.meta.version }} · 草稿已保存</div>
         </div>
       </div>
