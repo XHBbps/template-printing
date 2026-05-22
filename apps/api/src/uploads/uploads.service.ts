@@ -5,9 +5,15 @@ import * as path from 'path';
 // eslint-disable-next-line import/no-unresolved
 import { Injectable, BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
-import { fileTypeFromBuffer } from 'file-type';
-// eslint-disable-next-line import/no-unresolved
 import sharp from 'sharp';
+
+// file-type v19 is pure ESM; Nest runs CJS, so we lazy-load it via dynamic import().
+// Jest's moduleNameMapper substitutes a CJS shim during tests; runtime gets the real ESM.
+async function sniffMime(buffer: Buffer): Promise<{ mime: string } | undefined> {
+  // eslint-disable-next-line import/no-unresolved
+  const mod = await import('file-type');
+  return mod.fileTypeFromBuffer(buffer);
+}
 
 // eslint-disable-next-line import/no-unresolved
 import { sanitiseSvg } from './svg-sanitiser.js';
@@ -53,7 +59,7 @@ export class UploadsService {
         h_px = hm ? Number(hm[1]) : 0;
       }
     } else {
-      const sniff = await fileTypeFromBuffer(buffer);
+      const sniff = await sniffMime(buffer);
       if (!sniff) throw new BadRequestException('mime_unknown');
       if (sniff.mime !== mime) throw new BadRequestException('mime_mismatch');
       if (sniff.mime === 'image/png') {
