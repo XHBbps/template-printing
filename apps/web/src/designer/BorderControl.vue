@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
 import type { ElementStyle } from '@template-printing/schema';
+import SliderWithInput from './SliderWithInput.vue';
 
 const props = defineProps<{ modelValue: ElementStyle['border'] }>();
 const emit = defineEmits<{ (e: 'update:modelValue', v: ElementStyle['border']): void }>();
@@ -85,18 +86,14 @@ function currentColor(): string {
       </div>
       <div class="ctrl-row">
         <span class="ctrl-lbl">粗细</span>
-        <input
-          type="range"
-          min="1"
-          max="8"
-          step="1"
-          :value="currentWidth()"
-          class="slider"
-          @input="
-            (e: Event) => patchAllSides({ width: Number((e.target as HTMLInputElement).value) })
-          "
+        <SliderWithInput
+          :model-value="currentWidth()"
+          :min="1"
+          :max="8"
+          :step="1"
+          :format="(v: number) => `${v} px`"
+          @update:model-value="(v: number) => patchAllSides({ width: v })"
         />
-        <span class="ctrl-val">{{ currentWidth() }} px</span>
       </div>
       <div class="ctrl-row">
         <span class="ctrl-lbl">颜色</span>
@@ -217,10 +214,6 @@ function currentColor(): string {
   background: var(--tp-accent);
   color: #fff;
   border-color: var(--tp-accent);
-}
-.slider {
-  flex: 1;
-  accent-color: var(--tp-accent);
 }
 .color-pick {
   width: 32px;
