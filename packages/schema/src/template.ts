@@ -190,13 +190,49 @@ export const CanvasSchema = z.object({
   background: z.string().nullable().default(null),
 });
 
-export const FieldDefSchema = z.object({
-  type: z.enum(['string', 'number', 'date', 'array']),
+const FieldBase = z.object({
   label: z.string().min(1),
   required: z.boolean().default(false),
   example: z.string().optional(),
-  shape: z.record(z.string()).optional(),
 });
+
+export const FieldDefSchema = z.discriminatedUnion('type', [
+  FieldBase.extend({
+    type: z.literal('string'),
+    maxLength: z.number().int().positive().optional(),
+  }),
+  FieldBase.extend({
+    type: z.literal('number'),
+    min: z.number().optional(),
+    max: z.number().optional(),
+    thousands: z.boolean().default(false),
+  }),
+  FieldBase.extend({
+    type: z.literal('date'),
+    format: z.string().default('YYYY-MM-DD'),
+  }),
+  FieldBase.extend({
+    type: z.literal('datetime'),
+    format: z.string().default('YYYY-MM-DD HH:mm'),
+  }),
+  FieldBase.extend({
+    type: z.literal('boolean'),
+    trueLabel: z.string().default('是'),
+    falseLabel: z.string().default('否'),
+  }),
+  FieldBase.extend({
+    type: z.literal('enum'),
+    options: z.array(z.object({ value: z.string().min(1), label: z.string().min(1) })).min(1),
+  }),
+  FieldBase.extend({
+    type: z.literal('image'),
+    accept: z.array(z.string().min(1)).default(['image/svg+xml', 'image/png', 'image/jpeg']),
+  }),
+  FieldBase.extend({
+    type: z.literal('array'),
+    itemSchema: z.record(z.unknown()).optional(),
+  }),
+]);
 
 export const TemplateMetaSchema = z.object({
   name: z.string().min(1).max(120),

@@ -8,6 +8,7 @@ import {
   TableElementSchema,
   StyleSchema,
   BarcodeElementSchema,
+  FieldDefSchema,
   type Template,
   // eslint-disable-next-line import/no-unresolved
 } from '../src/template.js';
@@ -192,6 +193,55 @@ describe('expanded StyleSchema', () => {
 
   it('rejects fontWeight outside the enum', () => {
     expect(() => StyleSchema.parse({ ...baseStyle, fontWeight: 800 })).toThrow();
+  });
+});
+
+describe('FieldDefSchema discriminated union', () => {
+  it('parses a string field with maxLength', () => {
+    const f = { type: 'string', label: 'Name', required: true, maxLength: 50 };
+    expect(FieldDefSchema.parse(f).type).toBe('string');
+  });
+
+  it('parses a number field with thousands flag', () => {
+    const f = { type: 'number', label: 'Amount', thousands: true };
+    expect(FieldDefSchema.parse(f).type).toBe('number');
+  });
+
+  it('parses a datetime field', () => {
+    const f = { type: 'datetime', label: 'Created', format: 'YYYY-MM-DD HH:mm' };
+    expect(FieldDefSchema.parse(f).type).toBe('datetime');
+  });
+
+  it('parses a boolean field with custom labels', () => {
+    const f = { type: 'boolean', label: 'Active', trueLabel: 'Yes', falseLabel: 'No' };
+    expect(FieldDefSchema.parse(f).trueLabel).toBe('Yes');
+  });
+
+  it('parses an enum field with options', () => {
+    const f = {
+      type: 'enum',
+      label: 'Status',
+      options: [
+        { value: 'a', label: '已通过' },
+        { value: 'b', label: '已拒绝' },
+      ],
+    };
+    expect(FieldDefSchema.parse(f).options).toHaveLength(2);
+  });
+
+  it('parses an image field with accept', () => {
+    const f = { type: 'image', label: 'Logo', accept: ['image/svg+xml', 'image/png'] };
+    expect(FieldDefSchema.parse(f).accept).toContain('image/svg+xml');
+  });
+
+  it('rejects an enum field with no options', () => {
+    const f = { type: 'enum', label: 'X', options: [] };
+    expect(() => FieldDefSchema.parse(f)).toThrow();
+  });
+
+  it('keeps the array field shape', () => {
+    const f = { type: 'array', label: 'Items' };
+    expect(FieldDefSchema.parse(f).type).toBe('array');
   });
 });
 
