@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-unresolved
-import type { Template, TemplateElement, FieldDefSchema } from '@template-printing/schema';
+import type { Template, TemplateElement, FieldDefSchema, Anchor } from '@template-printing/schema';
 // eslint-disable-next-line import/no-unresolved
 import { defineStore } from 'pinia';
 // eslint-disable-next-line import/no-unresolved
@@ -49,6 +49,52 @@ function divisorsInRange(n: number, min = 2, max = 40): number[] {
     if (n % i === 0) out.push(i);
   }
   return out;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function mmFromPx(px: number): number {
+  return px / PX_PER_MM;
+}
+
+export function recomputeGridFromAnchor(el: TemplateElement, cell: { w: number; h: number }): void {
+  el.grid = {
+    c: Math.round((el.anchor.x * PX_PER_MM) / cell.w),
+    r: Math.round((el.anchor.y * PX_PER_MM) / cell.h),
+    cs: Math.max(1, Math.round((el.anchor.w * PX_PER_MM) / cell.w)),
+    rs: Math.max(1, Math.round((el.anchor.h * PX_PER_MM) / cell.h)),
+  };
+}
+
+export function clampAnchorToPaper(
+  el: TemplateElement,
+  paper: { w_mm: number; h_mm: number },
+): boolean {
+  let changed = false;
+  if (el.anchor.w > paper.w_mm) {
+    el.anchor.w = paper.w_mm;
+    changed = true;
+  }
+  if (el.anchor.h > paper.h_mm) {
+    el.anchor.h = paper.h_mm;
+    changed = true;
+  }
+  if (el.anchor.x + el.anchor.w > paper.w_mm) {
+    el.anchor.x = paper.w_mm - el.anchor.w;
+    changed = true;
+  }
+  if (el.anchor.y + el.anchor.h > paper.h_mm) {
+    el.anchor.y = paper.h_mm - el.anchor.h;
+    changed = true;
+  }
+  if (el.anchor.x < 0) {
+    el.anchor.x = 0;
+    changed = true;
+  }
+  if (el.anchor.y < 0) {
+    el.anchor.y = 0;
+    changed = true;
+  }
+  return changed;
 }
 
 function makeId(prefix: string): string {
@@ -158,7 +204,21 @@ export const useDesignerStore = defineStore('designer', {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return false;
         const parsed = JSON.parse(raw) as Template;
-        // Fix up old drafts whose cell no longer divides the new paper sizes.
+
+        // Step 1 — Migrate iteration-1 drafts: derive anchor from grid + OLD cell.
+        const oldCell = parsed.canvas.cell;
+        for (const el of parsed.elements as Array<TemplateElement & { anchor?: Anchor }>) {
+          if (!el.anchor) {
+            el.anchor = {
+              x: (el.grid.c * oldCell.w) / PX_PER_MM,
+              y: (el.grid.r * oldCell.h) / PX_PER_MM,
+              w: (el.grid.cs * oldCell.w) / PX_PER_MM,
+              h: (el.grid.rs * oldCell.h) / PX_PER_MM,
+            };
+          }
+        }
+
+        // Step 2 — Snap cell to a valid divisor of paper (iteration-1 logic).
         const px = paperPxSize(parsed.canvas.paper);
         let { w, h } = parsed.canvas.cell;
         if (px.w % w !== 0 || px.h % h !== 0) {
@@ -170,6 +230,12 @@ export const useDesignerStore = defineStore('designer', {
         }
         parsed.canvas.cols = px.w / w;
         parsed.canvas.rows = px.h / h;
+
+        // Step 3 — Recompute grid for every element from anchor + new cell.
+        for (const el of parsed.elements) {
+          recomputeGridFromAnchor(el, parsed.canvas.cell);
+        }
+
         this.template = parsed;
         this.history = [JSON.stringify(parsed)];
         this.historyIndex = 0;
