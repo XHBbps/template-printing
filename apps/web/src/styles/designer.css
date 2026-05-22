@@ -75,19 +75,6 @@
   min-width: 0;
   flex-shrink: 0;
 }
-.tp-avatar {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #ff8b66, #ff6b9d);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 12px;
-}
 .tp-head-text { min-width: 0; flex: 1; }
 .tp-head-title {
   font-weight: 700;

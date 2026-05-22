@@ -30,7 +30,6 @@ onMounted(() => {
     <!-- LEFT: project head + (top) ElementLibrary / (bottom) CanvasElementsList -->
     <aside class="designer-left tp-panel">
       <div class="tp-panel-head">
-        <div class="tp-avatar">{{ store.template.meta.name.charAt(0) || '模' }}</div>
         <div class="tp-head-text">
           <div class="tp-head-title">{{ store.template.meta.name }}</div>
           <div class="tp-head-sub">v{{ store.template.meta.version }} · 草稿已保存</div>
