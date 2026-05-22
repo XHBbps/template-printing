@@ -7,9 +7,6 @@ import { computed, ref, watch } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import bwipjs from 'bwip-js';
 // eslint-disable-next-line import/no-unresolved
-import qrcode from 'qrcode-generator';
-
-// eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
 
 const props = defineProps<{
@@ -20,7 +17,6 @@ const props = defineProps<{
 }>();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
-const qrSvg = ref<string>('');
 
 const value = computed<string>(() => {
   if (props.element.content?.static) return props.element.content.static;
@@ -31,7 +27,11 @@ const value = computed<string>(() => {
   return props.designMode ? 'SAMPLE-CODE' : '';
 });
 
-const eccMap = { L: 'L', M: 'M', Q: 'Q', H: 'H' } as const;
+const hasContent = computed(() => {
+  const c = props.element.content?.static;
+  const b = props.element.binding;
+  return (c !== undefined && c !== '') || (b !== undefined && b !== '');
+});
 
 const wrapStyle = computed(() => ({
   width: '100%',
@@ -45,41 +45,30 @@ const wrapStyle = computed(() => ({
 }));
 
 function render(): void {
+  if (!hasContent.value) return;
+  if (!canvasRef.value) return;
   const v = value.value;
   if (!v) return;
-  if (props.element.symbology === 'qr') {
-    // qrcode-generator produces SVG inline
-    const ecc = (props.element.eccLevel ?? 'M') as 'L' | 'M' | 'Q' | 'H';
-    const qr = qrcode(0, eccMap[ecc]);
-    qr.addData(v);
-    qr.make();
-    const cellSize = 4;
-    const margin = props.element.quietZone ?? 2;
-    qrSvg.value = qr.createSvgTag({ cellSize, margin });
-    // Apply foreground/background colors via CSS filter or inline style on the wrapper
-  } else {
-    if (!canvasRef.value) return;
-    try {
-      bwipjs.toCanvas(canvasRef.value, {
-        bcid: props.element.symbology,
-        text: v,
-        scale: 3,
-        height: 12,
-        includetext: props.element.showText ?? false,
-        textxalign: 'center',
-        paddingwidth: props.element.quietZone ?? 4,
-        textgaps: 2,
-        textsize: props.element.textFontSize ?? 10,
-        textyoffset:
-          props.element.textPosition === 'top' ? -((props.element.textFontSize ?? 10) + 2) : 0,
-        barcolor: (props.element.foregroundColor ?? '#000000').replace('#', ''),
-        backgroundcolor: (props.element.backgroundColor ?? '#ffffff').replace('#', ''),
-        textcolor: (props.element.foregroundColor ?? '#000000').replace('#', ''),
-      });
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn('barcode render failed', e);
-    }
+  try {
+    bwipjs.toCanvas(canvasRef.value, {
+      bcid: props.element.symbology,
+      text: v,
+      scale: 3,
+      height: 12,
+      includetext: props.element.showText ?? false,
+      textxalign: 'center',
+      paddingwidth: props.element.quietZone ?? 4,
+      textgaps: 2,
+      textsize: props.element.textFontSize ?? 10,
+      textyoffset:
+        props.element.textPosition === 'top' ? -((props.element.textFontSize ?? 10) + 2) : 0,
+      barcolor: (props.element.foregroundColor ?? '#000000').replace('#', ''),
+      backgroundcolor: (props.element.backgroundColor ?? '#ffffff').replace('#', ''),
+      textcolor: (props.element.foregroundColor ?? '#000000').replace('#', ''),
+    });
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('barcode render failed', e);
   }
 }
 
@@ -89,7 +78,6 @@ watch(
     sym: props.element.symbology,
     content: props.element.content,
     binding: props.element.binding,
-    ecc: props.element.eccLevel,
     fg: props.element.foregroundColor,
     bg: props.element.backgroundColor,
     qz: props.element.quietZone,
@@ -109,16 +97,8 @@ watch(
 <template>
   <div class="tp-barcode">
     <div class="bc-wrap" :style="wrapStyle">
-      <div
-        v-if="props.element.symbology === 'qr'"
-        class="tp-qr"
-        :style="{
-          color: props.element.foregroundColor ?? '#000000',
-          background: props.element.backgroundColor ?? '#ffffff',
-        }"
-        v-html="qrSvg"
-      />
-      <canvas v-else ref="canvasRef" class="tp-canvas" />
+      <canvas v-if="hasContent" ref="canvasRef" class="tp-canvas" />
+      <div v-else class="bc-empty">未配置内容</div>
     </div>
   </div>
 </template>
@@ -132,24 +112,25 @@ watch(
   justify-content: center;
 }
 .bc-wrap :deep(canvas),
-.bc-wrap canvas,
-.bc-wrap :deep(svg),
-.bc-wrap svg {
+.bc-wrap canvas {
   max-width: 100%;
   max-height: 100%;
   width: auto;
   height: auto;
 }
-.tp-qr {
-  width: 100%;
-  height: 100%;
-}
-.tp-qr :deep(svg) {
-  width: 100%;
-  height: 100%;
-}
 .tp-canvas {
   max-width: 100%;
   max-height: 100%;
+}
+.bc-empty {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--tp-line-strong, #e0e0e4);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tp-ink-faint, #9c9ca3);
+  font-size: 11px;
 }
 </style>
