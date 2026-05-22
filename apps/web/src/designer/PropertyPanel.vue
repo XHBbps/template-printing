@@ -509,6 +509,37 @@ const advancedOpen = ref(false);
         @update="(patch: Partial<TemplateElement>) => store.updateElement(sel!.id, patch)"
       />
 
+      <div v-if="sel && sel.type === 'system'" class="row">
+        <span class="lbl">变量</span>
+        <ElSelect
+          size="small"
+          :model-value="sel.variable"
+          style="flex: 1"
+          @change="
+            (v: 'pageNo' | 'totalPages' | 'now' | 'printedBy') =>
+              store.updateElement(sel!.id, { variable: v } as Partial<TemplateElement>)
+          "
+        >
+          <ElOption value="pageNo" label="页码 pageNo" />
+          <ElOption value="totalPages" label="总页数 totalPages" />
+          <ElOption value="now" label="当前时间 now" />
+          <ElOption value="printedBy" label="操作人 printedBy" />
+        </ElSelect>
+      </div>
+
+      <div v-if="sel && sel.type === 'system' && sel.variable === 'now'" class="row">
+        <span class="lbl">格式</span>
+        <ElInput
+          size="small"
+          :model-value="sel.format ?? 'YYYY-MM-DD HH:mm'"
+          style="flex: 1"
+          placeholder="YYYY-MM-DD HH:mm"
+          @update:model-value="
+            (v: string) => store.updateElement(sel!.id, { format: v } as Partial<TemplateElement>)
+          "
+        />
+      </div>
+
       <div v-if="sel && sel.type === 'image'" class="img-source">
         <div class="style-title">图片来源</div>
         <div class="srow">
