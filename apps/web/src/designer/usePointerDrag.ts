@@ -1,6 +1,10 @@
 import { useDesignerStore } from '../stores/designer';
 
 import { minMmFor } from './elementFactory';
+import { computeSnap } from './snapGuides';
+
+const PX_PER_MM = 4;
+const SNAP_THRESHOLD_MM = 1.5;
 
 type ResizeSide = 'n' | 'e' | 's' | 'w' | 'nw' | 'ne' | 'sw' | 'se';
 type ResizeMode = 'free' | 'qr-lock' | 'barcode';
@@ -42,27 +46,68 @@ export function usePointerDrag(
       startRs = el.grid.rs;
     const startX = e.clientX,
       startY = e.clientY;
+    const startAnchorX = el.anchor.x;
+    const startAnchorY = el.anchor.y;
 
     let lastDx = 0,
       lastDy = 0;
+    let lastSnappedX = startAnchorX;
+    let lastSnappedY = startAnchorY;
     store.isResizing = true;
     dom.classList.add('is-pointer-active');
 
     function onMove(ev: PointerEvent): void {
       lastDx = ev.clientX - startX;
       lastDy = ev.clientY - startY;
-      dom!.style.transform = `translate(${lastDx}px, ${lastDy}px)`;
+
+      const dxMm = lastDx / (PX_PER_MM * store.view.zoom);
+      const dyMm = lastDy / (PX_PER_MM * store.view.zoom);
+
+      const targetMm = {
+        x: startAnchorX + dxMm,
+        y: startAnchorY + dyMm,
+        w: el!.anchor.w,
+        h: el!.anchor.h,
+      };
+      const others = store.template.elements
+        .filter((e2) => e2.id !== elementId)
+        .map((e2) => ({ x: e2.anchor.x, y: e2.anchor.y, w: e2.anchor.w, h: e2.anchor.h }));
+      const paperMmW = store.paperPx.w / PX_PER_MM;
+      const paperMmH = store.paperPx.h / PX_PER_MM;
+
+      const snap = computeSnap({
+        target: targetMm,
+        others,
+        paper: { w: paperMmW, h: paperMmH },
+        threshold: ev.altKey ? 0 : SNAP_THRESHOLD_MM,
+      });
+
+      store.setGuides(snap.guides);
+      lastSnappedX = snap.snapped.x;
+      lastSnappedY = snap.snapped.y;
+
+      const snappedDxPx = (lastSnappedX - startAnchorX) * PX_PER_MM * store.view.zoom;
+      const snappedDyPx = (lastSnappedY - startAnchorY) * PX_PER_MM * store.view.zoom;
+      dom!.style.transform = `translate(${snappedDxPx}px, ${snappedDyPx}px)`;
     }
+
     function onUp(): void {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      store.clearGuides();
+
       const z = store.view.zoom;
-      const dc = Math.round(lastDx / (cell.w * z));
-      const dr = Math.round(lastDy / (cell.h * z));
+      const finalDxMm = lastSnappedX - startAnchorX;
+      const finalDyMm = lastSnappedY - startAnchorY;
+      const dc = Math.round((finalDxMm * PX_PER_MM) / cell.w);
+      const dr = Math.round((finalDyMm * PX_PER_MM) / cell.h);
       const newC = clamp(startC + dc, 0, store.template.canvas.cols - startCs);
       const newR = clamp(startR + dr, 0, store.template.canvas.rows - startRs);
-      const residueX = lastDx - (newC - startC) * cell.w * z;
-      const residueY = lastDy - (newR - startR) * cell.h * z;
+
+      const finalDxPx = (lastSnappedX - startAnchorX) * PX_PER_MM * z;
+      const finalDyPx = (lastSnappedY - startAnchorY) * PX_PER_MM * z;
+      const residueX = finalDxPx - (newC - startC) * cell.w * z;
+      const residueY = finalDyPx - (newR - startR) * cell.h * z;
       dom!.style.transform = `translate(${residueX}px, ${residueY}px)`;
       store.moveElement(elementId, newC, newR);
       requestAnimationFrame(() => {
@@ -133,7 +178,6 @@ export function usePointerDrag(
       }
 
       // Iteration-3: enforce per-type minimum size in mm.
-      const PX_PER_MM = 4;
       const minMm = minMmFor(el!);
       const minCs = Math.max(1, Math.ceil((minMm.w * PX_PER_MM) / cell.w));
       const minRs = Math.max(1, Math.ceil((minMm.h * PX_PER_MM) / cell.h));
