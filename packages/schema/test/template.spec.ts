@@ -8,6 +8,8 @@ import {
   TableElementSchema,
   StyleSchema,
   BarcodeElementSchema,
+  QrElementSchema,
+  FieldElementSchema,
   FieldDefSchema,
   PaperSchema,
   CanvasSchema,
@@ -98,17 +100,16 @@ describe('ElementSchema', () => {
   it('discriminated union narrows correctly', () => {
     const el = ElementSchema.parse({
       id: 'b1',
-      type: 'barcode',
+      type: 'qr',
       grid: { c: 0, r: 0, cs: 8, rs: 8 },
       anchor: { x: 0, y: 0, w: 8, h: 8 },
       style: baseStyle,
-      symbology: 'qr',
       content: { static: 'https://example.com' },
     });
-    if (el.type === 'barcode') {
-      expect(el.symbology).toBe('qr');
+    if (el.type === 'qr') {
+      expect(el.type).toBe('qr');
     } else {
-      throw new Error('expected barcode');
+      throw new Error('expected qr');
     }
   });
 
@@ -259,18 +260,6 @@ describe('expanded BarcodeElementSchema', () => {
     showText: false,
   };
 
-  it('accepts qr with eccLevel + colors + quietZone', () => {
-    const el = {
-      ...baseBarcode,
-      symbology: 'qr' as const,
-      eccLevel: 'Q' as const,
-      foregroundColor: '#111',
-      backgroundColor: '#fff',
-      quietZone: 4,
-    };
-    expect(BarcodeElementSchema.parse(el).eccLevel).toBe('Q');
-  });
-
   it('accepts code128 with textPosition + textFontSize', () => {
     const el = {
       ...baseBarcode,
@@ -280,13 +269,6 @@ describe('expanded BarcodeElementSchema', () => {
       textFontSize: 12,
     };
     expect(BarcodeElementSchema.parse(el).textPosition).toBe('top');
-  });
-
-  it('accepts new symbology values ean8, upc-a, itf14', () => {
-    for (const sym of ['ean8', 'upc-a', 'itf14'] as const) {
-      const el = { ...baseBarcode, symbology: sym };
-      expect(BarcodeElementSchema.parse(el).symbology).toBe(sym);
-    }
   });
 });
 
@@ -328,5 +310,83 @@ describe('CanvasSchema orientation field', () => {
       background: null,
     });
     expect(c.orientation).toBe('landscape');
+  });
+});
+
+describe('QrElementSchema (iteration 5)', () => {
+  const baseQr = {
+    id: 'q1',
+    type: 'qr' as const,
+    grid: { c: 0, r: 0, cs: 12, rs: 12 },
+    anchor: { x: 0, y: 0, w: 12, h: 12 },
+    style: baseStyle,
+    content: { static: 'SAMPLE' },
+  };
+
+  it('parses a QR element', () => {
+    expect(ElementSchema.parse(baseQr).type).toBe('qr');
+  });
+
+  it('QR accepts eccLevel + colors + quietZone', () => {
+    const el = {
+      ...baseQr,
+      eccLevel: 'H' as const,
+      foregroundColor: '#111',
+      backgroundColor: '#fff',
+      quietZone: 3,
+    };
+    expect(QrElementSchema.parse(el).eccLevel).toBe('H');
+  });
+
+  it('QR accepts empty binding', () => {
+    const el = { ...baseQr, binding: '', content: undefined };
+    expect(QrElementSchema.parse(el).binding).toBe('');
+  });
+});
+
+describe('BarcodeElementSchema (iteration 5 — 1D only)', () => {
+  const base1d = {
+    id: 'b1',
+    type: 'barcode' as const,
+    grid: { c: 0, r: 0, cs: 30, rs: 8 },
+    anchor: { x: 0, y: 0, w: 60, h: 16 },
+    style: baseStyle,
+    content: { static: 'SAMPLE' },
+  };
+
+  it('rejects qr as a symbology', () => {
+    expect(() => BarcodeElementSchema.parse({ ...base1d, symbology: 'qr' })).toThrow();
+  });
+
+  it('rejects ean8 / upc-a', () => {
+    expect(() => BarcodeElementSchema.parse({ ...base1d, symbology: 'ean8' })).toThrow();
+    expect(() => BarcodeElementSchema.parse({ ...base1d, symbology: 'upc-a' })).toThrow();
+  });
+
+  it('accepts Code 128 / Code 39 / EAN-13 / ITF-14', () => {
+    for (const sym of ['code128', 'code39', 'ean13', 'itf14'] as const) {
+      expect(BarcodeElementSchema.parse({ ...base1d, symbology: sym }).symbology).toBe(sym);
+    }
+  });
+
+  it('accepts empty binding', () => {
+    const el = { ...base1d, binding: '', content: undefined };
+    expect(BarcodeElementSchema.parse(el).binding).toBe('');
+  });
+});
+
+describe('FieldElementSchema (iteration 5)', () => {
+  it('accepts empty binding (unbound)', () => {
+    const el = {
+      id: 'f1',
+      type: 'field' as const,
+      grid: { c: 0, r: 0, cs: 16, rs: 3 },
+      anchor: { x: 0, y: 0, w: 50, h: 8 },
+      style: baseStyle,
+      binding: '',
+      fallback: '—',
+      format: null,
+    };
+    expect(FieldElementSchema.parse(el).binding).toBe('');
   });
 });

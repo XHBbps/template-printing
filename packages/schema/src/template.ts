@@ -73,7 +73,7 @@ export const AnchorSchema = z.object({
 });
 export type Anchor = z.infer<typeof AnchorSchema>;
 
-// --- Element variants (8 types) ---
+// --- Element variants (9 types) ---
 
 const Base = z.object({
   id: z.string().min(1),
@@ -89,7 +89,7 @@ export const TextElementSchema = Base.extend({
 
 export const FieldElementSchema = Base.extend({
   type: z.literal('field'),
-  binding: z.string().min(1),
+  binding: z.string(),
   fallback: z.string().default('—'),
   format: z.string().nullable().default(null),
 });
@@ -123,22 +123,25 @@ export const TableElementSchema = Base.extend({
 
 export const BarcodeElementSchema = Base.extend({
   type: z.literal('barcode'),
-  binding: z.string().min(1).optional(),
+  binding: z.string().optional(),
   content: z.object({ static: z.string() }).optional(),
-  symbology: z.enum(['qr', 'code128', 'code39', 'ean13', 'ean8', 'upc-a', 'itf14']).default('qr'),
-  showText: z.boolean().default(false),
+  symbology: z.enum(['code128', 'code39', 'ean13', 'itf14']).default('code128'),
+  showText: z.boolean().default(true),
+  textPosition: z.enum(['top', 'bottom']).default('bottom'),
+  textFontSize: z.number().positive().default(10),
+  foregroundColor: z.string().default('#000000'),
+  backgroundColor: z.string().default('#ffffff'),
+  quietZone: z.number().nonnegative().default(4),
+});
 
-  // QR-only controls
-  eccLevel: z.enum(['L', 'M', 'Q', 'H']).optional(),
-
-  // Shared controls
+export const QrElementSchema = Base.extend({
+  type: z.literal('qr'),
+  binding: z.string().optional(),
+  content: z.object({ static: z.string() }).optional(),
+  eccLevel: z.enum(['L', 'M', 'Q', 'H']).default('M'),
   foregroundColor: z.string().default('#000000'),
   backgroundColor: z.string().default('#ffffff'),
   quietZone: z.number().nonnegative().default(2),
-
-  // 1D-only controls
-  textPosition: z.enum(['top', 'bottom']).optional(),
-  textFontSize: z.number().positive().optional(),
 });
 
 export const AutonumberElementSchema = Base.extend({
@@ -164,6 +167,7 @@ export const ElementSchema = z.discriminatedUnion('type', [
   ImageElementSchema,
   TableElementSchema,
   BarcodeElementSchema,
+  QrElementSchema,
   AutonumberElementSchema,
   SystemElementSchema,
   RectElementSchema,
