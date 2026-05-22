@@ -50,9 +50,7 @@ const paperLabel = computed(() => {
   return `${p.w_mm}×${p.h_mm}mm`;
 });
 
-const cellLabel = computed(
-  () => `${store.template.canvas.cell.w}×${store.template.canvas.cell.h}px`,
-);
+const cellLabel = computed(() => `${store.template.canvas.cell.w} px`);
 
 const validCells = computed(() => store.validCellOptions());
 
@@ -115,14 +113,14 @@ const previewOpen = ref(false);
             :key="`${opt.w}x${opt.h}`"
             @click="chooseCell(opt.w, opt.h)"
           >
-            {{ opt.w }}×{{ opt.h }}px
-            <span style="color: #999; margin-left: 6px">({{ opt.cols }}×{{ opt.rows }})</span>
+            {{ opt.w }} px
+            <span style="color: #999; margin-left: 6px">({{ opt.cols }}×{{ opt.rows }} 格)</span>
           </ElDropdownItem>
         </ElDropdownMenu>
       </template>
     </ElDropdown>
 
-    <span class="tt-divider" />
+    <span class="tt-spacer" />
 
     <button class="tt-btn" @click="previewOpen = true">👁 预览</button>
     <button
@@ -131,16 +129,17 @@ const previewOpen = ref(false);
     >
       保存
     </button>
-    <button class="tt-btn tt-accent" @click="doPrint">立即打印</button>
+    <button class="tt-btn tt-accent" @click="doPrint">🖨 立即打印</button>
+
+    <CustomPaperDialog v-model="customDialogOpen" @confirm="onCustomPaperConfirm" />
   </header>
   <PreviewView v-model="previewOpen" />
-  <CustomPaperDialog v-model="customDialogOpen" @confirm="onCustomPaperConfirm" />
 </template>
 
 <style scoped>
 .tt-btn {
   height: 32px;
-  padding: 0 12px;
+  padding: 0 14px;
   border: none;
   background: transparent;
   border-radius: var(--tp-radius-pill);
@@ -189,8 +188,8 @@ const previewOpen = ref(false);
 }
 .tt-divider {
   width: 1px;
-  height: 18px;
+  height: 20px;
   background: var(--tp-line-strong);
-  margin: 0 4px;
+  margin: 0 8px;
 }
 </style>

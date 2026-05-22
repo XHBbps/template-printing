@@ -182,14 +182,16 @@
   background: var(--tp-panel);
   border-radius: var(--tp-radius-pill);
   box-shadow: var(--tp-shadow-pill);
-  padding: 5px;
-  display: inline-flex;
+  padding: 6px 10px;
+  display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   z-index: 10;
-  max-width: calc(100% - 28px);
+  min-width: 720px;
+  max-width: calc(100% - 80px);
   white-space: nowrap;
 }
+.tp-top-toolbar .tt-spacer { flex: 1; }
 
 /* 画布区域 — 浅紫点状栅格 */
 .tp-canvas-area {
