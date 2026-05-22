@@ -1,5 +1,19 @@
 <script setup lang="ts">
 import { ElDropdown, ElDropdownItem, ElDropdownMenu, ElMessage } from 'element-plus';
+// eslint-disable-next-line import/no-unresolved
+import {
+  ArrowLeft,
+  Undo2,
+  Redo2,
+  FileText,
+  Grid3x3,
+  RotateCw,
+  ZoomIn,
+  Eye,
+  Save,
+  Printer,
+  Plus,
+} from 'lucide-vue-next';
 import { computed, nextTick, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -77,31 +91,42 @@ const previewOpen = ref(false);
 
 <template>
   <header class="tp-top-toolbar">
-    <button class="tt-btn tt-icon" title="返回" @click="exitToHome">←</button>
+    <button class="tt-btn tt-icon" title="返回" @click="exitToHome">
+      <ArrowLeft :size="16" :stroke-width="2" />
+    </button>
     <span class="tt-divider" />
 
     <button class="tt-btn" :disabled="!store.canUndo" title="撤销 (⌘Z)" @click="store.undo">
-      ↶
+      <Undo2 :size="16" :stroke-width="2" />
     </button>
     <button class="tt-btn" :disabled="!store.canRedo" title="重做 (⌘⇧Z)" @click="store.redo">
-      ↷
+      <Redo2 :size="16" :stroke-width="2" />
     </button>
     <span class="tt-divider" />
 
     <ElDropdown trigger="click">
-      <button class="tt-btn">📄 {{ paperLabel }}</button>
+      <button class="tt-btn">
+        <FileText :size="16" :stroke-width="2" />
+        {{ paperLabel }}
+      </button>
       <template #dropdown>
         <ElDropdownMenu>
           <ElDropdownItem v-for="p in paperOptions" :key="p" @click="store.setPaper(p)">
             {{ paperLabelMap[p] }}
           </ElDropdownItem>
-          <ElDropdownItem divided @click="customDialogOpen = true">⊕ 自定义…</ElDropdownItem>
+          <ElDropdownItem divided @click="customDialogOpen = true">
+            <Plus :size="14" :stroke-width="2" style="margin-right: 6px" />
+            自定义…
+          </ElDropdownItem>
         </ElDropdownMenu>
       </template>
     </ElDropdown>
 
     <ElDropdown trigger="click">
-      <button class="tt-btn">⊞ {{ cellLabel }}</button>
+      <button class="tt-btn">
+        <Grid3x3 :size="16" :stroke-width="2" />
+        {{ cellLabel }}
+      </button>
       <template #dropdown>
         <ElDropdownMenu>
           <ElDropdownItem
@@ -116,10 +141,15 @@ const previewOpen = ref(false);
       </template>
     </ElDropdown>
 
-    <button class="tt-btn" title="旋转 90°" @click="store.rotate()">⤴</button>
+    <button class="tt-btn" title="旋转 90°" @click="store.rotate()">
+      <RotateCw :size="16" :stroke-width="2" />
+    </button>
 
     <ElDropdown trigger="click">
-      <button class="tt-btn">🔍 {{ zoomLabel }}</button>
+      <button class="tt-btn">
+        <ZoomIn :size="16" :stroke-width="2" />
+        {{ zoomLabel }}
+      </button>
       <template #dropdown>
         <ElDropdownMenu>
           <ElDropdownItem @click="onFit">Fit (自动适配)</ElDropdownItem>
@@ -132,14 +162,21 @@ const previewOpen = ref(false);
 
     <span class="tt-spacer" />
 
-    <button class="tt-btn" @click="previewOpen = true">👁 预览</button>
+    <button class="tt-btn" @click="previewOpen = true">
+      <Eye :size="16" :stroke-width="2" />
+      预览
+    </button>
     <button
       class="tt-btn tt-primary"
       @click="ElMessage.info('保存到后端在 Plan 3 实现，草稿已存本地')"
     >
+      <Save :size="16" :stroke-width="2" />
       保存
     </button>
-    <button class="tt-btn tt-accent" @click="doPrint">🖨 立即打印</button>
+    <button class="tt-btn tt-accent" @click="doPrint">
+      <Printer :size="16" :stroke-width="2" />
+      立即打印
+    </button>
 
     <CustomPaperDialog v-model="customDialogOpen" @confirm="onCustomPaperConfirm" />
   </header>
