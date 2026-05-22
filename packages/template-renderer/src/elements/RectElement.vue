@@ -1,34 +1,23 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import type { TemplateElement, ElementStyle } from '@template-printing/schema';
+import type { TemplateElement } from '@template-printing/schema';
+import { computed } from 'vue';
+import { styleToCss } from '../styleToCss';
 
 const props = defineProps<{
   element: Extract<TemplateElement, { type: 'rect' }>;
+  designMode?: boolean;
 }>();
 
-function styleToCss(s: ElementStyle): Record<string, string | number> {
-  const css: Record<string, string | number> = {
-    borderRadius: `${s.borderRadius}px`,
-  };
-  if (s.background) css.background = s.background;
-  for (const side of ['top', 'right', 'bottom', 'left'] as const) {
-    const b = s.border[side];
-    if (b.show) {
-      const cap = side.charAt(0).toUpperCase() + side.slice(1);
-      css[`border${cap}`] = `${b.width}px ${b.style} ${b.color}`;
-    }
-  }
-  return css;
-}
+const containerStyle = computed(() => ({
+  ...styleToCss(props.element.style),
+  width: '100%',
+  height: '100%',
+  boxSizing: 'border-box' as const,
+  padding: `${props.element.style.padding.t}px ${props.element.style.padding.r}px ${props.element.style.padding.b}px ${props.element.style.padding.l}px`,
+}));
 </script>
 
 <template>
-  <div class="tp-rect" :style="styleToCss(props.element.style)" />
+  <div :style="containerStyle"></div>
 </template>
-
-<style scoped>
-.tp-rect {
-  width: 100%;
-  height: 100%;
-}
-</style>
