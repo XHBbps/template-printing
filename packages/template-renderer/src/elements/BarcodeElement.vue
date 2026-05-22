@@ -40,8 +40,6 @@ const wrapStyle = computed(() => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  filter: props.isResizing ? 'blur(2px) opacity(0.55)' : 'none',
-  transition: 'filter 120ms ease',
 }));
 
 function render(): void {
@@ -49,12 +47,18 @@ function render(): void {
   if (!canvasRef.value) return;
   const v = value.value;
   if (!v) return;
+  const elPxW = props.element.anchor.w * 4; // PX_PER_MM = 4
+  const elPxH = props.element.anchor.h * 4;
+  // code128 ≈ 11 modules/char + quiet zone 20
+  const estModules = v.length * 11 + 20;
+  const scale = Math.max(1, Math.floor((elPxW * 0.85) / estModules));
+  const height = Math.max(8, Math.floor(elPxH * 0.75));
   try {
     bwipjs.toCanvas(canvasRef.value, {
       bcid: props.element.symbology,
       text: v,
-      scale: 3,
-      height: 12,
+      scale,
+      height,
       includetext: props.element.showText ?? false,
       textxalign: 'center',
       paddingwidth: props.element.quietZone ?? 4,
@@ -74,7 +78,7 @@ function render(): void {
 
 watch(
   () => ({
-    grid: props.element.grid,
+    anchor: { ...props.element.anchor },
     sym: props.element.symbology,
     content: props.element.content,
     binding: props.element.binding,
@@ -103,7 +107,11 @@ onMounted(() => {
 
 <template>
   <div class="tp-barcode">
-    <div class="bc-wrap" :style="wrapStyle">
+    <div v-if="props.isResizing" class="bc-placeholder">
+      <span class="bc-icon">||||</span>
+      <span class="bc-label">条码</span>
+    </div>
+    <div v-else class="bc-wrap" :style="wrapStyle">
       <canvas v-if="hasContent" ref="canvasRef" class="tp-canvas" />
       <div v-else class="bc-empty">未配置内容</div>
     </div>
@@ -139,5 +147,28 @@ onMounted(() => {
   justify-content: center;
   color: var(--tp-ink-faint, #9c9ca3);
   font-size: 11px;
+}
+.bc-placeholder {
+  width: 100%;
+  height: 100%;
+  background: var(--tp-field-bg, #f5f5f5);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--tp-ink-soft, #555);
+  font-size: 11px;
+  gap: 4px;
+}
+.bc-icon {
+  font-family: ui-monospace, monospace;
+  font-size: 18px;
+  letter-spacing: -2px;
+  color: var(--tp-ink, #333);
+}
+.bc-label {
+  font-size: 10px;
+  color: var(--tp-ink-soft, #555);
 }
 </style>
