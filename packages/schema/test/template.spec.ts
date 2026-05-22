@@ -9,6 +9,7 @@ import {
   StyleSchema,
   BarcodeElementSchema,
   FieldDefSchema,
+  PaperSchema,
   type Template,
   // eslint-disable-next-line import/no-unresolved
 } from '../src/template.js';
@@ -284,5 +285,27 @@ describe('expanded BarcodeElementSchema', () => {
       const el = { ...baseBarcode, symbology: sym };
       expect(BarcodeElementSchema.parse(el).symbology).toBe(sym);
     }
+  });
+});
+
+describe('expanded PaperSchema', () => {
+  it.each([
+    'A3',
+    'A3-Landscape',
+    'A4',
+    'A4-Landscape',
+    'A5',
+    'A5-Landscape',
+    'A6',
+    'B5',
+    'Letter',
+    'GuardPass',
+    'LogisticLabel',
+  ])('accepts preset "%s"', (preset) => {
+    expect(PaperSchema.parse(preset)).toBe(preset);
+  });
+
+  it('accepts custom { w_mm, h_mm }', () => {
+    expect(PaperSchema.parse({ w_mm: 173, h_mm: 240 })).toMatchObject({ w_mm: 173 });
   });
 });
