@@ -160,6 +160,17 @@ export const useDesignerStore = defineStore('designer', {
     // Internal: a DOM size accessor that DesignerCanvas registers so the store
     // can compute fit-to-view without a DOM dependency.
     canvasAreaSize: null as null | (() => { w: number; h: number }),
+    guides: {
+      v: [] as number[],
+      h: [] as number[],
+      distLabels: [] as Array<{
+        kind: 'h' | 'v';
+        a: number;
+        b: number;
+        crossAxis: number;
+        value: number;
+      }>,
+    },
   }),
   getters: {
     canUndo: (s): boolean => s.historyIndex > 0,
@@ -321,6 +332,23 @@ export const useDesignerStore = defineStore('designer', {
     },
     registerCanvasArea(reader: () => { w: number; h: number }): void {
       this.canvasAreaSize = reader;
+    },
+    setGuides(g: {
+      v: number[];
+      h: number[];
+      distLabels: Array<{
+        kind: 'h' | 'v';
+        a: number;
+        b: number;
+        crossAxis: number;
+        value: number;
+      }>;
+    }): void {
+      this.guides = g;
+      // No snapshot — guides are transient, not history-tracked or persisted.
+    },
+    clearGuides(): void {
+      this.guides = { v: [], h: [], distLabels: [] };
     },
     setZoom(z: number): void {
       this.view.zoom = Math.max(0.25, Math.min(4, z));
