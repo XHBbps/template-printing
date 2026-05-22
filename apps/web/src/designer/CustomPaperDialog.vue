@@ -61,7 +61,10 @@ function nearbyNonPrime(n: number): number {
   return n;
 }
 
-const canConfirm = computed(() => inRange.value && aspectOk.value && cellOptions.value.length > 0);
+// Allow confirm even when cellOptions is empty — store falls back to cell=1
+// for low-divisor papers (iteration 4 behavior). The dialog already shows
+// a red warning explaining the constraint.
+const canConfirm = computed(() => inRange.value && aspectOk.value);
 
 function confirm() {
   emit('confirm', { w_mm: Math.round(w.value), h_mm: Math.round(h.value) });
@@ -95,11 +98,11 @@ function confirm() {
       <div>画布像素：{{ pxW }} × {{ pxH }}</div>
       <div v-if="!inRange" class="cpd-error">⚠ 每边需在 30 - 600 mm 范围内</div>
       <div v-else-if="!aspectOk" class="cpd-error">⚠ 长宽比超过 5:1，不允许</div>
-      <div v-else-if="cellOptions.length === 0" class="cpd-error">
-        ⚠ 此尺寸无任何 cell 候选 (2-40 px 内)，建议调整为附近的高公约数值
+      <div v-else-if="cellOptions.length === 0" class="cpd-warn">
+        ⚠ 此尺寸无公约 cell 候选 (2-40 px)，将使用 cell=1px 回退，建议调整为附近的高公约数值
       </div>
       <div v-else>可选 cell：{{ cellOptions.join(', ') }} px ({{ cellOptions.length }} 个)</div>
-      <div v-if="primeSide && canConfirm" class="cpd-warn">
+      <div v-if="primeSide && canConfirm && cellOptions.length > 0" class="cpd-warn">
         ⚠ 边长含质数 ({{ w }} 或 {{ h }})，cell 选项受限。建议改为
         {{ isPrime(w) ? nearbyNonPrime(w) : w }} × {{ isPrime(h) ? nearbyNonPrime(h) : h }} mm
       </div>
