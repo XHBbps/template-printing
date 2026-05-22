@@ -106,17 +106,12 @@ const elementMap: Record<string, unknown> = {
   position: absolute;
   box-sizing: border-box;
   cursor: pointer;
-  border: 1.5px solid transparent;
   border-radius: 4px;
 }
-/* Selection visual coincides with element border (#2) — no outline-offset.
-   Replaces the previous outline with an inset purple border so the highlight
-   sits exactly where the element's edge is. */
 .tp-element.is-selected {
-  border-color: var(--tp-accent);
-  box-shadow:
-    0 0 0 1px rgba(108, 92, 231, 0.15),
-    0 0 24px rgba(108, 92, 231, 0.18);
+  outline: 1.5px solid var(--tp-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 24px rgba(108, 92, 231, 0.18);
 }
 /* 4 corner handles — white fill, purple border, circular (#3) */
 .tp-handle {
