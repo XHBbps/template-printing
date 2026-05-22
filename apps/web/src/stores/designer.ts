@@ -26,9 +26,8 @@ const PAPER_PRESETS: Record<string, { w_mm: number; h_mm: number }> = {
   A3: { w_mm: 297, h_mm: 420 },
   A4: { w_mm: 210, h_mm: 297 },
   A5: { w_mm: 148, h_mm: 210 },
-  A6: { w_mm: 105, h_mm: 148 },
+  B4: { w_mm: 250, h_mm: 353 },
   B5: { w_mm: 176, h_mm: 250 },
-  Letter: { w_mm: 216, h_mm: 279 },
 };
 
 function paperPxSize(
@@ -240,13 +239,19 @@ export const useDesignerStore = defineStore('designer', {
           'A3-Landscape': { paper: 'A3', orientation: 'landscape' },
           'A4-Landscape': { paper: 'A4', orientation: 'landscape' },
           'A5-Landscape': { paper: 'A5', orientation: 'landscape' },
-          GuardPass: { paper: { w_mm: 90, h_mm: 60 }, orientation: 'portrait' },
-          LogisticLabel: { paper: { w_mm: 100, h_mm: 180 }, orientation: 'portrait' },
+          GuardPass: { paper: 'A4', orientation: 'portrait' },
+          LogisticLabel: { paper: 'A4', orientation: 'portrait' },
+          A6: { paper: 'A5', orientation: 'portrait' },
+          Letter: { paper: 'A4', orientation: 'portrait' },
         };
         if (typeof parsed.canvas.paper === 'string' && parsed.canvas.paper in legacyPaperMap) {
           const m = legacyPaperMap[parsed.canvas.paper as string];
           parsed.canvas.paper = m.paper;
           parsed.canvas.orientation = m.orientation;
+        }
+        // Final guard: if paper is still a string but not in current presets, fall back to A4
+        if (typeof parsed.canvas.paper === 'string' && !(parsed.canvas.paper in PAPER_PRESETS)) {
+          parsed.canvas.paper = 'A4';
         }
         if (!parsed.canvas.orientation) parsed.canvas.orientation = 'portrait';
 
