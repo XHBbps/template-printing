@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElButton, ElDialog, ElForm, ElFormItem, ElInput } from 'element-plus';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import { TemplateRenderer } from '@template-printing/template-renderer';
 
@@ -21,11 +21,43 @@ watch(
         data[key] = def.example ?? '';
       }
       sampleData.value = data;
+      requestAnimationFrame(() => {
+        previewZoom.value = computeFit();
+      });
     }
   },
 );
 
 const close = (): void => emit('update:modelValue', false);
+
+// --- fit + zoom state ---
+const previewZoom = ref(1);
+const modalContainerRef = ref<HTMLElement | null>(null);
+const zoomOptions = [0.5, 0.75, 1, 1.5, 2];
+
+function computeFit(): number {
+  const el = modalContainerRef.value;
+  if (!el) return 1;
+  const px = store.paperPx;
+  const padding = 60;
+  const fitW = (el.clientWidth - padding) / px.w;
+  const fitH = (el.clientHeight - padding) / px.h;
+  return Math.max(0.1, Math.min(2, Math.min(fitW, fitH)));
+}
+
+function onFitPreview(): void {
+  previewZoom.value = computeFit();
+}
+function choosePreviewZoom(z: number): void {
+  previewZoom.value = z;
+}
+
+const paperStyle = computed(() => ({
+  width: `${store.paperPx.w}px`,
+  height: `${store.paperPx.h}px`,
+  background: '#fff',
+  position: 'relative' as const,
+}));
 </script>
 
 <template>
@@ -48,8 +80,27 @@ const close = (): void => emit('update:modelValue', false);
         </ElForm>
         <p v-else class="empty">未声明数据字段</p>
       </div>
-      <div class="preview-canvas">
-        <TemplateRenderer :template="store.template" :data="sampleData" />
+      <div ref="modalContainerRef" class="pv-container">
+        <div
+          class="pv-paper-wrap"
+          :style="{ transform: `scale(${previewZoom})`, transformOrigin: 'top left' }"
+        >
+          <div class="tp-paper" :style="paperStyle">
+            <TemplateRenderer :template="store.template" :data="sampleData" />
+          </div>
+        </div>
+        <div class="pv-zoom">
+          <button class="pv-zoom-btn" @click="onFitPreview">Fit</button>
+          <button
+            v-for="z in zoomOptions"
+            :key="z"
+            class="pv-zoom-btn"
+            :class="{ on: Math.abs(previewZoom - z) < 0.01 }"
+            @click="choosePreviewZoom(z)"
+          >
+            {{ Math.round(z * 100) }}%
+          </button>
+        </div>
       </div>
     </div>
     <template #footer>
@@ -70,13 +121,45 @@ const close = (): void => emit('update:modelValue', false);
   padding-right: 8px;
   border-right: 1px solid var(--el-border-color);
 }
-.preview-canvas {
+.pv-container {
+  width: 100%;
+  height: 70vh;
+  position: relative;
   overflow: auto;
+  background: var(--tp-canvas-bg, #f2f2f5);
+  border-radius: 8px;
+}
+.pv-paper-wrap {
+  display: inline-block;
+  margin: 30px;
+}
+.pv-zoom {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 16px;
-  background: #f0f2f5;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 999px;
+  padding: 4px 6px;
+  box-shadow: 0 2px 12px rgba(20, 20, 30, 0.1);
+}
+.pv-zoom-btn {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--tp-ink-soft, #5e5e66);
+}
+.pv-zoom-btn:hover {
+  background: var(--tp-field-bg, rgba(108, 92, 231, 0.06));
+}
+.pv-zoom-btn.on {
+  background: var(--tp-accent, #6c5ce7);
+  color: #fff;
+  font-weight: 600;
 }
 .empty {
   font-size: 12px;
