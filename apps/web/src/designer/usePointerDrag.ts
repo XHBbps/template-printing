@@ -54,12 +54,13 @@ export function usePointerDrag(
     function onUp(): void {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      const dc = Math.round(lastDx / cell.w);
-      const dr = Math.round(lastDy / cell.h);
+      const z = store.view.zoom;
+      const dc = Math.round(lastDx / (cell.w * z));
+      const dr = Math.round(lastDy / (cell.h * z));
       const newC = clamp(startC + dc, 0, store.template.canvas.cols - startCs);
       const newR = clamp(startR + dr, 0, store.template.canvas.rows - startRs);
-      const residueX = lastDx - (newC - startC) * cell.w;
-      const residueY = lastDy - (newR - startR) * cell.h;
+      const residueX = lastDx - (newC - startC) * cell.w * z;
+      const residueY = lastDy - (newR - startR) * cell.h * z;
       dom!.style.transform = `translate(${residueX}px, ${residueY}px)`;
       store.moveElement(elementId, newC, newR);
       requestAnimationFrame(() => {
@@ -100,8 +101,9 @@ export function usePointerDrag(
         drPx = sy * basis;
       }
 
-      let dc = Math.round(dcPx / cell.w);
-      let dr = Math.round(drPx / cell.h);
+      const z = store.view.zoom;
+      let dc = Math.round(dcPx / (cell.w * z));
+      let dr = Math.round(drPx / (cell.h * z));
 
       // For QR force dc === dr (in cell units) — snap to the largest absolute.
       if (mode === 'qr-lock') {
