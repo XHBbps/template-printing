@@ -1,21 +1,34 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+// eslint-disable-next-line import/no-unresolved
+import { Type, Braces, Hash, Clock, Square, Image, Table, QrCode, Barcode } from 'lucide-vue-next';
 import { useDesignerStore } from '../stores/designer';
 import { LIBRARY_ITEMS, buildElement, type ElementMeta, type LibraryGroup } from './elementFactory';
+// eslint-disable-next-line import/no-unresolved
+import type { TemplateElement } from '@template-printing/schema';
 
 const store = useDesignerStore();
 const groupOrder: LibraryGroup[] = ['文字', '图形', '数据'];
-const itemsByGroup = computed<Record<LibraryGroup, ElementMeta[]>>(() => {
-  return {
-    文字: LIBRARY_ITEMS.filter((i) => i.group === '文字'),
-    图形: LIBRARY_ITEMS.filter((i) => i.group === '图形'),
-    数据: LIBRARY_ITEMS.filter((i) => i.group === '数据'),
-  };
-});
+const itemsByGroup = computed<Record<LibraryGroup, ElementMeta[]>>(() => ({
+  文字: LIBRARY_ITEMS.filter((i) => i.group === '文字'),
+  图形: LIBRARY_ITEMS.filter((i) => i.group === '图形'),
+  数据: LIBRARY_ITEMS.filter((i) => i.group === '数据'),
+}));
+
+const iconFor: Record<TemplateElement['type'], unknown> = {
+  text: Type,
+  field: Braces,
+  autonumber: Hash,
+  system: Clock,
+  rect: Square,
+  image: Image,
+  table: Table,
+  qr: QrCode,
+  barcode: Barcode,
+};
 
 function clickAdd(meta: ElementMeta): void {
   const cell = store.template.canvas.cell;
-  // Drop at a small default offset from top-left so successive clicks don't fully overlap.
   const count = store.template.elements.length;
   const anchorMm = { x: 4 + (count % 10) * 2, y: 4 + (count % 10) * 2 };
   const el = buildElement(meta, store.newElementId(), anchorMm, cell);
@@ -32,7 +45,7 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
 <template>
   <div class="tp-section-top">
     <div class="tp-sub-head">
-      <span class="tp-sub-title">添加新元素</span>
+      <span class="tp-sub-title">元素组件</span>
     </div>
     <div class="lib-scroll">
       <div v-for="g in groupOrder" :key="g" class="lib-group">
@@ -47,7 +60,7 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
             @click="clickAdd(item)"
             @dragstart="onDragStart($event, item)"
           >
-            <span class="lib-glyph">{{ item.glyph }}</span>
+            <component :is="iconFor[item.type]" :size="22" :stroke-width="2" />
             <span>{{ item.label }}</span>
           </button>
         </div>
@@ -83,7 +96,7 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
   padding: 10px 4px;
   background: var(--tp-panel);
   border: 1px solid var(--tp-line-strong);
-  border-radius: var(--tp-radius-item);
+  border-radius: var(--tp-radius-item, 8px);
   cursor: grab;
   display: flex;
   flex-direction: column;
@@ -103,10 +116,5 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
 .lib-btn:active {
   cursor: grabbing;
   transform: none;
-}
-.lib-glyph {
-  font-family: ui-monospace, monospace;
-  font-weight: 700;
-  font-size: 14px;
 }
 </style>
