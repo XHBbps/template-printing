@@ -274,19 +274,44 @@ export const useDesignerStore = defineStore('designer', {
     moveElement(id: string, c: number, r: number): void {
       const idx = this.template.elements.findIndex((e) => e.id === id);
       if (idx < 0) return;
+      const cur = this.template.elements[idx];
+      const cell = this.template.canvas.cell;
       this.template.elements[idx] = {
-        ...this.template.elements[idx],
-        grid: { ...this.template.elements[idx].grid, c, r },
-      };
+        ...cur,
+        grid: { ...cur.grid, c, r },
+        anchor: {
+          ...cur.anchor,
+          x: (c * cell.w) / PX_PER_MM,
+          y: (r * cell.h) / PX_PER_MM,
+        },
+      } as TemplateElement;
     },
     resizeElement(id: string, cs: number, rs: number, c?: number, r?: number): void {
       const idx = this.template.elements.findIndex((e) => e.id === id);
       if (idx < 0) return;
       const cur = this.template.elements[idx];
+      const cell = this.template.canvas.cell;
+      const newC = c ?? cur.grid.c;
+      const newR = r ?? cur.grid.r;
       this.template.elements[idx] = {
         ...cur,
-        grid: { c: c ?? cur.grid.c, r: r ?? cur.grid.r, cs, rs },
-      };
+        grid: { c: newC, r: newR, cs, rs },
+        anchor: {
+          x: (newC * cell.w) / PX_PER_MM,
+          y: (newR * cell.h) / PX_PER_MM,
+          w: (cs * cell.w) / PX_PER_MM,
+          h: (rs * cell.h) / PX_PER_MM,
+        },
+      } as TemplateElement;
+    },
+    setElementAnchor(id: string, patch: Partial<Anchor>): void {
+      const idx = this.template.elements.findIndex((e) => e.id === id);
+      if (idx < 0) return;
+      const cur = this.template.elements[idx];
+      const next = { ...cur, anchor: { ...cur.anchor, ...patch } } as TemplateElement;
+      recomputeGridFromAnchor(next, this.template.canvas.cell);
+      this.template.elements[idx] = next;
+      this.snapshot();
     },
     commit(): void {
       this.snapshot();
