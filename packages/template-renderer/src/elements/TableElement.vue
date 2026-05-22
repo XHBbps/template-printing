@@ -3,6 +3,7 @@ import { computed } from 'vue';
 
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
+import { styleToCss } from '../styleToCss';
 
 const props = defineProps<{
   element: Extract<TemplateElement, { type: 'table' }>;
@@ -30,10 +31,19 @@ const rows = computed<Record<string, unknown>[]>(() => {
 });
 
 const totalCs = computed(() => props.element.columns.reduce((sum, c) => sum + c.cs, 0) || 1);
+
+const outerStyle = computed(() => ({
+  ...styleToCss(props.element.style),
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column' as const,
+  fontSize: '12px',
+}));
 </script>
 
 <template>
-  <div class="tp-table">
+  <div :style="outerStyle">
     <div v-if="props.element.showHeader" class="tp-table-row tp-table-header">
       <div
         v-for="col in props.element.columns"
@@ -58,13 +68,6 @@ const totalCs = computed(() => props.element.columns.reduce((sum, c) => sum + c.
 </template>
 
 <style scoped>
-.tp-table {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  font-size: 12px;
-}
 .tp-table-row {
   display: flex;
   border-bottom: 1px solid #e5e6eb;

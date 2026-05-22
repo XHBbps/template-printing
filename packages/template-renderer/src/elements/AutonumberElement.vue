@@ -3,6 +3,7 @@ import { computed } from 'vue';
 
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
+import { styleToCss, verticalAlignToFlex } from '../styleToCss';
 
 const props = defineProps<{
   element: Extract<TemplateElement, { type: 'autonumber' }>;
@@ -22,18 +23,17 @@ const displayValue = computed<string>(() => {
   ];
   return v ?? `[${props.element.sequence}]`;
 });
+
+const containerStyle = computed(() => ({
+  ...styleToCss(props.element.style),
+  display: 'flex',
+  alignItems: verticalAlignToFlex(props.element.style.verticalAlign),
+  width: '100%',
+  height: '100%',
+  padding: `${props.element.style.padding.t}px ${props.element.style.padding.r}px ${props.element.style.padding.b}px ${props.element.style.padding.l}px`,
+}));
 </script>
 
 <template>
-  <div class="tp-autonumber">{{ displayValue }}</div>
+  <div :style="containerStyle">{{ displayValue }}</div>
 </template>
-
-<style scoped>
-.tp-autonumber {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  font-family: ui-monospace, monospace;
-}
-</style>

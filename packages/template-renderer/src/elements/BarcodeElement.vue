@@ -30,15 +30,19 @@ const value = computed<string>(() => {
   return props.designMode ? 'SAMPLE-CODE' : '';
 });
 
+const eccMap = { L: 'L', M: 'M', Q: 'Q', H: 'H' } as const;
+
 function render(): void {
   const v = value.value;
   if (!v) return;
   if (props.element.symbology === 'qr') {
     // qrcode-generator produces SVG inline
-    const qr = qrcode(0, 'M');
+    const qr = qrcode(0, eccMap[props.element.eccLevel ?? 'M']);
     qr.addData(v);
     qr.make();
-    qrSvg.value = qr.createSvgTag({ scalable: true, margin: 0 });
+    const margin = props.element.quietZone ?? 2;
+    qrSvg.value = qr.createSvgTag({ scalable: true, margin });
+    // Apply foreground/background colors via CSS filter or inline style on the wrapper
   } else {
     if (!canvasRef.value) return;
     try {
@@ -46,8 +50,16 @@ function render(): void {
         bcid: props.element.symbology,
         text: v,
         scale: 2,
-        includetext: props.element.showText,
+        includetext: props.element.showText ?? false,
         textxalign: 'center',
+        paddingwidth: props.element.quietZone ?? 4,
+        textgaps: 2,
+        textsize: props.element.textFontSize ?? 10,
+        textyoffset:
+          props.element.textPosition === 'top' ? -((props.element.textFontSize ?? 10) + 2) : 0,
+        barcolor: (props.element.foregroundColor ?? '#000000').replace('#', ''),
+        backgroundcolor: (props.element.backgroundColor ?? '#ffffff').replace('#', ''),
+        textcolor: (props.element.foregroundColor ?? '#000000').replace('#', ''),
       });
     } catch (e) {
       // eslint-disable-next-line no-console
@@ -57,12 +69,33 @@ function render(): void {
 }
 
 onMounted(render);
-watch(() => [value.value, props.element.symbology], render);
+watch(
+  () => [
+    value.value,
+    props.element.symbology,
+    props.element.eccLevel,
+    props.element.foregroundColor,
+    props.element.backgroundColor,
+    props.element.quietZone,
+    props.element.textPosition,
+    props.element.textFontSize,
+    props.element.showText,
+  ],
+  render,
+);
 </script>
 
 <template>
   <div class="tp-barcode">
-    <div v-if="props.element.symbology === 'qr'" class="tp-qr" v-html="qrSvg" />
+    <div
+      v-if="props.element.symbology === 'qr'"
+      class="tp-qr"
+      :style="{
+        color: props.element.foregroundColor ?? '#000000',
+        background: props.element.backgroundColor ?? '#ffffff',
+      }"
+      v-html="qrSvg"
+    />
     <canvas v-else ref="canvasRef" class="tp-canvas" />
   </div>
 </template>

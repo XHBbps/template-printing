@@ -1,4 +1,5 @@
 export { default as TemplateRenderer } from './TemplateRenderer.vue';
+export * from './styleToCss';
 export { default as TextElement } from './elements/TextElement.vue';
 export { default as FieldElement } from './elements/FieldElement.vue';
 export { default as ImageElement } from './elements/ImageElement.vue';

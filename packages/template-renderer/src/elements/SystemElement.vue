@@ -3,6 +3,7 @@ import { computed } from 'vue';
 
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
+import { styleToCss, verticalAlignToFlex } from '../styleToCss';
 
 const props = defineProps<{
   element: Extract<TemplateElement, { type: 'system' }>;
@@ -30,17 +31,17 @@ const displayValue = computed<string>(() => {
       return '';
   }
 });
+
+const containerStyle = computed(() => ({
+  ...styleToCss(props.element.style),
+  display: 'flex',
+  alignItems: verticalAlignToFlex(props.element.style.verticalAlign),
+  width: '100%',
+  height: '100%',
+  padding: `${props.element.style.padding.t}px ${props.element.style.padding.r}px ${props.element.style.padding.b}px ${props.element.style.padding.l}px`,
+}));
 </script>
 
 <template>
-  <div class="tp-system">{{ displayValue }}</div>
+  <div :style="containerStyle">{{ displayValue }}</div>
 </template>
-
-<style scoped>
-.tp-system {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-}
-</style>
