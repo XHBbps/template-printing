@@ -50,6 +50,18 @@ function del(): void {
   if (!sel.value) return;
   store.deleteElement(sel.value.id);
 }
+
+function updateStyle(patch: Partial<ElementStyle>): void {
+  if (!sel.value) return;
+  store.updateElement(sel.value.id, {
+    style: { ...sel.value.style, ...patch },
+  } as Partial<TemplateElement>);
+}
+
+function isTextish(el: TemplateElement | null): boolean {
+  if (!el) return false;
+  return ['text', 'field', 'autonumber', 'system', 'table'].includes(el.type);
+}
 </script>
 
 <template>
@@ -160,6 +172,73 @@ function del(): void {
             :label="`${f.key} (${f.def.label})`"
           />
         </ElSelect>
+      </div>
+
+      <div v-if="isTextish(sel)" class="style-block">
+        <div class="style-title">样式 · 基础</div>
+
+        <div class="srow">
+          <span class="slbl">颜色</span>
+          <input
+            type="color"
+            :value="sel.style.color ?? '#1F1F23'"
+            @input="(e: Event) => updateStyle({ color: (e.target as HTMLInputElement).value })"
+          />
+          <span class="sval mono">{{ sel.style.color ?? '#1F1F23' }}</span>
+        </div>
+
+        <div class="srow">
+          <span class="slbl">字号</span>
+          <input
+            type="number"
+            :value="sel.style.fontSize ?? 14"
+            min="6"
+            max="72"
+            step="1"
+            class="snum"
+            @input="
+              (e: Event) => updateStyle({ fontSize: Number((e.target as HTMLInputElement).value) })
+            "
+          />
+          <span class="sval">px</span>
+        </div>
+
+        <div class="srow">
+          <span class="slbl">粗细</span>
+          <select
+            :value="sel.style.fontWeight ?? 400"
+            class="ssel"
+            @change="
+              (e: Event) =>
+                updateStyle({
+                  fontWeight: Number((e.target as HTMLSelectElement).value) as
+                    | 400
+                    | 500
+                    | 600
+                    | 700,
+                })
+            "
+          >
+            <option :value="400">常规 400</option>
+            <option :value="500">中等 500</option>
+            <option :value="600">半粗 600</option>
+            <option :value="700">粗体 700</option>
+          </select>
+        </div>
+
+        <div class="srow">
+          <span class="slbl">对齐</span>
+          <div class="seg">
+            <button
+              v-for="a in ['left', 'center', 'right', 'justify'] as const"
+              :key="a"
+              :class="{ on: sel.style.textAlign === a }"
+              @click="updateStyle({ textAlign: a })"
+            >
+              {{ { left: '左', center: '中', right: '右', justify: '端' }[a] }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <BorderControl :model-value="sel.style.border" @update:model-value="updateStyleBorder" />
@@ -280,5 +359,58 @@ function del(): void {
 }
 .cell-eq {
   font-family: ui-monospace, monospace;
+}
+.style-block {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--tp-line);
+}
+.style-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tp-ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.srow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.slbl {
+  width: 36px;
+  font-size: 11px;
+  color: var(--tp-ink-soft);
+}
+.sval {
+  font-size: 11px;
+  color: var(--tp-ink-soft);
+}
+.snum,
+.ssel {
+  padding: 3px 6px;
+  border: 1px solid var(--tp-line-strong);
+  border-radius: 4px;
+  font-size: 12px;
+  min-width: 80px;
+}
+.seg {
+  display: inline-flex;
+  gap: 4px;
+}
+.seg button {
+  border: 1px solid var(--tp-line-strong);
+  background: var(--tp-panel);
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--tp-ink-soft);
+}
+.seg button.on {
+  background: var(--tp-accent);
+  color: #fff;
+  border-color: var(--tp-accent);
 }
 </style>
