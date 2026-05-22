@@ -52,11 +52,18 @@ function choosePreviewZoom(z: number): void {
   previewZoom.value = z;
 }
 
+const paperWrapStyle = computed(() => ({
+  width: `${store.paperPx.w * previewZoom.value}px`,
+  height: `${store.paperPx.h * previewZoom.value}px`,
+  position: 'relative' as const,
+}));
+
 const paperStyle = computed(() => ({
   width: `${store.paperPx.w}px`,
   height: `${store.paperPx.h}px`,
+  transform: `scale(${previewZoom.value})`,
+  transformOrigin: 'top left',
   background: '#fff',
-  position: 'relative' as const,
 }));
 </script>
 
@@ -82,10 +89,7 @@ const paperStyle = computed(() => ({
       </div>
       <div class="pv-wrap">
         <div ref="modalContainerRef" class="pv-container">
-          <div
-            class="pv-paper-wrap"
-            :style="{ transform: `scale(${previewZoom})`, transformOrigin: 'top left' }"
-          >
+          <div class="pv-paper-wrap" :style="paperWrapStyle">
             <div class="tp-paper" :style="paperStyle">
               <TemplateRenderer :template="store.template" :data="sampleData" />
             </div>
