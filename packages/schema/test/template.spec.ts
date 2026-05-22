@@ -272,8 +272,8 @@ describe('expanded BarcodeElementSchema', () => {
   });
 });
 
-describe('PaperSchema (iteration 4)', () => {
-  it.each(['A3', 'A4', 'A5', 'A6', 'B5', 'Letter'])('accepts preset "%s"', (preset) => {
+describe('PaperSchema (iteration 4 + 9)', () => {
+  it.each(['A3', 'A4', 'A5', 'B4', 'B5'])('accepts preset "%s"', (preset) => {
     expect(PaperSchema.parse(preset)).toBe(preset);
   });
 
@@ -281,6 +281,8 @@ describe('PaperSchema (iteration 4)', () => {
     expect(() => PaperSchema.parse('A4-Landscape')).toThrow();
     expect(() => PaperSchema.parse('GuardPass')).toThrow();
     expect(() => PaperSchema.parse('LogisticLabel')).toThrow();
+    expect(() => PaperSchema.parse('A6')).toThrow();
+    expect(() => PaperSchema.parse('Letter')).toThrow();
   });
 
   it('accepts custom { w_mm, h_mm }', () => {
