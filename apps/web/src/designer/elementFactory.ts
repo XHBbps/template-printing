@@ -1,5 +1,9 @@
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
+// eslint-disable-next-line import/no-unresolved
+import type { FieldDefSchema } from '@template-printing/schema';
+// eslint-disable-next-line import/no-unresolved
+import type { z } from 'zod';
 
 const PX_PER_MM = 4;
 
@@ -7,37 +11,21 @@ export type LibraryGroup = '文字' | '图形' | '数据';
 
 export interface ElementMeta {
   type: TemplateElement['type'];
-  glyph: string;
   label: string;
   group: LibraryGroup;
   defaultMm: { w: number; h: number };
-  variant?: 'qr' | 'barcode';
 }
 
 export const LIBRARY_ITEMS: ElementMeta[] = [
-  { type: 'text', group: '文字', glyph: 'T', label: '文字', defaultMm: { w: 40, h: 8 } },
-  { type: 'field', group: '文字', glyph: '{}', label: '字段', defaultMm: { w: 50, h: 8 } },
-  { type: 'autonumber', group: '文字', glyph: '№', label: '编号', defaultMm: { w: 45, h: 8 } },
-  { type: 'system', group: '文字', glyph: '#', label: '系统', defaultMm: { w: 45, h: 8 } },
-  { type: 'rect', group: '图形', glyph: '▢', label: '矩形', defaultMm: { w: 40, h: 20 } },
-  { type: 'image', group: '图形', glyph: '▤', label: '图片', defaultMm: { w: 40, h: 40 } },
-  { type: 'table', group: '数据', glyph: '▦', label: '明细', defaultMm: { w: 150, h: 60 } },
-  {
-    type: 'barcode',
-    group: '数据',
-    glyph: '▣',
-    label: '二维码',
-    defaultMm: { w: 25, h: 25 },
-    variant: 'qr',
-  },
-  {
-    type: 'barcode',
-    group: '数据',
-    glyph: '|||',
-    label: '条码',
-    defaultMm: { w: 60, h: 16 },
-    variant: 'barcode',
-  },
+  { type: 'text', group: '文字', label: '文字', defaultMm: { w: 40, h: 8 } },
+  { type: 'field', group: '文字', label: '字段', defaultMm: { w: 50, h: 8 } },
+  { type: 'autonumber', group: '文字', label: '编号', defaultMm: { w: 45, h: 8 } },
+  { type: 'system', group: '文字', label: '系统', defaultMm: { w: 45, h: 8 } },
+  { type: 'rect', group: '图形', label: '矩形', defaultMm: { w: 40, h: 20 } },
+  { type: 'image', group: '图形', label: '图片', defaultMm: { w: 40, h: 40 } },
+  { type: 'table', group: '数据', label: '明细', defaultMm: { w: 150, h: 60 } },
+  { type: 'qr', group: '数据', label: '二维码', defaultMm: { w: 25, h: 25 } },
+  { type: 'barcode', group: '数据', label: '条码', defaultMm: { w: 60, h: 16 } },
 ];
 
 export const MIN_MM: Record<string, { w: number; h: number }> = {
@@ -53,8 +41,29 @@ export const MIN_MM: Record<string, { w: number; h: number }> = {
 };
 
 export function minMmFor(el: TemplateElement): { w: number; h: number } {
-  if (el.type === 'barcode') return el.symbology === 'qr' ? MIN_MM.qr : MIN_MM.barcode1d;
+  if (el.type === 'qr') return MIN_MM.qr;
+  if (el.type === 'barcode') return MIN_MM.barcode1d;
   return MIN_MM[el.type];
+}
+
+type FieldDef = z.infer<typeof FieldDefSchema>;
+type FieldType = FieldDef['type'];
+
+export function allowedFieldTypesForElement(elType: TemplateElement['type']): FieldType[] {
+  switch (elType) {
+    case 'field':
+      return ['string', 'number', 'date', 'datetime', 'boolean', 'enum'];
+    case 'barcode':
+      return ['string', 'number'];
+    case 'qr':
+      return ['string', 'number'];
+    case 'image':
+      return ['image'];
+    case 'table':
+      return ['array'];
+    default:
+      return [];
+  }
 }
 
 function defaultBorder() {
@@ -100,7 +109,7 @@ export function buildElement(
         grid,
         anchor,
         style,
-        binding: 'fieldKey',
+        binding: '',
         fallback: '—',
         format: null,
       };
@@ -138,15 +147,29 @@ export function buildElement(
         grid,
         anchor,
         style,
-        symbology: meta.variant === 'qr' ? 'qr' : 'code128',
+        symbology: 'code128',
+        binding: undefined,
         content: { static: 'SAMPLE' },
-        showText: false,
+        showText: true,
+        textPosition: 'bottom',
+        textFontSize: 10,
+        foregroundColor: '#000000',
+        backgroundColor: '#ffffff',
+        quietZone: 4,
+      };
+    case 'qr':
+      return {
+        id: newId,
+        type: 'qr',
+        grid,
+        anchor,
+        style,
+        binding: undefined,
+        content: { static: 'SAMPLE' },
+        eccLevel: 'M',
         foregroundColor: '#000000',
         backgroundColor: '#ffffff',
         quietZone: 2,
-        ...(meta.variant === 'qr'
-          ? { eccLevel: 'M' as const }
-          : { textPosition: 'bottom' as const, textFontSize: 10 }),
       };
     case 'autonumber':
       return {
