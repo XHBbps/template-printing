@@ -80,13 +80,15 @@ const paperStyle = computed(() => ({
         </ElForm>
         <p v-else class="empty">未声明数据字段</p>
       </div>
-      <div ref="modalContainerRef" class="pv-container">
-        <div
-          class="pv-paper-wrap"
-          :style="{ transform: `scale(${previewZoom})`, transformOrigin: 'top left' }"
-        >
-          <div class="tp-paper" :style="paperStyle">
-            <TemplateRenderer :template="store.template" :data="sampleData" />
+      <div class="pv-wrap">
+        <div ref="modalContainerRef" class="pv-container">
+          <div
+            class="pv-paper-wrap"
+            :style="{ transform: `scale(${previewZoom})`, transformOrigin: 'top left' }"
+          >
+            <div class="tp-paper" :style="paperStyle">
+              <TemplateRenderer :template="store.template" :data="sampleData" />
+            </div>
           </div>
         </div>
         <div class="pv-zoom">
@@ -121,13 +123,18 @@ const paperStyle = computed(() => ({
   padding-right: 8px;
   border-right: 1px solid var(--el-border-color);
 }
-.pv-container {
+.pv-wrap {
+  position: relative;
   width: 100%;
   height: 70vh;
-  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pv-container {
+  width: 100%;
+  height: 100%;
   overflow: auto;
   background: var(--tp-canvas-bg, #f2f2f5);
-  border-radius: 8px;
 }
 .pv-paper-wrap {
   display: inline-block;
@@ -137,6 +144,7 @@ const paperStyle = computed(() => ({
   position: absolute;
   bottom: 12px;
   right: 12px;
+  z-index: 5;
   display: flex;
   gap: 4px;
   background: rgba(255, 255, 255, 0.94);
