@@ -12,6 +12,7 @@ import QrProperties from './QrProperties.vue';
 import SliderWithInput from './SliderWithInput.vue';
 import BorderControl from './BorderControl.vue';
 import PaddingControl from './PaddingControl.vue';
+import TableColumnsEditor from './TableColumnsEditor.vue';
 // eslint-disable-next-line import/no-unresolved
 import { Trash2 } from 'lucide-vue-next';
 
@@ -605,6 +606,47 @@ const layoutAdvOpen = ref(false);
             </option>
           </select>
         </div>
+      </div>
+
+      <TableColumnsEditor
+        v-if="sel && sel.type === 'table'"
+        :columns="sel.columns"
+        @update="
+          (cols) => store.updateElement(sel!.id, { columns: cols } as Partial<TemplateElement>)
+        "
+      />
+
+      <div v-if="sel && sel.type === 'table'" class="row">
+        <span class="lbl">行高</span>
+        <input
+          type="number"
+          min="2"
+          max="20"
+          step="1"
+          :value="sel.rowHeight"
+          class="snum"
+          @input="
+            (e: Event) =>
+              store.updateElement(sel!.id, {
+                rowHeight: Math.max(2, Number((e.target as HTMLInputElement).value)),
+              } as Partial<TemplateElement>)
+          "
+        />
+        <span class="sval">cell</span>
+      </div>
+
+      <div v-if="sel && sel.type === 'table'" class="row">
+        <span class="lbl">表头</span>
+        <input
+          type="checkbox"
+          :checked="sel.showHeader"
+          @change="
+            (e: Event) =>
+              store.updateElement(sel!.id, {
+                showHeader: (e.target as HTMLInputElement).checked,
+              } as Partial<TemplateElement>)
+          "
+        />
       </div>
 
       <BorderControl :model-value="sel.style.border" @update:model-value="updateStyleBorder" />
