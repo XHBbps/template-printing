@@ -12,12 +12,15 @@ import {
   ElCheckbox,
 } from 'element-plus';
 import { ref } from 'vue';
+// eslint-disable-next-line import/no-unresolved
+import { Plus, Pencil, Trash2 } from 'lucide-vue-next';
 import { useDesignerStore } from '../stores/designer';
 
 type FieldType = 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'enum' | 'image' | 'array';
 
 const store = useDesignerStore();
 const dialogOpen = ref(false);
+const dialogMode = ref<'add' | 'edit'>('add');
 
 interface FormShape {
   key: string;
@@ -25,18 +28,12 @@ interface FormShape {
   type: FieldType;
   required: boolean;
   example: string;
-  // string
   maxLength?: number;
-  // number
   thousands?: boolean;
-  // date / datetime
   format?: string;
-  // boolean
   trueLabel?: string;
   falseLabel?: string;
-  // enum
   options?: Array<{ value: string; label: string }>;
-  // image
   accept?: string[];
 }
 
@@ -47,7 +44,31 @@ function defaultForm(): FormShape {
 }
 
 function openAdd(): void {
+  dialogMode.value = 'add';
   form.value = defaultForm();
+  dialogOpen.value = true;
+}
+
+function openEdit(key: string): void {
+  const def = store.template.schema[key];
+  if (!def) return;
+  dialogMode.value = 'edit';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = def as any;
+  form.value = {
+    key,
+    label: d.label ?? '',
+    type: d.type ?? 'string',
+    required: d.required ?? false,
+    example: d.example ?? '',
+    maxLength: d.maxLength,
+    thousands: d.thousands,
+    format: d.format,
+    trueLabel: d.trueLabel,
+    falseLabel: d.falseLabel,
+    options: d.options ? [...d.options] : undefined,
+    accept: d.accept ? [...d.accept] : undefined,
+  };
   dialogOpen.value = true;
 }
 
@@ -71,29 +92,30 @@ function submit(): void {
     ElMessage.warning('key 和 label 都必须填');
     return;
   }
-  if (store.template.schema[f.key]) {
-    ElMessage.error(`字段 "${f.key}" 已存在`);
+  if (dialogMode.value === 'add' && store.template.schema[f.key]) {
+    ElMessage.error(`变量 "${f.key}" 已存在`);
     return;
   }
 
   const base = { label: f.label, required: f.required, example: f.example || undefined };
-  let def;
-  if (f.type === 'string') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let def: any;
+  if (f.type === 'string')
     def = { type: 'string' as const, ...base, ...(f.maxLength ? { maxLength: f.maxLength } : {}) };
-  } else if (f.type === 'number') {
+  else if (f.type === 'number')
     def = { type: 'number' as const, ...base, thousands: f.thousands ?? false };
-  } else if (f.type === 'date') {
+  else if (f.type === 'date')
     def = { type: 'date' as const, ...base, format: f.format || 'YYYY-MM-DD' };
-  } else if (f.type === 'datetime') {
+  else if (f.type === 'datetime')
     def = { type: 'datetime' as const, ...base, format: f.format || 'YYYY-MM-DD HH:mm' };
-  } else if (f.type === 'boolean') {
+  else if (f.type === 'boolean')
     def = {
       type: 'boolean' as const,
       ...base,
       trueLabel: f.trueLabel || '是',
       falseLabel: f.falseLabel || '否',
     };
-  } else if (f.type === 'enum') {
+  else if (f.type === 'enum') {
     const opts = (f.options ?? []).filter((o) => o.value && o.label);
     if (opts.length === 0) {
       ElMessage.error('enum 至少需要一个选项 (value + label 都要填)');
@@ -104,16 +126,15 @@ function submit(): void {
     const accept =
       f.accept && f.accept.length > 0 ? f.accept : ['image/svg+xml', 'image/png', 'image/jpeg'];
     def = { type: 'image' as const, ...base, accept };
-  } else {
-    def = { type: 'array' as const, ...base };
-  }
+  } else def = { type: 'array' as const, ...base };
 
-  store.addField(f.key, def);
+  if (dialogMode.value === 'add') store.addField(f.key, def);
+  else store.editField(f.key, def);
   dialogOpen.value = false;
 }
 
 function remove(key: string): void {
-  if (!window.confirm(`删除字段 "${key}"？模板中绑定到该字段的元素将变为未绑定状态。`)) return;
+  if (!window.confirm(`删除变量 "${key}"？模板中绑定到该字段的元素将变为未绑定状态。`)) return;
   store.removeField(key);
 }
 </script>
@@ -121,16 +142,19 @@ function remove(key: string): void {
 <template>
   <div class="tp-section-top field-mgr">
     <div class="tp-sub-head">
-      <span class="tp-sub-title">数据字段 · {{ store.fieldDefs.length }}</span>
-      <button class="tp-sub-add" title="添加字段" @click="openAdd">+</button>
+      <span class="tp-sub-title">变量 · 共 {{ store.fieldDefs.length }} 个</span>
+      <button class="tp-sub-add" title="添加变量" @click="openAdd">
+        <Plus :size="14" :stroke-width="2" />
+      </button>
     </div>
     <div class="fm-body">
-      <div v-if="store.fieldDefs.length === 0" class="empty">尚未声明字段<br />点击 + 添加</div>
+      <div v-if="store.fieldDefs.length === 0" class="empty">尚未声明变量<br />点击 + 添加</div>
       <div
         v-for="{ key, def } in store.fieldDefs"
         :key="key"
         class="field-card"
         :class="{ unused: !store.usedFieldKeys.has(key) }"
+        :title="!store.usedFieldKeys.has(key) ? '未使用' : ''"
       >
         <div class="card-row">
           <span class="k">{{ key }}</span>
@@ -139,15 +163,25 @@ function remove(key: string): void {
         <div class="card-row card-row-sub">
           <span class="l">{{ def.label }}</span>
           <span v-if="def.required" class="req">必填</span>
-          <span v-if="!store.usedFieldKeys.has(key)" class="unused-tag">未使用</span>
-          <button class="del" @click="remove(key)" title="删除">×</button>
+          <button class="action edit" @click="openEdit(key)" title="编辑变量">
+            <Pencil :size="13" :stroke-width="2" />
+          </button>
+          <button class="action del" @click="remove(key)" title="删除变量">
+            <Trash2 :size="13" :stroke-width="2" />
+          </button>
         </div>
       </div>
     </div>
 
-    <ElDialog v-model="dialogOpen" title="添加字段" width="420px">
+    <ElDialog
+      v-model="dialogOpen"
+      :title="dialogMode === 'edit' ? '编辑变量' : '添加变量'"
+      width="420px"
+    >
       <ElForm label-position="top">
-        <ElFormItem label="key (英文/拼音)"><ElInput v-model="form.key" /></ElFormItem>
+        <ElFormItem label="key (英文/拼音)">
+          <ElInput v-model="form.key" :disabled="dialogMode === 'edit'" />
+        </ElFormItem>
         <ElFormItem label="label (中文显示名)"><ElInput v-model="form.label" /></ElFormItem>
         <ElFormItem label="类型">
           <ElSelect v-model="form.type">
@@ -214,7 +248,9 @@ function remove(key: string): void {
 
         <ElFormItem label="示例值"><ElInput v-model="form.example" /></ElFormItem>
 
-        <ElButton type="primary" style="width: 100%" @click="submit">添加</ElButton>
+        <ElButton type="primary" style="width: 100%" @click="submit">
+          {{ dialogMode === 'edit' ? '保存' : '添加' }}
+        </ElButton>
       </ElForm>
     </ElDialog>
   </div>
@@ -239,7 +275,7 @@ function remove(key: string): void {
 .field-card {
   margin-bottom: 6px;
   padding: 8px 10px;
-  border-radius: var(--tp-radius-item);
+  border-radius: var(--tp-radius-item, 8px);
   border: 1px solid var(--tp-line-strong);
   background: var(--tp-panel);
   font-size: 12px;
@@ -300,25 +336,25 @@ function remove(key: string): void {
   border-radius: 3px;
   flex-shrink: 0;
 }
-.unused-tag {
-  font-size: 10px;
-  color: var(--tp-warn-ink);
-  flex-shrink: 0;
-}
-.del {
+.action {
   border: none;
   background: transparent;
   color: var(--tp-ink-faint);
   cursor: pointer;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
-  font-size: 14px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
-.del:hover {
+.action:hover {
   background: var(--tp-field-bg);
+  color: var(--tp-accent-ink);
+}
+.action.del:hover {
+  background: rgba(217, 79, 79, 0.1);
   color: #d94f4f;
 }
 .enum-row {
