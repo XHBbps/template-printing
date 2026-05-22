@@ -36,7 +36,7 @@ defineEmits<{ (e: 'pointerdown', ev: PointerEvent): void }>();
 }
 
 .tp-grip--outside {
-  top: -14px;
+  top: -28px;
   background: var(--tp-panel);
   border: 1.5px solid var(--tp-accent);
   border-radius: 8px;
