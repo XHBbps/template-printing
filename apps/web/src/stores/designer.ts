@@ -18,6 +18,11 @@ const HISTORY_LIMIT = 50;
 // Pixels-per-mm. With 4 px/mm and the paper sizes below, both canvas dimensions
 // share a healthy common-divisor set so cell w/h have many valid options.
 const PX_PER_MM = 4;
+const STEP_MM = 0.25;
+
+function snapToStep(mm: number): number {
+  return Math.round(mm / STEP_MM) * STEP_MM;
+}
 
 // Paper presets in mm. With PX_PER_MM = 4 the resulting pixel dimensions
 // share a healthy common-divisor set for most pairs, so cell w/h has many
@@ -427,6 +432,35 @@ export const useDesignerStore = defineStore('designer', {
           h: (rs * cell.h) / PX_PER_MM,
         },
       } as TemplateElement;
+    },
+    moveElementMm(id: string, xMm: number, yMm: number): void {
+      const idx = this.template.elements.findIndex((e) => e.id === id);
+      if (idx < 0) return;
+      const cur = this.template.elements[idx];
+      const next = {
+        ...cur,
+        anchor: { ...cur.anchor, x: snapToStep(xMm), y: snapToStep(yMm) },
+      } as TemplateElement;
+      recomputeGridFromAnchor(next, this.template.canvas.cell);
+      this.template.elements[idx] = next;
+      // No snapshot — caller commits on pointerup.
+    },
+    resizeElementMm(id: string, patch: { x?: number; y?: number; w?: number; h?: number }): void {
+      const idx = this.template.elements.findIndex((e) => e.id === id);
+      if (idx < 0) return;
+      const cur = this.template.elements[idx];
+      const next = {
+        ...cur,
+        anchor: {
+          x: patch.x !== undefined ? snapToStep(patch.x) : cur.anchor.x,
+          y: patch.y !== undefined ? snapToStep(patch.y) : cur.anchor.y,
+          w: patch.w !== undefined ? snapToStep(patch.w) : cur.anchor.w,
+          h: patch.h !== undefined ? snapToStep(patch.h) : cur.anchor.h,
+        },
+      } as TemplateElement;
+      recomputeGridFromAnchor(next, this.template.canvas.cell);
+      this.template.elements[idx] = next;
+      // No snapshot — caller commits on pointerup.
     },
     setElementAnchor(id: string, patch: Partial<Anchor>): void {
       const idx = this.template.elements.findIndex((e) => e.id === id);
