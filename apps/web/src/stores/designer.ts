@@ -2,6 +2,7 @@
 import type { Template, TemplateElement, FieldDefSchema, Anchor } from '@template-printing/schema';
 // eslint-disable-next-line import/no-unresolved
 import { ElMessage } from 'element-plus';
+// eslint-disable-next-line import/no-unresolved
 import { defineStore } from 'pinia';
 // eslint-disable-next-line import/no-unresolved
 import type { z } from 'zod';
@@ -122,7 +123,7 @@ export function defaultTemplate(): Template {
   const paper = 'A4-Landscape';
   const px = paperPxSize(paper);
   const opts = divisorsInRange(px.w).filter((d) => divisorsInRange(px.h).includes(d));
-  const cellW = opts.includes(4) ? 4 : (opts[0] ?? 1);
+  const cellW = opts.includes(4) ? 4 : opts[0] ?? 1;
   const cellH = cellW;
   return {
     id: makeId('tpl'),
@@ -147,6 +148,10 @@ export const useDesignerStore = defineStore('designer', {
     historyIndex: -1,
     dirty: false,
     isResizing: false,
+    view: { zoom: 1 } as { zoom: number },
+    // Internal: a DOM size accessor that DesignerCanvas registers so the store
+    // can compute fit-to-view without a DOM dependency.
+    canvasAreaSize: null as null | (() => { w: number; h: number }),
   }),
   getters: {
     canUndo: (s): boolean => s.historyIndex > 0,
@@ -245,6 +250,23 @@ export const useDesignerStore = defineStore('designer', {
       } catch {
         return false;
       }
+    },
+    registerCanvasArea(reader: () => { w: number; h: number }): void {
+      this.canvasAreaSize = reader;
+    },
+    setZoom(z: number): void {
+      this.view.zoom = Math.max(0.25, Math.min(4, z));
+      // No snapshot — view.zoom is not history-tracked or persisted.
+    },
+    fitView(): void {
+      if (!this.canvasAreaSize) return;
+      const area = this.canvasAreaSize();
+      const px = paperPxSize(this.template.canvas.paper);
+      const padding = 80;
+      const fitW = (area.w - padding) / px.w;
+      const fitH = (area.h - padding) / px.h;
+      const z = Math.max(0.25, Math.min(4, Math.min(fitW, fitH)));
+      if (Number.isFinite(z) && z > 0) this.view.zoom = z;
     },
     reset(): void {
       this.template = defaultTemplate();
@@ -372,6 +394,8 @@ export const useDesignerStore = defineStore('designer', {
         recomputeGridFromAnchor(el, this.template.canvas.cell);
       }
       this.snapshot();
+      // Re-fit on paper change since the relative size jumps.
+      this.fitView();
 
       if (movedCount > 0) {
         ElMessage.warning(`${movedCount} 个元素已自动移入新画布`);
