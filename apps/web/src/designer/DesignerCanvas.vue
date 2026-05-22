@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { useDesignerStore } from '../stores/designer';
 import CanvasElement from './CanvasElement.vue';
@@ -11,12 +11,16 @@ const store = useDesignerStore();
 const paperRef = ref<HTMLElement | null>(null);
 const isDropTarget = ref(false);
 
-const cssVars = computed(() => ({
-  '--cell-w': `${store.template.canvas.cell.w}px`,
-  '--cell-h': `${store.template.canvas.cell.h}px`,
-  '--canvas-w': `${store.paperPx.w}px`,
-  '--canvas-h': `${store.paperPx.h}px`,
-}));
+const cssVars = computed(() => {
+  const z = store.view.zoom;
+  const px = store.paperPx;
+  return {
+    '--cell-w': `${store.template.canvas.cell.w * z}px`,
+    '--cell-h': `${store.template.canvas.cell.h * z}px`,
+    '--canvas-w': `${px.w * z}px`,
+    '--canvas-h': `${px.h * z}px`,
+  };
+});
 
 function clickPaperBackground(e: MouseEvent): void {
   if ((e.target as HTMLElement).classList.contains('tp-paper')) {
@@ -72,10 +76,37 @@ function onDrop(e: DragEvent): void {
   );
   store.addElement(el);
 }
+
+const canvasAreaRef = ref<HTMLElement | null>(null);
+
+let resizeObserver: ResizeObserver | null = null;
+
+onMounted(() => {
+  store.registerCanvasArea(() => {
+    const el = canvasAreaRef.value;
+    if (!el) return { w: 800, h: 600 };
+    return { w: el.clientWidth, h: el.clientHeight };
+  });
+  // Initial fit after mount + first paint.
+  requestAnimationFrame(() => store.fitView());
+
+  if (canvasAreaRef.value && typeof ResizeObserver !== 'undefined') {
+    let raf = 0;
+    resizeObserver = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => store.fitView());
+    });
+    resizeObserver.observe(canvasAreaRef.value);
+  }
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+});
 </script>
 
 <template>
-  <div class="tp-canvas-area">
+  <div ref="canvasAreaRef" class="tp-canvas-area">
     <div
       ref="paperRef"
       class="tp-paper"
