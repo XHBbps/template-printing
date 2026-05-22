@@ -7,6 +7,7 @@ import {
   ElFormItem,
   ElInput,
   ElMessage,
+  ElMessageBox,
   ElOption,
   ElSelect,
   ElCheckbox,
@@ -133,9 +134,22 @@ function submit(): void {
   dialogOpen.value = false;
 }
 
-function remove(key: string): void {
-  if (!window.confirm(`删除变量 "${key}"？模板中绑定到该字段的元素将变为未绑定状态。`)) return;
-  store.removeField(key);
+async function remove(key: string): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      `删除变量 "${key}"？模板中绑定到该字段的元素将变为未绑定状态。`,
+      '删除变量',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        center: true,
+      },
+    );
+    store.removeField(key);
+  } catch {
+    /* user cancelled */
+  }
 }
 </script>
 

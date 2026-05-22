@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
 // eslint-disable-next-line import/no-unresolved
+import { ElMessageBox } from 'element-plus';
+// eslint-disable-next-line import/no-unresolved
 import {
   Type,
   Braces,
@@ -86,9 +88,22 @@ function removeEl(id: string, e: Event): void {
   e.stopPropagation();
   store.deleteElement(id);
 }
-function onClearAll(): void {
-  if (!window.confirm(`确定清空全部 ${elements.value.length} 个元素？`)) return;
-  store.deleteAllElements();
+async function onClearAll(): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      `确定清空全部 ${elements.value.length} 个元素？此操作可通过撤销恢复。`,
+      '清空画布',
+      {
+        confirmButtonText: '清空',
+        cancelButtonText: '取消',
+        type: 'warning',
+        center: true,
+      },
+    );
+    store.deleteAllElements();
+  } catch {
+    /* user cancelled */
+  }
 }
 </script>
 

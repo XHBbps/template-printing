@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ElDropdown, ElDropdownItem, ElDropdownMenu, ElMessage } from 'element-plus';
+// eslint-disable-next-line import/no-unresolved
+import { ElDropdown, ElDropdownItem, ElDropdownMenu, ElMessage, ElMessageBox } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import {
   ArrowLeft,
@@ -75,9 +76,18 @@ function chooseCell(w: number, h: number): void {
   });
 }
 
-function exitToHome(): void {
+async function exitToHome(): Promise<void> {
   if (store.dirty) {
-    if (!window.confirm('当前模板有未保存改动，确定离开吗？(草稿保留在本地)')) return;
+    try {
+      await ElMessageBox.confirm('当前模板有未保存改动，确定离开吗？(草稿保留在本地)', '离开', {
+        confirmButtonText: '离开',
+        cancelButtonText: '继续编辑',
+        type: 'warning',
+        center: true,
+      });
+    } catch {
+      return;
+    }
   }
   void router.push('/');
 }
