@@ -5,17 +5,40 @@ import type { ElementStyle } from '@template-printing/schema';
 const props = defineProps<{ modelValue: ElementStyle['border'] }>();
 const emit = defineEmits<{ (e: 'update:modelValue', v: ElementStyle['border']): void }>();
 
-function toggle(side: 'top' | 'right' | 'bottom' | 'left'): void {
+type Side = 'top' | 'right' | 'bottom' | 'left';
+
+function toggle(side: Side): void {
   emit('update:modelValue', {
     ...props.modelValue,
     [side]: { ...props.modelValue[side], show: !props.modelValue[side].show },
   });
 }
+
+function patchAllSides(
+  patch: Partial<{ style: 'solid' | 'dashed' | 'dotted'; width: number; color: string }>,
+): void {
+  const next = { ...props.modelValue };
+  (['top', 'right', 'bottom', 'left'] as Side[]).forEach((s) => {
+    next[s] = { ...next[s], ...patch };
+  });
+  emit('update:modelValue', next);
+}
+
+function currentStyle(): 'solid' | 'dashed' | 'dotted' {
+  return props.modelValue.top.style;
+}
+function currentWidth(): number {
+  return props.modelValue.top.width;
+}
+function currentColor(): string {
+  return props.modelValue.top.color;
+}
 </script>
 
 <template>
   <div class="bp-block">
-    <div class="bp-title">边框 <span class="hint">点方向切换显隐</span></div>
+    <div class="bp-title">边框</div>
+
     <div class="grid">
       <button class="cell t" :class="{ on: props.modelValue.top.show }" @click="toggle('top')">
         上
@@ -35,33 +58,80 @@ function toggle(side: 'top' | 'right' | 'bottom' | 'left'): void {
         下
       </button>
     </div>
+
+    <div class="bp-controls">
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">线型</span>
+        <div class="seg">
+          <button
+            :class="{ on: currentStyle() === 'solid' }"
+            @click="patchAllSides({ style: 'solid' })"
+          >
+            —
+          </button>
+          <button
+            :class="{ on: currentStyle() === 'dashed' }"
+            @click="patchAllSides({ style: 'dashed' })"
+          >
+            - -
+          </button>
+          <button
+            :class="{ on: currentStyle() === 'dotted' }"
+            @click="patchAllSides({ style: 'dotted' })"
+          >
+            • •
+          </button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">粗细</span>
+        <input
+          type="range"
+          min="1"
+          max="8"
+          step="1"
+          :value="currentWidth()"
+          class="slider"
+          @input="
+            (e: Event) => patchAllSides({ width: Number((e.target as HTMLInputElement).value) })
+          "
+        />
+        <span class="ctrl-val">{{ currentWidth() }} px</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">颜色</span>
+        <input
+          type="color"
+          :value="currentColor()"
+          class="color-pick"
+          @input="(e: Event) => patchAllSides({ color: (e.target as HTMLInputElement).value })"
+        />
+        <span class="ctrl-val mono">{{ currentColor() }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .bp-block {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--el-border-color);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--tp-line);
 }
 .bp-title {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 6px;
-  display: flex;
-  justify-content: space-between;
-}
-.hint {
-  color: var(--el-text-color-placeholder);
-  font-weight: normal;
-  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--tp-ink-soft);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 .grid {
   display: grid;
   grid-template-columns: 1fr 60px 1fr;
   grid-template-rows: 28px 1fr 28px;
   height: 96px;
-  border: 1px dashed var(--el-border-color);
-  border-radius: 4px;
+  border: 1px dashed var(--tp-line-strong);
+  border-radius: 6px;
   padding: 4px;
   gap: 2px;
 }
@@ -69,13 +139,12 @@ function toggle(side: 'top' | 'right' | 'bottom' | 'left'): void {
   background: transparent;
   border: none;
   cursor: pointer;
-  border-radius: 3px;
-  font-family: ui-monospace, monospace;
-  font-size: 10.5px;
-  color: var(--el-text-color-secondary);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--tp-ink-soft);
 }
 .cell:hover {
-  background: var(--el-fill-color-light);
+  background: var(--tp-field-bg);
 }
 .cell.on {
   color: var(--tp-accent-ink);
@@ -96,13 +165,69 @@ function toggle(side: 'top' | 'right' | 'bottom' | 'left'): void {
 }
 .center {
   grid-area: 2 / 2 / 3 / 3;
-  border: 1px solid var(--el-border-color);
-  background: var(--el-fill-color-light);
-  border-radius: 3px;
+  border: 1px solid var(--tp-line-strong);
+  background: var(--tp-field-bg);
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
-  color: var(--el-text-color-placeholder);
+  color: var(--tp-ink-faint);
+}
+
+.bp-controls {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ctrl-lbl {
+  width: 36px;
+  font-size: 11px;
+  color: var(--tp-ink-soft);
+}
+.ctrl-val {
+  font-size: 11px;
+  color: var(--tp-ink-soft);
+  min-width: 40px;
+  text-align: right;
+}
+.mono {
+  font-family: ui-monospace, monospace;
+}
+.seg {
+  display: inline-flex;
+  gap: 4px;
+}
+.seg button {
+  border: 1px solid var(--tp-line-strong);
+  background: var(--tp-panel);
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--tp-ink-soft);
+}
+.seg button.on {
+  background: var(--tp-accent);
+  color: #fff;
+  border-color: var(--tp-accent);
+}
+.slider {
+  flex: 1;
+  accent-color: var(--tp-accent);
+}
+.color-pick {
+  width: 32px;
+  height: 22px;
+  border: 1px solid var(--tp-line-strong);
+  border-radius: 4px;
+  padding: 0;
+  cursor: pointer;
 }
 </style>
