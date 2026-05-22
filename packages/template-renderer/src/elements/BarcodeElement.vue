@@ -16,6 +16,7 @@ const props = defineProps<{
   element: Extract<TemplateElement, { type: 'barcode' }>;
   data?: Record<string, unknown>;
   designMode?: boolean;
+  isResizing?: boolean;
 }>();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -29,6 +30,9 @@ const value = computed<string>(() => {
   }
   return props.designMode ? 'SAMPLE-CODE' : '';
 });
+
+const showPlaceholder = computed(() => props.isResizing === true);
+const isQr = computed(() => props.element.symbology === 'qr');
 
 const eccMap = { L: 'L', M: 'M', Q: 'Q', H: 'H' } as const;
 
@@ -87,16 +91,19 @@ watch(
 
 <template>
   <div class="tp-barcode">
-    <div
-      v-if="props.element.symbology === 'qr'"
-      class="tp-qr"
-      :style="{
-        color: props.element.foregroundColor ?? '#000000',
-        background: props.element.backgroundColor ?? '#ffffff',
-      }"
-      v-html="qrSvg"
-    />
-    <canvas v-else ref="canvasRef" class="tp-canvas" />
+    <template v-if="!showPlaceholder">
+      <div
+        v-if="props.element.symbology === 'qr'"
+        class="tp-qr"
+        :style="{
+          color: props.element.foregroundColor ?? '#000000',
+          background: props.element.backgroundColor ?? '#ffffff',
+        }"
+        v-html="qrSvg"
+      />
+      <canvas v-else ref="canvasRef" class="tp-canvas" />
+    </template>
+    <div v-else class="bc-placeholder" :class="{ 'is-qr': isQr }" />
   </div>
 </template>
 
@@ -119,5 +126,31 @@ watch(
 .tp-canvas {
   max-width: 100%;
   max-height: 100%;
+}
+.bc-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+}
+.bc-placeholder.is-qr {
+  background-image: linear-gradient(45deg, #1f1f23 25%, transparent 25%),
+    linear-gradient(-45deg, #1f1f23 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1f1f23 75%),
+    linear-gradient(-45deg, transparent 75%, #1f1f23 75%);
+  background-size: 8px 8px;
+  background-position:
+    0 0,
+    0 4px,
+    4px -4px,
+    -4px 0;
+}
+.bc-placeholder:not(.is-qr) {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #1f1f23 0,
+    #1f1f23 2px,
+    transparent 2px,
+    transparent 5px
+  );
 }
 </style>
