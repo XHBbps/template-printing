@@ -38,11 +38,12 @@ const useInsideGrip = computed(() => {
   return false;
 });
 
+const PX_PER_MM = 4;
 const positionStyle = computed(() => ({
-  left: `calc(${props.element.grid.c} * var(--cell-w))`,
-  top: `calc(${props.element.grid.r} * var(--cell-h))`,
-  width: `calc(${props.element.grid.cs} * var(--cell-w))`,
-  height: `calc(${props.element.grid.rs} * var(--cell-h))`,
+  left: `${props.element.anchor.x * PX_PER_MM}px`,
+  top: `${props.element.anchor.y * PX_PER_MM}px`,
+  width: `${props.element.anchor.w * PX_PER_MM}px`,
+  height: `${props.element.anchor.h * PX_PER_MM}px`,
 }));
 
 const sizeBadge = computed(() => {
