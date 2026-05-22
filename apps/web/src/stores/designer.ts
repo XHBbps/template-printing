@@ -14,13 +14,21 @@ const HISTORY_LIMIT = 50;
 // share a healthy common-divisor set so cell w/h have many valid options.
 const PX_PER_MM = 4;
 
-// Paper presets in mm. Sizes are *rounded* to nominal numbers (close to ISO A
-// series) so the resulting pixel dimensions have plenty of integer divisors.
+// Paper presets in mm. With PX_PER_MM = 4 the resulting pixel dimensions
+// share a healthy common-divisor set for most pairs, so cell w/h has many
+// valid options. Custom papers are allowed via { w_mm, h_mm }.
 const PAPER_PRESETS: Record<string, { w_mm: number; h_mm: number }> = {
-  A4: { w_mm: 210, h_mm: 300 },
-  'A4-Landscape': { w_mm: 300, h_mm: 210 },
-  A5: { w_mm: 150, h_mm: 210 },
-  'A5-Landscape': { w_mm: 210, h_mm: 150 },
+  A3: { w_mm: 297, h_mm: 420 },
+  'A3-Landscape': { w_mm: 420, h_mm: 297 },
+  A4: { w_mm: 210, h_mm: 297 },
+  'A4-Landscape': { w_mm: 297, h_mm: 210 },
+  A5: { w_mm: 148, h_mm: 210 },
+  'A5-Landscape': { w_mm: 210, h_mm: 148 },
+  A6: { w_mm: 105, h_mm: 148 },
+  B5: { w_mm: 176, h_mm: 250 },
+  Letter: { w_mm: 216, h_mm: 279 },
+  GuardPass: { w_mm: 90, h_mm: 60 },
+  LogisticLabel: { w_mm: 100, h_mm: 180 },
 };
 
 function paperPxSize(paper: Template['canvas']['paper']): { w: number; h: number } {
@@ -31,7 +39,6 @@ function paperPxSize(paper: Template['canvas']['paper']): { w: number; h: number
   if (typeof paper === 'object' && paper !== null && 'w_mm' in paper) {
     return { w: paper.w_mm * PX_PER_MM, h: paper.h_mm * PX_PER_MM };
   }
-  // Fallback A4-Landscape
   const p = PAPER_PRESETS['A4-Landscape'];
   return { w: p.w_mm * PX_PER_MM, h: p.h_mm * PX_PER_MM };
 }
