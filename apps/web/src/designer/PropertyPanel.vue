@@ -26,19 +26,12 @@ function updateStylePadding(v: ElementStyle['padding']): void {
   } as Partial<TemplateElement>);
 }
 
-function setGridPos(field: 'c' | 'r' | 'cs' | 'rs', val: number): void {
+function onAnchorInput(key: 'x' | 'y' | 'w' | 'h', e: Event): void {
   if (!sel.value) return;
-  const min = field === 'cs' || field === 'rs' ? 1 : 0;
-  const next = Math.max(min, Math.floor(val) || min);
-  store.updateElement(sel.value.id, {
-    grid: { ...sel.value.grid, [field]: next },
-  } as Partial<TemplateElement>);
-}
-
-function onAxisInput(field: 'c' | 'r' | 'cs' | 'rs', e: Event): void {
-  const target = e.target as HTMLInputElement;
-  const v = Number(target.value);
-  if (Number.isFinite(v)) setGridPos(field, v);
+  const v = Number((e.target as HTMLInputElement).value);
+  if (!Number.isFinite(v)) return;
+  const min = key === 'w' || key === 'h' ? 0.25 : 0;
+  store.setElementAnchor(sel.value.id, { [key]: Math.max(min, v) });
 }
 
 function setTextContent(v: string): void {
@@ -74,7 +67,7 @@ function del(): void {
         <span class="val mono">{{ sel.type }}</span>
       </div>
 
-      <!-- 位置 — 列 / 行 axis pills (#6) -->
+      <!-- 位置 — anchor.x / anchor.y in mm -->
       <div class="row row-axis">
         <span class="lbl">位置</span>
         <div class="axis-pair">
@@ -83,25 +76,37 @@ function del(): void {
             <input
               type="number"
               class="axis-input"
-              :value="sel.grid.c"
+              :value="sel.anchor.x.toFixed(2)"
+              step="0.25"
               min="0"
-              @input="(e: Event) => onAxisInput('c', e)"
+              @input="(e: Event) => onAnchorInput('x', e)"
             />
+            <span class="axis-unit">mm</span>
           </label>
           <label class="axis">
             <span class="axis-lbl">行</span>
             <input
               type="number"
               class="axis-input"
-              :value="sel.grid.r"
+              :value="sel.anchor.y.toFixed(2)"
+              step="0.25"
               min="0"
-              @input="(e: Event) => onAxisInput('r', e)"
+              @input="(e: Event) => onAnchorInput('y', e)"
             />
+            <span class="axis-unit">mm</span>
           </label>
         </div>
       </div>
+      <div class="row row-badge">
+        <span class="lbl"></span>
+        <span class="cell-eq"
+          >≈ {{ sel.grid.c }} × {{ sel.grid.r }} 格 @ cell={{
+            store.template.canvas.cell.w
+          }}px</span
+        >
+      </div>
 
-      <!-- 尺寸 — 宽 / 高 axis pills -->
+      <!-- 尺寸 — anchor.w / anchor.h in mm -->
       <div class="row row-axis">
         <span class="lbl">尺寸</span>
         <div class="axis-pair">
@@ -110,22 +115,30 @@ function del(): void {
             <input
               type="number"
               class="axis-input"
-              :value="sel.grid.cs"
-              min="1"
-              @input="(e: Event) => onAxisInput('cs', e)"
+              :value="sel.anchor.w.toFixed(2)"
+              step="0.25"
+              min="0.25"
+              @input="(e: Event) => onAnchorInput('w', e)"
             />
+            <span class="axis-unit">mm</span>
           </label>
           <label class="axis">
             <span class="axis-lbl">高</span>
             <input
               type="number"
               class="axis-input"
-              :value="sel.grid.rs"
-              min="1"
-              @input="(e: Event) => onAxisInput('rs', e)"
+              :value="sel.anchor.h.toFixed(2)"
+              step="0.25"
+              min="0.25"
+              @input="(e: Event) => onAnchorInput('h', e)"
             />
+            <span class="axis-unit">mm</span>
           </label>
         </div>
+      </div>
+      <div class="row row-badge">
+        <span class="lbl"></span>
+        <span class="cell-eq">≈ {{ sel.grid.cs }} × {{ sel.grid.rs }} 格</span>
       </div>
 
       <div v-if="sel.type === 'text'" class="row">
@@ -247,5 +260,25 @@ function del(): void {
 }
 .axis-input[type='number'] {
   -moz-appearance: textfield;
+}
+.axis-unit {
+  background: transparent;
+  color: var(--tp-ink-faint);
+  font-size: 10px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.row-badge {
+  padding: 0 14px 4px;
+  font-size: 10.5px;
+  color: var(--tp-ink-faint);
+}
+.row-badge .lbl {
+  min-width: 36px;
+}
+.cell-eq {
+  font-family: ui-monospace, monospace;
 }
 </style>
