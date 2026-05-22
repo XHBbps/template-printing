@@ -1,6 +1,8 @@
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
 
+const PX_PER_MM = 4;
+
 export interface ElementMeta {
   type: TemplateElement['type'];
   glyph: string;
@@ -40,17 +42,31 @@ function defaultStyle() {
   };
 }
 
-export function buildElement(meta: ElementMeta, newId: string, c = 4, r = 4): TemplateElement {
+export function buildElement(
+  meta: ElementMeta,
+  newId: string,
+  c = 4,
+  r = 4,
+  cellW = 4,
+  cellH = 4,
+): TemplateElement {
   const grid = { c, r, cs: meta.defaultGrid.cs, rs: meta.defaultGrid.rs };
+  const anchor = {
+    x: (c * cellW) / PX_PER_MM,
+    y: (r * cellH) / PX_PER_MM,
+    w: (grid.cs * cellW) / PX_PER_MM,
+    h: (grid.rs * cellH) / PX_PER_MM,
+  };
   const style = defaultStyle();
   switch (meta.type) {
     case 'text':
-      return { id: newId, type: 'text', grid, style, content: { static: '示例文本' } };
+      return { id: newId, type: 'text', grid, anchor, style, content: { static: '示例文本' } };
     case 'field':
       return {
         id: newId,
         type: 'field',
         grid,
+        anchor,
         style,
         binding: 'fieldKey',
         fallback: '—',
@@ -61,17 +77,19 @@ export function buildElement(meta: ElementMeta, newId: string, c = 4, r = 4): Te
         id: newId,
         type: 'image',
         grid,
+        anchor,
         style,
         source: { kind: 'static', url: '' },
         fit: 'contain',
       };
     case 'rect':
-      return { id: newId, type: 'rect', grid, style };
+      return { id: newId, type: 'rect', grid, anchor, style };
     case 'table':
       return {
         id: newId,
         type: 'table',
         grid,
+        anchor,
         style,
         binding: 'items',
         columns: [
@@ -86,22 +104,30 @@ export function buildElement(meta: ElementMeta, newId: string, c = 4, r = 4): Te
         id: newId,
         type: 'barcode',
         grid,
+        anchor,
         style,
         symbology: meta.variant === 'qr' ? 'qr' : 'code128',
         content: { static: 'SAMPLE' },
         showText: false,
+        foregroundColor: '#000000',
+        backgroundColor: '#ffffff',
+        quietZone: 2,
+        ...(meta.variant === 'qr'
+          ? { eccLevel: 'M' as const }
+          : { textPosition: 'bottom' as const, textFontSize: 10 }),
       };
     case 'autonumber':
       return {
         id: newId,
         type: 'autonumber',
         grid,
+        anchor,
         style,
         sequence: 'default',
         format: '0000000',
         prefix: '',
       };
     case 'system':
-      return { id: newId, type: 'system', grid, style, variable: 'pageNo' };
+      return { id: newId, type: 'system', grid, anchor, style, variable: 'pageNo' };
   }
 }

@@ -62,7 +62,14 @@ function onDrop(e: DragEvent): void {
   let r = Math.floor(y / cellH) - Math.floor(meta.defaultGrid.rs / 2);
   c = Math.max(0, Math.min(cols - meta.defaultGrid.cs, c));
   r = Math.max(0, Math.min(rows - meta.defaultGrid.rs, r));
-  const el: TemplateElement = buildElement(meta, store.newElementId(), c, r);
+  const el: TemplateElement = buildElement(
+    meta,
+    store.newElementId(),
+    c,
+    r,
+    store.template.canvas.cell.w,
+    store.template.canvas.cell.h,
+  );
   store.addElement(el);
 }
 </script>

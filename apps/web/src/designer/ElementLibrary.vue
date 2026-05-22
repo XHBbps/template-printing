@@ -6,7 +6,8 @@ const store = useDesignerStore();
 const items = LIBRARY_ITEMS;
 
 function clickAdd(meta: ElementMeta): void {
-  const el = buildElement(meta, store.newElementId());
+  const cell = store.template.canvas.cell;
+  const el = buildElement(meta, store.newElementId(), 4, 4, cell.w, cell.h);
   store.addElement(el);
 }
 
