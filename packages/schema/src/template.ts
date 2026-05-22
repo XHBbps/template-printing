@@ -177,19 +177,7 @@ export const CellSchema = z.object({
   h: z.number().positive(),
 });
 
-export const PaperPresetSchema = z.enum([
-  'A3',
-  'A3-Landscape',
-  'A4',
-  'A4-Landscape',
-  'A5',
-  'A5-Landscape',
-  'A6',
-  'B5',
-  'Letter',
-  'GuardPass',
-  'LogisticLabel',
-]);
+export const PaperPresetSchema = z.enum(['A3', 'A4', 'A5', 'A6', 'B5', 'Letter']);
 export type PaperPreset = z.infer<typeof PaperPresetSchema>;
 
 export const PaperSchema = z.union([
@@ -202,6 +190,7 @@ export const CanvasSchema = z.object({
   rows: z.number().int().positive(),
   cell: CellSchema,
   paper: PaperSchema,
+  orientation: z.enum(['portrait', 'landscape']).default('portrait'),
   background: z.string().nullable().default(null),
 });
 

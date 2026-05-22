@@ -10,6 +10,7 @@ import {
   BarcodeElementSchema,
   FieldDefSchema,
   PaperSchema,
+  CanvasSchema,
   type Template,
   // eslint-disable-next-line import/no-unresolved
 } from '../src/template.js';
@@ -21,7 +22,8 @@ const minimalTemplate: Template = {
     cols: 240,
     rows: 160,
     cell: { w: 4, h: 4 },
-    paper: 'A4-Landscape',
+    paper: 'A4',
+    orientation: 'landscape',
     background: null,
   },
   schema: {},
@@ -288,24 +290,43 @@ describe('expanded BarcodeElementSchema', () => {
   });
 });
 
-describe('expanded PaperSchema', () => {
-  it.each([
-    'A3',
-    'A3-Landscape',
-    'A4',
-    'A4-Landscape',
-    'A5',
-    'A5-Landscape',
-    'A6',
-    'B5',
-    'Letter',
-    'GuardPass',
-    'LogisticLabel',
-  ])('accepts preset "%s"', (preset) => {
+describe('PaperSchema (iteration 4)', () => {
+  it.each(['A3', 'A4', 'A5', 'A6', 'B5', 'Letter'])('accepts preset "%s"', (preset) => {
     expect(PaperSchema.parse(preset)).toBe(preset);
+  });
+
+  it('rejects removed presets', () => {
+    expect(() => PaperSchema.parse('A4-Landscape')).toThrow();
+    expect(() => PaperSchema.parse('GuardPass')).toThrow();
+    expect(() => PaperSchema.parse('LogisticLabel')).toThrow();
   });
 
   it('accepts custom { w_mm, h_mm }', () => {
     expect(PaperSchema.parse({ w_mm: 173, h_mm: 240 })).toMatchObject({ w_mm: 173 });
+  });
+});
+
+describe('CanvasSchema orientation field', () => {
+  it('defaults orientation to portrait', () => {
+    const c = CanvasSchema.parse({
+      cols: 240,
+      rows: 160,
+      cell: { w: 4, h: 4 },
+      paper: 'A4',
+      background: null,
+    });
+    expect(c.orientation).toBe('portrait');
+  });
+
+  it('accepts landscape', () => {
+    const c = CanvasSchema.parse({
+      cols: 240,
+      rows: 160,
+      cell: { w: 4, h: 4 },
+      paper: 'A4',
+      orientation: 'landscape',
+      background: null,
+    });
+    expect(c.orientation).toBe('landscape');
   });
 });
