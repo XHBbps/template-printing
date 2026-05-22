@@ -35,7 +35,9 @@ const containerStyle = computed(() => ({
 </template>
 
 <style scoped>
-.tp-field-design {
+/* Wrapping in :where() drops the selector to specificity 0,
+   so any inline color from styleToCss always wins. */
+:where(.tp-field-design) {
   color: #0969da;
 }
 </style>
