@@ -1,5 +1,7 @@
 import { useDesignerStore } from '../stores/designer';
 
+import { minMmFor } from './elementFactory';
+
 type ResizeSide = 'n' | 'e' | 's' | 'w' | 'nw' | 'ne' | 'sw' | 'se';
 type ResizeMode = 'free' | 'qr-lock' | 'barcode';
 
@@ -124,6 +126,25 @@ export function usePointerDrag(
         newRs = startRs - (newR - startR);
       } else if (side.includes('s')) {
         newRs = clamp(startRs + dr, 1, store.template.canvas.rows - startR);
+      }
+
+      // Iteration-3: enforce per-type minimum size in mm.
+      const PX_PER_MM = 4;
+      const minMm = minMmFor(el!);
+      const minCs = Math.max(1, Math.ceil((minMm.w * PX_PER_MM) / cell.w));
+      const minRs = Math.max(1, Math.ceil((minMm.h * PX_PER_MM) / cell.h));
+      if (newCs < minCs) {
+        if (side.includes('w')) {
+          // Dragging the west edge — pin the right edge so the element doesn't slide.
+          newC = startC + startCs - minCs;
+        }
+        newCs = minCs;
+      }
+      if (newRs < minRs) {
+        if (side.includes('n')) {
+          newR = startR + startRs - minRs;
+        }
+        newRs = minRs;
       }
 
       // 1D barcode: enforce min rs >= 2
