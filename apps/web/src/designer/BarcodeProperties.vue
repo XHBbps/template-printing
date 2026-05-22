@@ -1,13 +1,11 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
-import { computed } from 'vue';
+import BarcodeContentPicker from './BarcodeContentPicker.vue';
+import SliderWithInput from './SliderWithInput.vue';
 
-const props = defineProps<{ element: TemplateElement }>();
+const props = defineProps<{ element: Extract<TemplateElement, { type: 'barcode' }> }>();
 const emit = defineEmits<{ (e: 'update', patch: Partial<TemplateElement>): void }>();
-
-const isQr = computed(() => props.element.type === 'barcode' && props.element.symbology === 'qr');
-const isOneD = computed(() => props.element.type === 'barcode' && props.element.symbology !== 'qr');
 
 function update(patch: Record<string, unknown>): void {
   emit('update', patch as Partial<TemplateElement>);
@@ -15,8 +13,13 @@ function update(patch: Record<string, unknown>): void {
 </script>
 
 <template>
-  <div v-if="props.element.type === 'barcode'" class="bc-block">
-    <div class="bc-title">{{ isQr ? '二维码控制' : '条码控制' }}</div>
+  <div class="bc-block">
+    <div class="bc-title">条码控制</div>
+
+    <BarcodeContentPicker
+      :element="props.element"
+      @update="(p: Partial<TemplateElement>) => emit('update', p)"
+    />
 
     <div class="srow">
       <span class="slbl">类型</span>
@@ -25,27 +28,10 @@ function update(patch: Record<string, unknown>): void {
         :value="props.element.symbology"
         @change="(e: Event) => update({ symbology: (e.target as HTMLSelectElement).value })"
       >
-        <option value="qr">二维码 QR</option>
         <option value="code128">Code 128</option>
         <option value="code39">Code 39</option>
         <option value="ean13">EAN-13</option>
-        <option value="ean8">EAN-8</option>
-        <option value="upc-a">UPC-A</option>
         <option value="itf14">ITF-14</option>
-      </select>
-    </div>
-
-    <div v-if="isQr" class="srow">
-      <span class="slbl">容错</span>
-      <select
-        class="ssel"
-        :value="props.element.eccLevel ?? 'M'"
-        @change="(e: Event) => update({ eccLevel: (e.target as HTMLSelectElement).value })"
-      >
-        <option value="L">L · 7%</option>
-        <option value="M">M · 15%</option>
-        <option value="Q">Q · 25%</option>
-        <option value="H">H · 30%</option>
       </select>
     </div>
 
@@ -58,7 +44,6 @@ function update(patch: Record<string, unknown>): void {
       />
       <span class="sval mono">{{ props.element.foregroundColor ?? '#000000' }}</span>
     </div>
-
     <div class="srow">
       <span class="slbl">背景</span>
       <input
@@ -68,63 +53,57 @@ function update(patch: Record<string, unknown>): void {
       />
       <span class="sval mono">{{ props.element.backgroundColor ?? '#ffffff' }}</span>
     </div>
-
     <div class="srow">
       <span class="slbl">静区</span>
-      <input
-        type="range"
-        min="0"
-        max="8"
-        step="1"
-        :value="props.element.quietZone ?? 2"
-        class="slider"
-        @input="(e: Event) => update({ quietZone: Number((e.target as HTMLInputElement).value) })"
+      <SliderWithInput
+        :model-value="props.element.quietZone ?? 4"
+        :min="0"
+        :max="8"
+        :step="1"
+        @update:model-value="(v: number) => update({ quietZone: v })"
       />
-      <span class="sval mono">{{ props.element.quietZone ?? 2 }}</span>
     </div>
 
-    <template v-if="isOneD">
-      <div class="srow">
-        <span class="slbl">显示文字</span>
-        <input
-          type="checkbox"
-          :checked="props.element.showText"
-          @change="(e: Event) => update({ showText: (e.target as HTMLInputElement).checked })"
-        />
+    <div class="srow">
+      <span class="slbl">显示文字</span>
+      <input
+        type="checkbox"
+        :checked="props.element.showText"
+        @change="(e: Event) => update({ showText: (e.target as HTMLInputElement).checked })"
+      />
+    </div>
+    <div v-if="props.element.showText" class="srow">
+      <span class="slbl">文字位置</span>
+      <div class="seg">
+        <button
+          :class="{ on: (props.element.textPosition ?? 'bottom') === 'top' }"
+          @click="update({ textPosition: 'top' })"
+        >
+          上
+        </button>
+        <button
+          :class="{ on: (props.element.textPosition ?? 'bottom') === 'bottom' }"
+          @click="update({ textPosition: 'bottom' })"
+        >
+          下
+        </button>
       </div>
-      <div v-if="props.element.showText" class="srow">
-        <span class="slbl">文字位置</span>
-        <div class="seg">
-          <button
-            :class="{ on: (props.element.textPosition ?? 'bottom') === 'top' }"
-            @click="update({ textPosition: 'top' })"
-          >
-            上
-          </button>
-          <button
-            :class="{ on: (props.element.textPosition ?? 'bottom') === 'bottom' }"
-            @click="update({ textPosition: 'bottom' })"
-          >
-            下
-          </button>
-        </div>
-      </div>
-      <div v-if="props.element.showText" class="srow">
-        <span class="slbl">文字字号</span>
-        <input
-          type="number"
-          min="6"
-          max="32"
-          step="1"
-          :value="props.element.textFontSize ?? 10"
-          class="snum"
-          @input="
-            (e: Event) => update({ textFontSize: Number((e.target as HTMLInputElement).value) })
-          "
-        />
-        <span class="sval">px</span>
-      </div>
-    </template>
+    </div>
+    <div v-if="props.element.showText" class="srow">
+      <span class="slbl">文字字号</span>
+      <input
+        type="number"
+        min="6"
+        max="32"
+        step="1"
+        :value="props.element.textFontSize ?? 10"
+        class="snum"
+        @input="
+          (e: Event) => update({ textFontSize: Number((e.target as HTMLInputElement).value) })
+        "
+      />
+      <span class="sval">px</span>
+    </div>
   </div>
 </template>
 
@@ -168,10 +147,6 @@ function update(patch: Record<string, unknown>): void {
   border-radius: 4px;
   font-size: 12px;
   min-width: 100px;
-}
-.slider {
-  flex: 1;
-  accent-color: var(--tp-accent);
 }
 .seg {
   display: inline-flex;
