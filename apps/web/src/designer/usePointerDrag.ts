@@ -18,14 +18,8 @@ export function usePointerDrag(
 } {
   const store = useDesignerStore();
 
-  function getCellPx(): { w: number; h: number } {
-    return { w: store.template.canvas.cell.w, h: store.template.canvas.cell.h };
-  }
   function getElement() {
     return store.template.elements.find((e) => e.id === elementId);
-  }
-  function clamp(v: number, lo: number, hi: number): number {
-    return Math.max(lo, Math.min(hi, v));
   }
   function getResizeMode(): ResizeMode {
     const el = getElement();
@@ -86,95 +80,84 @@ export function usePointerDrag(
   function onResizeDown(side: ResizeSide, e: PointerEvent): void {
     const el = getElement();
     if (!el) return;
-    const cell = getCellPx();
-    const startC = el.grid.c,
-      startR = el.grid.r;
-    const startCs = el.grid.cs,
-      startRs = el.grid.rs;
-    const startX = e.clientX,
-      startY = e.clientY;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startAnchor = { ...el.anchor };
     const mode = getResizeMode();
+    const minMm = minMmFor(el);
+    const paperW = store.paperPx.w / PX_PER_MM;
+    const paperH = store.paperPx.h / PX_PER_MM;
 
     store.isResizing = true;
 
     function onMove(ev: PointerEvent): void {
-      let dcPx = ev.clientX - startX;
-      let drPx = ev.clientY - startY;
+      let dxMm = (ev.clientX - startX) / (PX_PER_MM * store.view.zoom);
+      let dyMm = (ev.clientY - startY) / (PX_PER_MM * store.view.zoom);
 
-      // QR 1:1 lock: take the larger axis magnitude, apply to both.
+      // QR 1:1 lock — sync axes
       if (mode === 'qr-lock') {
-        const basis = Math.max(Math.abs(dcPx), Math.abs(drPx));
-        const sx = dcPx >= 0 ? 1 : -1;
-        const sy = drPx >= 0 ? 1 : -1;
-        dcPx = sx * basis;
-        drPx = sy * basis;
+        const basis = Math.max(Math.abs(dxMm), Math.abs(dyMm));
+        dxMm = (dxMm >= 0 ? 1 : -1) * basis;
+        dyMm = (dyMm >= 0 ? 1 : -1) * basis;
       }
 
-      const z = store.view.zoom;
-      let dc = Math.round(dcPx / (cell.w * z));
-      let dr = Math.round(drPx / (cell.h * z));
-
-      // For QR force dc === dr (in cell units) — snap to the largest absolute.
-      if (mode === 'qr-lock') {
-        const d = Math.max(Math.abs(dc), Math.abs(dr));
-        dc = (dc >= 0 ? 1 : -1) * d;
-        dr = (dr >= 0 ? 1 : -1) * d;
-      }
-
-      let newC = startC,
-        newR = startR,
-        newCs = startCs,
-        newRs = startRs;
+      let { x, y, w, h } = startAnchor;
 
       if (side.includes('w')) {
-        newC = clamp(startC + dc, 0, startC + startCs - 1);
-        newCs = startCs - (newC - startC);
+        const newX = startAnchor.x + dxMm;
+        const newW = startAnchor.w - dxMm;
+        if (newW >= minMm.w) {
+          x = newX;
+          w = newW;
+        } else {
+          x = startAnchor.x + startAnchor.w - minMm.w;
+          w = minMm.w;
+        }
       } else if (side.includes('e')) {
-        newCs = clamp(startCs + dc, 1, store.template.canvas.cols - startC);
+        w = Math.max(minMm.w, startAnchor.w + dxMm);
       }
       if (side.includes('n')) {
-        newR = clamp(startR + dr, 0, startR + startRs - 1);
-        newRs = startRs - (newR - startR);
-      } else if (side.includes('s')) {
-        newRs = clamp(startRs + dr, 1, store.template.canvas.rows - startR);
-      }
-
-      // Iteration-3: enforce per-type minimum size in mm.
-      const minMm = minMmFor(el!);
-      const minCs = Math.max(1, Math.ceil((minMm.w * PX_PER_MM) / cell.w));
-      const minRs = Math.max(1, Math.ceil((minMm.h * PX_PER_MM) / cell.h));
-      if (newCs < minCs) {
-        if (side.includes('w')) {
-          // Dragging the west edge — pin the right edge so the element doesn't slide.
-          newC = startC + startCs - minCs;
-        }
-        newCs = minCs;
-      }
-      if (newRs < minRs) {
-        if (side.includes('n')) {
-          newR = startR + startRs - minRs;
-        }
-        newRs = minRs;
-      }
-
-      // 1D barcode: enforce min rs >= 2
-      if (mode === 'barcode' && newRs < 2) {
-        if (side.includes('n')) {
-          newR = startR + startRs - 2;
-          newRs = 2;
+        const newY = startAnchor.y + dyMm;
+        const newH = startAnchor.h - dyMm;
+        if (newH >= minMm.h) {
+          y = newY;
+          h = newH;
         } else {
-          newRs = 2;
+          y = startAnchor.y + startAnchor.h - minMm.h;
+          h = minMm.h;
         }
+      } else if (side.includes('s')) {
+        h = Math.max(minMm.h, startAnchor.h + dyMm);
       }
 
-      // QR: enforce cs === rs strictly. Use the smaller of the two as final.
+      // QR strict w === h (use smaller)
       if (mode === 'qr-lock') {
-        const final = Math.min(newCs, newRs);
-        newCs = final;
-        newRs = final;
+        const m = Math.min(w, h);
+        w = m;
+        h = m;
       }
 
-      store.resizeElement(elementId, newCs, newRs, newC, newR);
+      // 1D barcode min height 0.5 mm
+      if (mode === 'barcode' && h < 0.5) {
+        if (side.includes('n')) {
+          y = startAnchor.y + startAnchor.h - 0.5;
+        }
+        h = 0.5;
+      }
+
+      // clamp to paper
+      if (x < 0) {
+        w += x;
+        x = 0;
+      }
+      if (y < 0) {
+        h += y;
+        y = 0;
+      }
+      if (x + w > paperW) w = paperW - x;
+      if (y + h > paperH) h = paperH - y;
+
+      store.resizeElementMm(elementId, { x, y, w, h });
     }
     function onUp(): void {
       window.removeEventListener('pointermove', onMove);
