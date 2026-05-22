@@ -63,7 +63,11 @@ const elementMap: Record<string, unknown> = {
   >
     <component :is="elementMap[props.element.type]" :element="props.element" design-mode />
     <ElementGrip v-if="isSelected" @pointerdown="onGripDown" />
-    <HitZones v-if="isSelected" @pointerdown="onResizeDown" />
+    <HitZones
+      v-if="isSelected"
+      :mode="props.element.type === 'barcode' && props.element.symbology === 'qr' ? 'qr' : 'free'"
+      @pointerdown="onResizeDown"
+    />
     <span v-if="isSelected" class="tp-handle tp-handle-tl" />
     <span v-if="isSelected" class="tp-handle tp-handle-tr" />
     <span v-if="isSelected" class="tp-handle tp-handle-bl" />
