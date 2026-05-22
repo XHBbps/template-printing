@@ -6,6 +6,7 @@ import type { ElementStyle, TemplateElement } from '@template-printing/schema';
 
 import { useDesignerStore } from '../stores/designer';
 import { useImageUpload } from '../composables/useImageUpload';
+import { minMmFor } from './elementFactory';
 import BarcodeProperties from './BarcodeProperties.vue';
 import BorderControl from './BorderControl.vue';
 import PaddingControl from './PaddingControl.vue';
@@ -14,6 +15,8 @@ const store = useDesignerStore();
 const { upload, uploading, error: uploadError } = useImageUpload();
 
 const sel = computed<TemplateElement | null>(() => store.selectedElement);
+
+const minMmCurrent = computed(() => (sel.value ? minMmFor(sel.value) : { w: 0.25, h: 0.25 }));
 
 function updateStyleBorder(v: ElementStyle['border']): void {
   if (!sel.value) return;
@@ -33,7 +36,10 @@ function onAnchorInput(key: 'x' | 'y' | 'w' | 'h', e: Event): void {
   if (!sel.value) return;
   const v = Number((e.target as HTMLInputElement).value);
   if (!Number.isFinite(v)) return;
-  const min = key === 'w' || key === 'h' ? 0.25 : 0;
+  let min: number;
+  if (key === 'w') min = minMmCurrent.value.w;
+  else if (key === 'h') min = minMmCurrent.value.h;
+  else min = 0;
   store.setElementAnchor(sel.value.id, { [key]: Math.max(min, v) });
 }
 
@@ -170,7 +176,7 @@ const advancedOpen = ref(false);
               class="axis-input"
               :value="sel.anchor.w.toFixed(2)"
               step="0.25"
-              min="0.25"
+              :min="minMmCurrent.w"
               @input="(e: Event) => onAnchorInput('w', e)"
             />
             <span class="axis-unit">mm</span>
@@ -182,7 +188,7 @@ const advancedOpen = ref(false);
               class="axis-input"
               :value="sel.anchor.h.toFixed(2)"
               step="0.25"
-              min="0.25"
+              :min="minMmCurrent.h"
               @input="(e: Event) => onAnchorInput('h', e)"
             />
             <span class="axis-unit">mm</span>
