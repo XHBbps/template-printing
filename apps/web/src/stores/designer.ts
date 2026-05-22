@@ -1,4 +1,6 @@
+// eslint-disable-next-line import/no-unresolved
 import type { Template, TemplateElement, FieldDefSchema } from '@template-printing/schema';
+// eslint-disable-next-line import/no-unresolved
 import { defineStore } from 'pinia';
 // eslint-disable-next-line import/no-unresolved
 import type { z } from 'zod';
@@ -7,6 +9,40 @@ type FieldDef = z.infer<typeof FieldDefSchema>;
 
 const STORAGE_KEY = 'tp_designer_draft';
 const HISTORY_LIMIT = 50;
+
+// Pixels-per-mm. With 4 px/mm and the paper sizes below, both canvas dimensions
+// share a healthy common-divisor set so cell w/h have many valid options.
+const PX_PER_MM = 4;
+
+// Paper presets in mm. Sizes are *rounded* to nominal numbers (close to ISO A
+// series) so the resulting pixel dimensions have plenty of integer divisors.
+const PAPER_PRESETS: Record<string, { w_mm: number; h_mm: number }> = {
+  A4: { w_mm: 210, h_mm: 300 },
+  'A4-Landscape': { w_mm: 300, h_mm: 210 },
+  A5: { w_mm: 150, h_mm: 210 },
+  'A5-Landscape': { w_mm: 210, h_mm: 150 },
+};
+
+function paperPxSize(paper: Template['canvas']['paper']): { w: number; h: number } {
+  if (typeof paper === 'string' && paper in PAPER_PRESETS) {
+    const p = PAPER_PRESETS[paper];
+    return { w: p.w_mm * PX_PER_MM, h: p.h_mm * PX_PER_MM };
+  }
+  if (typeof paper === 'object' && paper !== null && 'w_mm' in paper) {
+    return { w: paper.w_mm * PX_PER_MM, h: paper.h_mm * PX_PER_MM };
+  }
+  // Fallback A4-Landscape
+  const p = PAPER_PRESETS['A4-Landscape'];
+  return { w: p.w_mm * PX_PER_MM, h: p.h_mm * PX_PER_MM };
+}
+
+function divisorsInRange(n: number, min = 2, max = 40): number[] {
+  const out: number[] = [];
+  for (let i = min; i <= max && i <= n; i++) {
+    if (n % i === 0) out.push(i);
+  }
+  return out;
+}
 
 function makeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -17,7 +53,7 @@ function defaultBorder() {
   return { top: { ...side }, right: { ...side }, bottom: { ...side }, left: { ...side } };
 }
 
-// Used by element library when creating new elements (Task 9 — ElementLibrary)
+// Used by element library when creating new elements
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function defaultStyle() {
   return {
@@ -29,14 +65,18 @@ function defaultStyle() {
 }
 
 export function defaultTemplate(): Template {
+  const paper = 'A4-Landscape';
+  const px = paperPxSize(paper);
+  const cellW = 4;
+  const cellH = 4;
   return {
     id: makeId('tpl'),
     meta: { name: '未命名模板', description: '', version: 1, tags: [] },
     canvas: {
-      cols: 240,
-      rows: 160,
-      cell: { w: 4, h: 4 },
-      paper: 'A4-Landscape',
+      cols: px.w / cellW,
+      rows: px.h / cellH,
+      cell: { w: cellW, h: cellH },
+      paper,
       background: null,
     },
     schema: {},
@@ -71,6 +111,8 @@ export const useDesignerStore = defineStore('designer', {
       }
       return used;
     },
+    // Paper size in pixels — canvas always equals this regardless of cell size
+    paperPx: (s): { w: number; h: number } => paperPxSize(s.template.canvas.paper),
   },
   actions: {
     snapshot(): void {
@@ -109,6 +151,18 @@ export const useDesignerStore = defineStore('designer', {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return false;
         const parsed = JSON.parse(raw) as Template;
+        // Fix up old drafts whose cell no longer divides the new paper sizes.
+        const px = paperPxSize(parsed.canvas.paper);
+        let { w, h } = parsed.canvas.cell;
+        if (px.w % w !== 0 || px.h % h !== 0) {
+          const wOpts = divisorsInRange(px.w);
+          const hOpts = divisorsInRange(px.h);
+          w = wOpts.includes(4) ? 4 : wOpts[0] ?? 1;
+          h = hOpts.includes(4) ? 4 : hOpts[0] ?? 1;
+          parsed.canvas.cell = { w, h };
+        }
+        parsed.canvas.cols = px.w / w;
+        parsed.canvas.rows = px.h / h;
         this.template = parsed;
         this.history = [JSON.stringify(parsed)];
         this.historyIndex = 0;
@@ -168,17 +222,37 @@ export const useDesignerStore = defineStore('designer', {
       this.selectedIds = this.selectedIds.filter((s) => s !== id);
       this.snapshot();
     },
+    // 关键约束：cell.w 必须整除 paperPxW，cell.h 必须整除 paperPxH。
+    // 不满足的尺寸直接拒绝；cols/rows 由 paper 与 cell 派生。
     setCellSize(w: number, h: number): void {
+      const px = paperPxSize(this.template.canvas.paper);
+      if (px.w % w !== 0 || px.h % h !== 0) {
+        // Reject invalid divisor — caller (UI) is expected to only pass valid options.
+        return;
+      }
       this.template.canvas.cell = { w, h };
+      this.template.canvas.cols = px.w / w;
+      this.template.canvas.rows = px.h / h;
       this.snapshot();
     },
-    setCanvasSize(cols: number, rows: number): void {
-      this.template.canvas.cols = cols;
-      this.template.canvas.rows = rows;
-      this.snapshot();
+    setCanvasSize(_cols: number, _rows: number): void {
+      // Canvas size is locked to paper; ignore direct cols/rows mutation.
+      // Kept for backward compat with older callers.
     },
     setPaper(paper: Template['canvas']['paper']): void {
+      const px = paperPxSize(paper);
+      let { w, h } = this.template.canvas.cell;
+      // If current cell no longer divides the new paper, snap to a safe default
+      if (px.w % w !== 0 || px.h % h !== 0) {
+        const wOpts = divisorsInRange(px.w);
+        const hOpts = divisorsInRange(px.h);
+        w = wOpts.includes(4) ? 4 : wOpts[0] ?? 1;
+        h = hOpts.includes(4) ? 4 : hOpts[0] ?? 1;
+      }
       this.template.canvas.paper = paper;
+      this.template.canvas.cell = { w, h };
+      this.template.canvas.cols = px.w / w;
+      this.template.canvas.rows = px.h / h;
       this.snapshot();
     },
     setName(name: string): void {
@@ -195,6 +269,20 @@ export const useDesignerStore = defineStore('designer', {
     },
     newElementId(): string {
       return makeId('e');
+    },
+    // List of valid (cell.w, cell.h) preset pairs for the current paper.
+    // Both axes share many divisors with our 4 px/mm paper sizes, so we
+    // present the common ones as square presets plus a few common rectangles.
+    validCellOptions(): Array<{ w: number; h: number; cols: number; rows: number }> {
+      const px = paperPxSize(this.template.canvas.paper);
+      const wOpts = divisorsInRange(px.w);
+      const hOpts = divisorsInRange(px.h);
+      const common = wOpts.filter((d) => hOpts.includes(d));
+      const out: Array<{ w: number; h: number; cols: number; rows: number }> = [];
+      for (const d of common) {
+        out.push({ w: d, h: d, cols: px.w / d, rows: px.h / d });
+      }
+      return out;
     },
   },
 });

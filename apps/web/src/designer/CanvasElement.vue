@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import {
   TextElement,
@@ -22,6 +22,7 @@ import { usePointerDrag } from './usePointerDrag';
 const props = defineProps<{ element: TemplateElement }>();
 const store = useDesignerStore();
 
+const elRef = ref<HTMLElement | null>(null);
 const isSelected = computed(() => store.selectedIds.includes(props.element.id));
 
 const positionStyle = computed(() => ({
@@ -38,7 +39,7 @@ function selectMe(e: MouseEvent): void {
   store.select([props.element.id]);
 }
 
-const { onGripDown, onResizeDown } = usePointerDrag(props.element.id);
+const { onGripDown, onResizeDown } = usePointerDrag(props.element.id, () => elRef.value);
 
 const elementMap: Record<string, unknown> = {
   text: TextElement,
@@ -54,6 +55,7 @@ const elementMap: Record<string, unknown> = {
 
 <template>
   <div
+    ref="elRef"
     class="tp-element"
     :class="{ 'is-selected': isSelected }"
     :style="positionStyle"
@@ -62,7 +64,11 @@ const elementMap: Record<string, unknown> = {
     <component :is="elementMap[props.element.type]" :element="props.element" design-mode />
     <ElementGrip v-if="isSelected" @pointerdown="onGripDown" />
     <HitZones v-if="isSelected" @pointerdown="onResizeDown" />
-    <span v-if="isSelected" class="size-badge">{{ sizeBadge }}</span>
+    <span v-if="isSelected" class="tp-handle tp-handle-tl" />
+    <span v-if="isSelected" class="tp-handle tp-handle-tr" />
+    <span v-if="isSelected" class="tp-handle tp-handle-bl" />
+    <span v-if="isSelected" class="tp-handle tp-handle-br" />
+    <span v-if="isSelected" class="tp-size-badge">{{ sizeBadge }}</span>
   </div>
 </template>
 
@@ -71,23 +77,59 @@ const elementMap: Record<string, unknown> = {
   position: absolute;
   box-sizing: border-box;
   cursor: pointer;
-}
-.tp-element.is-selected {
-  outline: 1.5px solid #0969da;
-  outline-offset: 2px;
+  border: 1.5px solid transparent;
   border-radius: 4px;
-  box-shadow: 0 0 0 5px rgba(9, 105, 218, 0.1);
 }
-.size-badge {
+/* Selection visual coincides with element border (#2) — no outline-offset.
+   Replaces the previous outline with an inset purple border so the highlight
+   sits exactly where the element's edge is. */
+.tp-element.is-selected {
+  border-color: var(--tp-accent);
+  box-shadow:
+    0 0 0 1px rgba(108, 92, 231, 0.15),
+    0 0 24px rgba(108, 92, 231, 0.18);
+}
+/* 4 corner handles — white fill, purple border, circular (#3) */
+.tp-handle {
   position: absolute;
-  bottom: -22px;
-  right: -1px;
-  background: #1f2328;
-  color: #fff;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-family: ui-monospace, monospace;
+  width: 9px;
+  height: 9px;
+  background: #fff;
+  border: 1.5px solid var(--tp-accent);
+  border-radius: 50%;
+  z-index: 4;
   pointer-events: none;
+}
+.tp-handle-tl {
+  top: -5px;
+  left: -5px;
+}
+.tp-handle-tr {
+  top: -5px;
+  right: -5px;
+}
+.tp-handle-bl {
+  bottom: -5px;
+  left: -5px;
+}
+.tp-handle-br {
+  bottom: -5px;
+  right: -5px;
+}
+/* Bottom-right size badge */
+.tp-size-badge {
+  position: absolute;
+  bottom: -26px;
+  right: -1px;
+  background: var(--tp-ink);
+  color: #fff;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 4;
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElButton, ElInput, ElInputNumber, ElOption, ElSelect } from 'element-plus';
+import { ElButton, ElInput, ElOption, ElSelect } from 'element-plus';
 import { computed } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import type { ElementStyle, TemplateElement } from '@template-printing/schema';
@@ -29,9 +29,16 @@ function updateStylePadding(v: ElementStyle['padding']): void {
 function setGridPos(field: 'c' | 'r' | 'cs' | 'rs', val: number): void {
   if (!sel.value) return;
   const min = field === 'cs' || field === 'rs' ? 1 : 0;
+  const next = Math.max(min, Math.floor(val) || min);
   store.updateElement(sel.value.id, {
-    grid: { ...sel.value.grid, [field]: Math.max(min, val) },
+    grid: { ...sel.value.grid, [field]: next },
   } as Partial<TemplateElement>);
+}
+
+function onAxisInput(field: 'c' | 'r' | 'cs' | 'rs', e: Event): void {
+  const target = e.target as HTMLInputElement;
+  const v = Number(target.value);
+  if (Number.isFinite(v)) setGridPos(field, v);
 }
 
 function setTextContent(v: string): void {
@@ -53,60 +60,72 @@ function del(): void {
 </script>
 
 <template>
-  <div class="prop-panel">
-    <div class="block-title">
-      属性 <span v-if="sel" class="hint">· 已选 {{ store.selectedIds.length }} 个</span>
+  <div class="tp-section-bottom prop-panel">
+    <div class="tp-sub-head">
+      <span class="tp-sub-title">属性</span>
+      <span v-if="sel" class="tp-sub-hint">已选 {{ store.selectedIds.length }} 个</span>
     </div>
 
     <div v-if="!sel" class="empty">未选中任何元素</div>
 
-    <template v-else>
+    <div v-else class="prop-body">
       <div class="row">
         <span class="lbl">类型</span>
         <span class="val mono">{{ sel.type }}</span>
       </div>
-      <div class="row">
-        <span class="lbl">位置 (格)</span>
-        <span class="val">
-          c<ElInputNumber
-            size="small"
-            :model-value="sel.grid.c"
-            :min="0"
-            controls-position="right"
-            style="width: 70px; margin-left: 4px"
-            @change="(v: number | undefined) => setGridPos('c', v ?? 0)"
-          />
-          r<ElInputNumber
-            size="small"
-            :model-value="sel.grid.r"
-            :min="0"
-            controls-position="right"
-            style="width: 70px; margin-left: 4px"
-            @change="(v: number | undefined) => setGridPos('r', v ?? 0)"
-          />
-        </span>
+
+      <!-- 位置 — 列 / 行 axis pills (#6) -->
+      <div class="row row-axis">
+        <span class="lbl">位置</span>
+        <div class="axis-pair">
+          <label class="axis">
+            <span class="axis-lbl">列</span>
+            <input
+              type="number"
+              class="axis-input"
+              :value="sel.grid.c"
+              min="0"
+              @input="(e: Event) => onAxisInput('c', e)"
+            />
+          </label>
+          <label class="axis">
+            <span class="axis-lbl">行</span>
+            <input
+              type="number"
+              class="axis-input"
+              :value="sel.grid.r"
+              min="0"
+              @input="(e: Event) => onAxisInput('r', e)"
+            />
+          </label>
+        </div>
       </div>
-      <div class="row">
-        <span class="lbl">尺寸 (格)</span>
-        <span class="val">
-          <ElInputNumber
-            size="small"
-            :model-value="sel.grid.cs"
-            :min="1"
-            controls-position="right"
-            style="width: 70px"
-            @change="(v: number | undefined) => setGridPos('cs', v ?? 1)"
-          />
-          ×
-          <ElInputNumber
-            size="small"
-            :model-value="sel.grid.rs"
-            :min="1"
-            controls-position="right"
-            style="width: 70px"
-            @change="(v: number | undefined) => setGridPos('rs', v ?? 1)"
-          />
-        </span>
+
+      <!-- 尺寸 — 宽 / 高 axis pills -->
+      <div class="row row-axis">
+        <span class="lbl">尺寸</span>
+        <div class="axis-pair">
+          <label class="axis">
+            <span class="axis-lbl">宽</span>
+            <input
+              type="number"
+              class="axis-input"
+              :value="sel.grid.cs"
+              min="1"
+              @input="(e: Event) => onAxisInput('cs', e)"
+            />
+          </label>
+          <label class="axis">
+            <span class="axis-lbl">高</span>
+            <input
+              type="number"
+              class="axis-input"
+              :value="sel.grid.rs"
+              min="1"
+              @input="(e: Event) => onAxisInput('rs', e)"
+            />
+          </label>
+        </div>
       </div>
 
       <div v-if="sel.type === 'text'" class="row">
@@ -138,46 +157,95 @@ function del(): void {
           删除元素
         </ElButton>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .prop-panel {
   font-size: 12px;
+  overflow-y: auto;
 }
-.block-title {
-  padding: 12px 16px 6px;
-  font-size: 11px;
-  color: var(--el-text-color-placeholder);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.hint {
-  font-weight: normal;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--el-text-color-secondary);
+.prop-body {
+  padding: 4px 0 12px;
 }
 .empty {
-  padding: 16px;
-  color: var(--el-text-color-placeholder);
+  padding: 32px 16px;
+  color: var(--tp-ink-faint);
   text-align: center;
+  font-size: 12px;
 }
 .row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 16px;
+  padding: 6px 14px;
+}
+.row-axis {
+  gap: 8px;
 }
 .lbl {
-  color: var(--el-text-color-secondary);
-  min-width: 60px;
+  color: var(--tp-ink-soft);
+  min-width: 36px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
 }
 .val {
-  color: var(--el-text-color-primary);
+  color: var(--tp-ink);
 }
 .mono {
   font-family: ui-monospace, monospace;
+}
+
+/* Axis pill — 列/行/宽/高 (#6) */
+.axis-pair {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+.axis {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  background: var(--tp-field-bg);
+  border: 1px solid transparent;
+  border-radius: var(--tp-radius-item);
+  overflow: hidden;
+  transition: border-color 120ms ease;
+  min-width: 0;
+}
+.axis:focus-within {
+  border-color: var(--tp-accent);
+  background: #fff;
+}
+.axis-lbl {
+  background: var(--tp-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.axis-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--tp-ink);
+  outline: none;
+  font-family: ui-monospace, monospace;
+  min-width: 0;
+  width: 100%;
+}
+.axis-input::-webkit-outer-spin-button,
+.axis-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.axis-input[type='number'] {
+  -moz-appearance: textfield;
 }
 </style>

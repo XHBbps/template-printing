@@ -54,28 +54,29 @@ function remove(key: string): void {
 </script>
 
 <template>
-  <div class="field-mgr">
-    <div class="fm-header">
-      <span class="title">数据字段</span>
-      <ElButton link size="small" @click="openAdd">+ 添加字段</ElButton>
+  <div class="tp-section-top field-mgr">
+    <div class="tp-sub-head">
+      <span class="tp-sub-title">数据字段 · {{ store.fieldDefs.length }}</span>
+      <button class="tp-sub-add" title="添加字段" @click="openAdd">+</button>
     </div>
-
-    <div v-if="store.fieldDefs.length === 0" class="empty">尚未声明字段</div>
-    <div
-      v-for="{ key, def } in store.fieldDefs"
-      :key="key"
-      class="field-card"
-      :class="{ unused: !store.usedFieldKeys.has(key) }"
-    >
-      <div>
-        <span class="k">{{ key }}</span>
-        <span class="l">· {{ def.label }}</span>
-      </div>
-      <div class="meta">
-        <span class="t">{{ def.type }}</span>
-        <span v-if="def.required" class="req">必填</span>
-        <span v-if="!store.usedFieldKeys.has(key)" class="unused-tag">⚠ 未使用</span>
-        <ElButton link type="danger" size="small" @click="remove(key)">删除</ElButton>
+    <div class="fm-body">
+      <div v-if="store.fieldDefs.length === 0" class="empty">尚未声明字段<br />点击 + 添加</div>
+      <div
+        v-for="{ key, def } in store.fieldDefs"
+        :key="key"
+        class="field-card"
+        :class="{ unused: !store.usedFieldKeys.has(key) }"
+      >
+        <div class="card-row">
+          <span class="k">{{ key }}</span>
+          <span class="t">{{ def.type }}</span>
+        </div>
+        <div class="card-row card-row-sub">
+          <span class="l">{{ def.label }}</span>
+          <span v-if="def.required" class="req">必填</span>
+          <span v-if="!store.usedFieldKeys.has(key)" class="unused-tag">未使用</span>
+          <button class="del" @click="remove(key)" title="删除">×</button>
+        </div>
       </div>
     </div>
 
@@ -106,59 +107,103 @@ function remove(key: string): void {
 
 <style scoped>
 .field-mgr {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--el-border-color);
+  min-height: 0;
 }
-.fm-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--el-text-color-placeholder);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.fm-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px 12px;
 }
 .empty {
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-  padding: 12px 0;
+  padding: 24px 12px;
   text-align: center;
+  color: var(--tp-ink-faint);
+  font-size: 12px;
+  line-height: 1.7;
 }
 .field-card {
-  padding: 8px 10px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 6px;
   margin-bottom: 6px;
+  padding: 8px 10px;
+  border-radius: var(--tp-radius-item);
+  border: 1px solid var(--tp-line-strong);
+  background: var(--tp-panel);
   font-size: 12px;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+.field-card:hover {
+  border-color: var(--tp-accent);
+  background: var(--tp-field-bg);
 }
 .field-card.unused {
-  background: #fff8e1;
-  border-color: #f0d178;
+  background: var(--tp-warn-bg);
+  border-color: var(--tp-warn-line);
+}
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.card-row-sub {
+  margin-top: 2px;
 }
 .k {
   font-family: ui-monospace, monospace;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--tp-ink);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.t {
+  font-size: 10px;
+  background: var(--tp-accent-bg);
+  color: var(--tp-accent-ink);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  flex-shrink: 0;
 }
 .l {
-  color: var(--el-text-color-secondary);
-  margin-left: 4px;
-}
-.meta {
-  margin-top: 2px;
-  display: flex;
-  gap: 6px;
-  align-items: center;
+  flex: 1;
+  min-width: 0;
+  color: var(--tp-ink-soft);
   font-size: 11px;
-  color: var(--el-text-color-placeholder);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .req {
-  color: var(--el-color-primary);
+  font-size: 10px;
+  color: var(--tp-accent-ink);
+  background: var(--tp-accent-bg);
+  padding: 0 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 .unused-tag {
-  color: #7d5a00;
+  font-size: 10px;
+  color: var(--tp-warn-ink);
+  flex-shrink: 0;
+}
+.del {
+  border: none;
+  background: transparent;
+  color: var(--tp-ink-faint);
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.del:hover {
+  background: var(--tp-field-bg);
+  color: #d94f4f;
 }
 </style>

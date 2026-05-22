@@ -18,7 +18,7 @@ function toggle(side: 'top' | 'right' | 'bottom' | 'left'): void {
     <div class="bp-title">边框 <span class="hint">点方向切换显隐</span></div>
     <div class="grid">
       <button class="cell t" :class="{ on: props.modelValue.top.show }" @click="toggle('top')">
-        上 {{ props.modelValue.top.show ? '✓' : '' }}
+        上
       </button>
       <button class="cell l" :class="{ on: props.modelValue.left.show }" @click="toggle('left')">
         左
@@ -32,7 +32,7 @@ function toggle(side: 'top' | 'right' | 'bottom' | 'left'): void {
         :class="{ on: props.modelValue.bottom.show }"
         @click="toggle('bottom')"
       >
-        下 {{ props.modelValue.bottom.show ? '✓' : '' }}
+        下
       </button>
     </div>
   </div>
@@ -78,8 +78,8 @@ function toggle(side: 'top' | 'right' | 'bottom' | 'left'): void {
   background: var(--el-fill-color-light);
 }
 .cell.on {
-  color: var(--el-color-primary);
-  background: #ddf4ff;
+  color: var(--tp-accent-ink);
+  background: var(--tp-accent-bg);
   font-weight: 600;
 }
 .cell.t {

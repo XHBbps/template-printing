@@ -1,14 +1,6 @@
 <script setup lang="ts">
-import {
-  ElButton,
-  ElDropdown,
-  ElDropdownItem,
-  ElDropdownMenu,
-  ElInput,
-  ElInputNumber,
-  ElMessage,
-} from 'element-plus';
-import { computed, nextTick, ref, watch } from 'vue';
+import { ElDropdown, ElDropdownItem, ElDropdownMenu, ElMessage } from 'element-plus';
+import { computed, nextTick, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useDesignerStore } from '../stores/designer';
@@ -19,27 +11,21 @@ const router = useRouter();
 
 const paperOptions = ['A4', 'A4-Landscape', 'A5', 'A5-Landscape'] as const;
 
-const cellW = ref(store.template.canvas.cell.w);
-const cellH = ref(store.template.canvas.cell.h);
+const paperLabel = computed(() => {
+  const p = store.template.canvas.paper;
+  return typeof p === 'string' ? p : `${p.w_mm}×${p.h_mm}mm`;
+});
 
-// Keep local refs in sync if store updates via undo/redo/restore
-watch(
-  () => [store.template.canvas.cell.w, store.template.canvas.cell.h],
-  ([w, h]) => {
-    cellW.value = w;
-    cellH.value = h;
-  },
+const cellLabel = computed(
+  () => `${store.template.canvas.cell.w}×${store.template.canvas.cell.h}px`,
 );
 
-function applyCellSize(): void {
-  if (
-    cellW.value === store.template.canvas.cell.w &&
-    cellH.value === store.template.canvas.cell.h
-  ) {
-    return;
-  }
+const validCells = computed(() => store.validCellOptions());
+
+function chooseCell(w: number, h: number): void {
+  if (w === store.template.canvas.cell.w && h === store.template.canvas.cell.h) return;
   store.isResizing = true;
-  store.setCellSize(cellW.value, cellH.value);
+  store.setCellSize(w, h);
   void nextTick(() => {
     setTimeout(() => {
       store.isResizing = false;
@@ -54,11 +40,6 @@ function exitToHome(): void {
   void router.push('/');
 }
 
-const paperLabel = computed(() => {
-  const p = store.template.canvas.paper;
-  return typeof p === 'string' ? p : `${p.w_mm}×${p.h_mm} mm`;
-});
-
 function doPrint(): void {
   window.print();
 }
@@ -67,47 +48,20 @@ const previewOpen = ref(false);
 </script>
 
 <template>
-  <header class="designer-header">
-    <ElButton link size="small" @click="exitToHome">← 返回</ElButton>
-    <ElInput
-      v-model="store.template.meta.name"
-      size="small"
-      placeholder="模板名"
-      style="width: 200px; margin-left: 8px"
-    />
+  <header class="tp-top-toolbar">
+    <button class="tt-btn tt-icon" title="返回" @click="exitToHome">←</button>
+    <span class="tt-divider" />
 
-    <span class="dh-divider" />
-
-    <ElButton :disabled="!store.canUndo" link size="small" @click="store.undo">↶ 撤销</ElButton>
-    <ElButton :disabled="!store.canRedo" link size="small" @click="store.redo">↷ 重做</ElButton>
-
-    <span class="dh-divider" />
-
-    <span class="dh-label">cell</span>
-    <ElInputNumber
-      v-model="cellW"
-      :min="1"
-      :max="40"
-      size="small"
-      controls-position="right"
-      style="width: 70px"
-    />
-    <span class="dh-x">×</span>
-    <ElInputNumber
-      v-model="cellH"
-      :min="1"
-      :max="40"
-      size="small"
-      controls-position="right"
-      style="width: 70px"
-    />
-    <span class="dh-label">px</span>
-    <ElButton size="small" @click="applyCellSize">应用</ElButton>
-
-    <span class="dh-divider" />
+    <button class="tt-btn" :disabled="!store.canUndo" title="撤销 (⌘Z)" @click="store.undo">
+      ↶
+    </button>
+    <button class="tt-btn" :disabled="!store.canRedo" title="重做 (⌘⇧Z)" @click="store.redo">
+      ↷
+    </button>
+    <span class="tt-divider" />
 
     <ElDropdown trigger="click">
-      <ElButton size="small">{{ paperLabel }}</ElButton>
+      <button class="tt-btn">📄 {{ paperLabel }}</button>
       <template #dropdown>
         <ElDropdownMenu>
           <ElDropdownItem v-for="p in paperOptions" :key="p" @click="store.setPaper(p)">
@@ -117,44 +71,90 @@ const previewOpen = ref(false);
       </template>
     </ElDropdown>
 
-    <span class="dh-spacer" />
+    <ElDropdown trigger="click">
+      <button class="tt-btn">⊞ {{ cellLabel }}</button>
+      <template #dropdown>
+        <ElDropdownMenu>
+          <ElDropdownItem
+            v-for="opt in validCells"
+            :key="`${opt.w}x${opt.h}`"
+            @click="chooseCell(opt.w, opt.h)"
+          >
+            {{ opt.w }}×{{ opt.h }}px
+            <span style="color: #999; margin-left: 6px">({{ opt.cols }}×{{ opt.rows }})</span>
+          </ElDropdownItem>
+        </ElDropdownMenu>
+      </template>
+    </ElDropdown>
 
-    <ElButton size="small" @click="previewOpen = true">👁 预览</ElButton>
-    <ElButton
-      type="primary"
-      size="small"
+    <span class="tt-divider" />
+
+    <button class="tt-btn" @click="previewOpen = true">👁 预览</button>
+    <button
+      class="tt-btn tt-primary"
       @click="ElMessage.info('保存到后端在 Plan 3 实现，草稿已存本地')"
     >
       保存
-    </ElButton>
-    <ElButton type="primary" plain size="small" @click="doPrint">立即打印</ElButton>
+    </button>
+    <button class="tt-btn tt-accent" @click="doPrint">立即打印</button>
   </header>
   <PreviewView v-model="previewOpen" />
 </template>
 
 <style scoped>
-.designer-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.tt-btn {
+  height: 32px;
   padding: 0 12px;
-  height: 100%;
+  border: none;
+  background: transparent;
+  border-radius: var(--tp-radius-pill);
+  font-size: 12.5px;
+  color: var(--tp-ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: all 120ms ease;
 }
-.dh-divider {
+.tt-btn:hover:not(:disabled) {
+  background: var(--tp-field-bg);
+  color: var(--tp-accent);
+}
+.tt-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.tt-icon {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+  font-size: 15px;
+}
+.tt-primary {
+  background: var(--tp-accent-bg);
+  color: var(--tp-accent-ink);
+  font-weight: 600;
+}
+.tt-primary:hover:not(:disabled) {
+  background: var(--tp-accent);
+  color: #fff;
+}
+.tt-accent {
+  background: var(--tp-accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: var(--tp-accent-shadow);
+}
+.tt-accent:hover:not(:disabled) {
+  background: #5847d4;
+  color: #fff;
+}
+.tt-divider {
   width: 1px;
-  height: 20px;
-  background: var(--el-border-color);
+  height: 18px;
+  background: var(--tp-line-strong);
   margin: 0 4px;
-}
-.dh-label {
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-}
-.dh-x {
-  color: var(--el-text-color-placeholder);
-  font-size: 14px;
-}
-.dh-spacer {
-  flex: 1;
 }
 </style>
