@@ -24,28 +24,31 @@ const PX_PER_MM = 4;
 // valid options. Custom papers are allowed via { w_mm, h_mm }.
 const PAPER_PRESETS: Record<string, { w_mm: number; h_mm: number }> = {
   A3: { w_mm: 297, h_mm: 420 },
-  'A3-Landscape': { w_mm: 420, h_mm: 297 },
   A4: { w_mm: 210, h_mm: 297 },
-  'A4-Landscape': { w_mm: 297, h_mm: 210 },
   A5: { w_mm: 148, h_mm: 210 },
-  'A5-Landscape': { w_mm: 210, h_mm: 148 },
   A6: { w_mm: 105, h_mm: 148 },
   B5: { w_mm: 176, h_mm: 250 },
   Letter: { w_mm: 216, h_mm: 279 },
-  GuardPass: { w_mm: 90, h_mm: 60 },
-  LogisticLabel: { w_mm: 100, h_mm: 180 },
 };
 
-function paperPxSize(paper: Template['canvas']['paper']): { w: number; h: number } {
+function paperPxSize(
+  paper: Template['canvas']['paper'],
+  orientation: 'portrait' | 'landscape' = 'portrait',
+): { w: number; h: number } {
+  let w: number, h: number;
   if (typeof paper === 'string' && paper in PAPER_PRESETS) {
     const p = PAPER_PRESETS[paper];
-    return { w: p.w_mm * PX_PER_MM, h: p.h_mm * PX_PER_MM };
+    w = p.w_mm * PX_PER_MM;
+    h = p.h_mm * PX_PER_MM;
+  } else if (typeof paper === 'object' && paper !== null && 'w_mm' in paper) {
+    w = paper.w_mm * PX_PER_MM;
+    h = paper.h_mm * PX_PER_MM;
+  } else {
+    const p = PAPER_PRESETS.A4;
+    w = p.w_mm * PX_PER_MM;
+    h = p.h_mm * PX_PER_MM;
   }
-  if (typeof paper === 'object' && paper !== null && 'w_mm' in paper) {
-    return { w: paper.w_mm * PX_PER_MM, h: paper.h_mm * PX_PER_MM };
-  }
-  const p = PAPER_PRESETS['A4-Landscape'];
-  return { w: p.w_mm * PX_PER_MM, h: p.h_mm * PX_PER_MM };
+  return orientation === 'landscape' ? { w: h, h: w } : { w, h };
 }
 
 function divisorsInRange(n: number, min = 2, max = 40): number[] {
@@ -123,8 +126,9 @@ function defaultStyle() {
 }
 
 export function defaultTemplate(): Template {
-  const paper = 'A4-Landscape';
-  const px = paperPxSize(paper);
+  const paper = 'A4';
+  const orientation = 'landscape' as const;
+  const px = paperPxSize(paper, orientation);
   const opts = divisorsInRange(px.w).filter((d) => divisorsInRange(px.h).includes(d));
   const cellW = opts.includes(4) ? 4 : opts[0] ?? 1;
   const cellH = cellW;
@@ -136,6 +140,7 @@ export function defaultTemplate(): Template {
       rows: px.h / cellH,
       cell: { w: cellW, h: cellH },
       paper,
+      orientation,
       background: null,
     },
     schema: {},
@@ -175,7 +180,8 @@ export const useDesignerStore = defineStore('designer', {
       return used;
     },
     // Paper size in pixels — canvas always equals this regardless of cell size
-    paperPx: (s): { w: number; h: number } => paperPxSize(s.template.canvas.paper),
+    paperPx: (s): { w: number; h: number } =>
+      paperPxSize(s.template.canvas.paper, s.template.canvas.orientation),
   },
   actions: {
     snapshot(): void {
@@ -229,7 +235,7 @@ export const useDesignerStore = defineStore('designer', {
         }
 
         // Step 2 — Snap cell to a valid divisor of paper (iteration-1 logic).
-        const px = paperPxSize(parsed.canvas.paper);
+        const px = paperPxSize(parsed.canvas.paper, parsed.canvas.orientation ?? 'portrait');
         let { w, h } = parsed.canvas.cell;
         if (px.w % w !== 0 || px.h % h !== 0) {
           const wOpts = divisorsInRange(px.w);
@@ -272,7 +278,7 @@ export const useDesignerStore = defineStore('designer', {
     fitView(): void {
       if (!this.canvasAreaSize) return;
       const area = this.canvasAreaSize();
-      const px = paperPxSize(this.template.canvas.paper);
+      const px = this.paperPx;
       const padding = 80;
       const fitW = (area.w - padding) / px.w;
       const fitH = (area.h - padding) / px.h;
@@ -358,7 +364,7 @@ export const useDesignerStore = defineStore('designer', {
     // 关键约束：cell.w 必须整除 paperPxW，cell.h 必须整除 paperPxH。
     // 不满足的尺寸直接拒绝；cols/rows 由 paper 与 cell 派生。
     setCellSize(w: number, h: number): void {
-      const px = paperPxSize(this.template.canvas.paper);
+      const px = this.paperPx;
       if (px.w % w !== 0 || px.h % h !== 0) return;
       this.template.canvas.cell = { w, h };
       this.template.canvas.cols = px.w / w;
@@ -373,7 +379,8 @@ export const useDesignerStore = defineStore('designer', {
       // Kept for backward compat with older callers.
     },
     setPaper(paper: Template['canvas']['paper']): void {
-      const px = paperPxSize(paper);
+      const orientation = this.template.canvas.orientation;
+      const px = paperPxSize(paper, orientation);
       let { w, h } = this.template.canvas.cell;
       if (px.w % w !== 0 || px.h % h !== 0) {
         const wOpts = divisorsInRange(px.w);
@@ -382,14 +389,25 @@ export const useDesignerStore = defineStore('designer', {
         h = hOpts.includes(4) ? 4 : hOpts[0] ?? 1;
       }
 
-      // Resolve new paper in mm so we can clamp anchors.
+      // Resolve new paper in mm so we can clamp anchors — must account for orientation.
       let newMm: { w_mm: number; h_mm: number };
       if (typeof paper === 'string' && paper in PAPER_PRESETS) {
-        newMm = PAPER_PRESETS[paper];
+        const p = PAPER_PRESETS[paper];
+        newMm =
+          orientation === 'landscape'
+            ? { w_mm: p.h_mm, h_mm: p.w_mm }
+            : { w_mm: p.w_mm, h_mm: p.h_mm };
       } else if (typeof paper === 'object' && paper !== null && 'w_mm' in paper) {
-        newMm = { w_mm: paper.w_mm, h_mm: paper.h_mm };
+        newMm =
+          orientation === 'landscape'
+            ? { w_mm: paper.h_mm, h_mm: paper.w_mm }
+            : { w_mm: paper.w_mm, h_mm: paper.h_mm };
       } else {
-        newMm = PAPER_PRESETS['A4-Landscape'];
+        const p = PAPER_PRESETS.A4;
+        newMm =
+          orientation === 'landscape'
+            ? { w_mm: p.h_mm, h_mm: p.w_mm }
+            : { w_mm: p.w_mm, h_mm: p.h_mm };
       }
 
       let movedCount = 0;
@@ -412,6 +430,13 @@ export const useDesignerStore = defineStore('designer', {
         ElMessage.warning(`${movedCount} 个元素已自动移入新画布`);
       }
     },
+    rotate(): void {
+      this.template.canvas.orientation =
+        this.template.canvas.orientation === 'portrait' ? 'landscape' : 'portrait';
+      // Re-run setPaper to refresh cell candidates, clamp out-of-bound elements,
+      // recompute grid, snapshot, and fit-to-view.
+      this.setPaper(this.template.canvas.paper);
+    },
     setName(name: string): void {
       this.template.meta.name = name;
       this.snapshot();
@@ -431,7 +456,7 @@ export const useDesignerStore = defineStore('designer', {
     // Both axes share many divisors with our 4 px/mm paper sizes, so we
     // present the common ones as square presets plus a few common rectangles.
     validCellOptions(): Array<{ w: number; h: number; cols: number; rows: number }> {
-      const px = paperPxSize(this.template.canvas.paper);
+      const px = this.paperPx;
       const wOpts = divisorsInRange(px.w);
       const hOpts = divisorsInRange(px.h);
       let common = wOpts.filter((d) => hOpts.includes(d));
