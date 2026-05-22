@@ -3,29 +3,41 @@ import type { TemplateElement } from '@template-printing/schema';
 
 const PX_PER_MM = 4;
 
+export type LibraryGroup = '文字' | '图形' | '数据';
+
 export interface ElementMeta {
   type: TemplateElement['type'];
   glyph: string;
   label: string;
+  group: LibraryGroup;
   defaultGrid: { cs: number; rs: number };
   variant?: 'qr' | 'barcode';
 }
 
 export const LIBRARY_ITEMS: ElementMeta[] = [
-  { type: 'text', glyph: 'T', label: '文字', defaultGrid: { cs: 12, rs: 3 } },
-  { type: 'field', glyph: '{}', label: '字段', defaultGrid: { cs: 16, rs: 3 } },
-  { type: 'image', glyph: '▤', label: '图片', defaultGrid: { cs: 16, rs: 16 } },
-  { type: 'rect', glyph: '▢', label: '矩形', defaultGrid: { cs: 16, rs: 8 } },
-  { type: 'table', glyph: '▦', label: '明细', defaultGrid: { cs: 60, rs: 24 } },
-  { type: 'barcode', glyph: '▣', label: '二维码', defaultGrid: { cs: 12, rs: 12 }, variant: 'qr' },
+  { type: 'text', group: '文字', glyph: 'T', label: '文字', defaultGrid: { cs: 12, rs: 3 } },
+  { type: 'field', group: '文字', glyph: '{}', label: '字段', defaultGrid: { cs: 16, rs: 3 } },
+  { type: 'autonumber', group: '文字', glyph: '№', label: '编号', defaultGrid: { cs: 18, rs: 3 } },
+  { type: 'system', group: '文字', glyph: '#', label: '系统', defaultGrid: { cs: 18, rs: 3 } },
+  { type: 'rect', group: '图形', glyph: '▢', label: '矩形', defaultGrid: { cs: 16, rs: 8 } },
+  { type: 'image', group: '图形', glyph: '▤', label: '图片', defaultGrid: { cs: 16, rs: 16 } },
+  { type: 'table', group: '数据', glyph: '▦', label: '明细', defaultGrid: { cs: 60, rs: 24 } },
   {
     type: 'barcode',
+    group: '数据',
+    glyph: '▣',
+    label: '二维码',
+    defaultGrid: { cs: 12, rs: 12 },
+    variant: 'qr',
+  },
+  {
+    type: 'barcode',
+    group: '数据',
     glyph: '|||',
     label: '条码',
     defaultGrid: { cs: 30, rs: 8 },
     variant: 'barcode',
   },
-  { type: 'autonumber', glyph: '№', label: '编号', defaultGrid: { cs: 18, rs: 3 } },
 ];
 
 function defaultBorder() {
