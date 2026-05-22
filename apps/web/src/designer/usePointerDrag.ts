@@ -25,8 +25,10 @@ export function usePointerDrag(
   }
   function getResizeMode(): ResizeMode {
     const el = getElement();
-    if (!el || el.type !== 'barcode') return 'free';
-    return el.symbology === 'qr' ? 'qr-lock' : 'barcode';
+    if (!el) return 'free';
+    if (el.type === 'qr') return 'qr-lock';
+    if (el.type === 'barcode') return 'barcode';
+    return 'free';
   }
 
   function onGripDown(e: PointerEvent): void {

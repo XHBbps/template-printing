@@ -7,6 +7,7 @@ import {
   ImageElement,
   TableElement,
   BarcodeElement,
+  QrElement,
   AutonumberElement,
   SystemElement,
   RectElement,
@@ -35,7 +36,7 @@ const positionStyle = computed(() => ({
 
 const sizeBadge = computed(() => {
   const g = props.element.grid;
-  if (props.element.type === 'barcode' && props.element.symbology === 'qr') {
+  if (props.element.type === 'qr') {
     return `${g.cs}×${g.rs} 格 (1:1)`;
   }
   return `${g.cs}×${g.rs} 格`;
@@ -54,6 +55,7 @@ const elementMap: Record<string, unknown> = {
   image: ImageElement,
   table: TableElement,
   barcode: BarcodeElement,
+  qr: QrElement,
   autonumber: AutonumberElement,
   system: SystemElement,
   rect: RectElement,
@@ -77,7 +79,7 @@ const elementMap: Record<string, unknown> = {
     <ElementGrip v-if="isSelected" :is-small="isSmall" @pointerdown="onGripDown" />
     <HitZones
       v-if="isSelected"
-      :mode="props.element.type === 'barcode' && props.element.symbology === 'qr' ? 'qr' : 'free'"
+      :mode="props.element.type === 'qr' ? 'qr' : 'free'"
       @pointerdown="onResizeDown"
     />
     <span v-if="isSelected" class="tp-handle tp-handle-tl" />
