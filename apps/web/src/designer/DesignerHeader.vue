@@ -4,16 +4,50 @@ import { computed, nextTick, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useDesignerStore } from '../stores/designer';
+import CustomPaperDialog from './CustomPaperDialog.vue';
 import PreviewView from '../views/PreviewView.vue';
 
 const store = useDesignerStore();
 const router = useRouter();
 
-const paperOptions = ['A4', 'A4-Landscape', 'A5', 'A5-Landscape'] as const;
+const paperOptions = [
+  'A3',
+  'A3-Landscape',
+  'A4',
+  'A4-Landscape',
+  'A5',
+  'A5-Landscape',
+  'A6',
+  'B5',
+  'Letter',
+  'GuardPass',
+  'LogisticLabel',
+] as const;
+
+const paperLabelMap: Record<string, string> = {
+  A3: 'A3',
+  'A3-Landscape': 'A3 横',
+  A4: 'A4',
+  'A4-Landscape': 'A4 横',
+  A5: 'A5',
+  'A5-Landscape': 'A5 横',
+  A6: 'A6',
+  B5: 'B5',
+  Letter: 'Letter',
+  GuardPass: '出门证 (90×60)',
+  LogisticLabel: '物流面单 (100×180)',
+};
+
+const customDialogOpen = ref(false);
+
+function onCustomPaperConfirm(size: { w_mm: number; h_mm: number }): void {
+  store.setPaper(size);
+}
 
 const paperLabel = computed(() => {
   const p = store.template.canvas.paper;
-  return typeof p === 'string' ? p : `${p.w_mm}×${p.h_mm}mm`;
+  if (typeof p === 'string') return paperLabelMap[p] ?? p;
+  return `${p.w_mm}×${p.h_mm}mm`;
 });
 
 const cellLabel = computed(
@@ -65,8 +99,9 @@ const previewOpen = ref(false);
       <template #dropdown>
         <ElDropdownMenu>
           <ElDropdownItem v-for="p in paperOptions" :key="p" @click="store.setPaper(p)">
-            {{ p }}
+            {{ paperLabelMap[p] }}
           </ElDropdownItem>
+          <ElDropdownItem divided @click="customDialogOpen = true">⊕ 自定义…</ElDropdownItem>
         </ElDropdownMenu>
       </template>
     </ElDropdown>
@@ -99,6 +134,7 @@ const previewOpen = ref(false);
     <button class="tt-btn tt-accent" @click="doPrint">立即打印</button>
   </header>
   <PreviewView v-model="previewOpen" />
+  <CustomPaperDialog v-model="customDialogOpen" @confirm="onCustomPaperConfirm" />
 </template>
 
 <style scoped>
