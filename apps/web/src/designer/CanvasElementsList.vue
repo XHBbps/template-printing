@@ -2,7 +2,20 @@
 import { computed, ref, watch } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
-
+// eslint-disable-next-line import/no-unresolved
+import {
+  Type,
+  Braces,
+  Hash,
+  Clock,
+  Square,
+  Image,
+  Table,
+  QrCode,
+  Barcode,
+  X,
+  Trash2,
+} from 'lucide-vue-next';
 import { useDesignerStore } from '../stores/designer';
 
 const store = useDesignerStore();
@@ -20,7 +33,6 @@ watch(pageCount, (n) => {
   if (page.value > n) page.value = n;
 });
 
-// When user selects an element via PropertyPanel or canvas, flip to the page containing it.
 watch(
   () => store.selectedIds,
   (ids) => {
@@ -37,41 +49,36 @@ function summarize(el: TemplateElement): string {
     case 'text':
       return `text · ${el.content.static.slice(0, 16) || '空'}`;
     case 'field':
-      return `field · ${el.binding}`;
+      return `field · ${el.binding || '（未绑定）'}`;
     case 'image':
       return `image`;
     case 'rect':
       return `rect`;
     case 'table':
       return `table · ${el.binding}`;
+    case 'qr':
+      return `qr · ${el.content?.static ?? el.binding ?? '空'}`;
     case 'barcode':
-      return `${el.symbology === 'qr' ? 'qr' : 'barcode'} · ${el.content?.static ?? el.binding ?? '空'}`;
+      return `${el.symbology} · ${el.content?.static ?? el.binding ?? '空'}`;
     case 'autonumber':
       return `№ · ${el.sequence}`;
     case 'system':
       return `system · ${el.variable}`;
   }
 }
-function iconGlyph(type: TemplateElement['type']): string {
-  switch (type) {
-    case 'text':
-      return 'T';
-    case 'field':
-      return '{}';
-    case 'image':
-      return '▤';
-    case 'rect':
-      return '▢';
-    case 'table':
-      return '▦';
-    case 'barcode':
-      return '▣';
-    case 'autonumber':
-      return '№';
-    case 'system':
-      return '#';
-  }
-}
+
+const iconFor: Record<TemplateElement['type'], unknown> = {
+  text: Type,
+  field: Braces,
+  autonumber: Hash,
+  system: Clock,
+  rect: Square,
+  image: Image,
+  table: Table,
+  qr: QrCode,
+  barcode: Barcode,
+};
+
 function selectOne(id: string): void {
   store.select([id]);
 }
@@ -79,12 +86,20 @@ function removeEl(id: string, e: Event): void {
   e.stopPropagation();
   store.deleteElement(id);
 }
+function onClearAll(): void {
+  if (!window.confirm(`确定清空全部 ${elements.value.length} 个元素？`)) return;
+  store.deleteAllElements();
+}
 </script>
 
 <template>
   <div class="canvas-elems-list">
     <div class="tp-sub-head">
       <span class="tp-sub-title">画布元素 · 共 {{ elements.length }} 个</span>
+      <button v-if="elements.length > 0" class="clear-btn" @click="onClearAll" title="清空全部元素">
+        <Trash2 :size="13" :stroke-width="2" />
+        <span>清空</span>
+      </button>
     </div>
     <div class="list-body">
       <div v-if="elements.length === 0" class="empty">从上方拖入或点击元素来开始设计</div>
@@ -95,9 +110,13 @@ function removeEl(id: string, e: Event): void {
         :class="{ 'is-active': store.selectedIds.includes(el.id) }"
         @click="selectOne(el.id)"
       >
-        <span class="elem-icon">{{ iconGlyph(el.type) }}</span>
+        <span class="elem-icon">
+          <component :is="iconFor[el.type]" :size="14" :stroke-width="2" />
+        </span>
         <span class="elem-label">{{ summarize(el) }}</span>
-        <button class="elem-del" @click="(e: Event) => removeEl(el.id, e)" title="删除">×</button>
+        <button class="elem-del" @click="(e: Event) => removeEl(el.id, e)" title="删除">
+          <X :size="14" :stroke-width="2" />
+        </button>
       </div>
     </div>
     <div v-if="pageCount > 1" class="pagination">
@@ -128,6 +147,27 @@ function removeEl(id: string, e: Event): void {
   font-size: 12px;
   line-height: 1.6;
 }
+
+.clear-btn {
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  color: var(--tp-ink-faint);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
+}
+.clear-btn:hover {
+  color: #d94f4f;
+  background: rgba(217, 79, 79, 0.08);
+}
+
 .elem-row {
   position: relative;
   width: 100%;
@@ -135,7 +175,7 @@ function removeEl(id: string, e: Event): void {
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  border-radius: var(--tp-radius-item);
+  border-radius: var(--tp-radius-item, 8px);
   cursor: pointer;
   color: var(--tp-ink);
   font-size: 12.5px;
@@ -164,9 +204,6 @@ function removeEl(id: string, e: Event): void {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: ui-monospace, monospace;
-  font-weight: 600;
-  font-size: 11px;
 }
 .elem-label {
   flex: 1;
@@ -183,8 +220,9 @@ function removeEl(id: string, e: Event): void {
   border-radius: 4px;
   color: var(--tp-ink-faint);
   cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0;
   transition:
     opacity 120ms ease,
