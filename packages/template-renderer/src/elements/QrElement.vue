@@ -1,0 +1,109 @@
+<script setup lang="ts">
+// eslint-disable-next-line import/no-unresolved
+import type { TemplateElement } from '@template-printing/schema';
+import { computed, ref, watch } from 'vue';
+// eslint-disable-next-line import/no-unresolved
+import qrcode from 'qrcode-generator';
+
+const props = defineProps<{
+  element: Extract<TemplateElement, { type: 'qr' }>;
+  data?: Record<string, unknown>;
+  designMode?: boolean;
+  isResizing?: boolean;
+}>();
+
+const qrSvg = ref('');
+
+const contentText = computed(() => {
+  if (props.element.binding) {
+    const v = props.data?.[props.element.binding];
+    return v == null ? '' : String(v);
+  }
+  return props.element.content?.static ?? '';
+});
+
+const hasContent = computed(() => contentText.value !== '');
+
+const wrapStyle = computed(() => ({
+  width: '100%',
+  height: '100%',
+  position: 'relative' as const,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  filter: props.isResizing ? 'blur(2px) opacity(0.55)' : 'none',
+  transition: 'filter 120ms ease',
+}));
+
+function render(): void {
+  if (!hasContent.value) {
+    qrSvg.value = '';
+    return;
+  }
+  const eccMap = { L: 'L', M: 'M', Q: 'Q', H: 'H' } as const;
+  const ecc = (props.element.eccLevel ?? 'M') as 'L' | 'M' | 'Q' | 'H';
+  const qr = qrcode(0, eccMap[ecc]);
+  qr.addData(contentText.value);
+  qr.make();
+  const cellSize = 4;
+  const margin = props.element.quietZone ?? 2;
+  qrSvg.value = qr.createSvgTag({ cellSize, margin });
+}
+
+watch(
+  () => ({
+    grid: props.element.grid,
+    content: props.element.content,
+    binding: props.element.binding,
+    ecc: props.element.eccLevel,
+    fg: props.element.foregroundColor,
+    bg: props.element.backgroundColor,
+    qz: props.element.quietZone,
+    isResizing: props.isResizing,
+  }),
+  (next) => {
+    if (next.isResizing) return;
+    render();
+  },
+  { deep: true, immediate: true, flush: 'post' },
+);
+</script>
+
+<template>
+  <div class="qr-wrap" :style="wrapStyle">
+    <div
+      v-if="hasContent"
+      class="qr-svg"
+      :style="{ color: props.element.foregroundColor, background: props.element.backgroundColor }"
+      v-html="qrSvg"
+    />
+    <div v-else class="qr-empty">未配置内容</div>
+  </div>
+</template>
+
+<style scoped>
+.qr-svg {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qr-svg :deep(svg) {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}
+.qr-empty {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--tp-line-strong, #e0e0e4);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tp-ink-faint, #9c9ca3);
+  font-size: 11px;
+}
+</style>
