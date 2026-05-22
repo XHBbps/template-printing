@@ -12,14 +12,24 @@ import {
   ElSelect,
   ElCheckbox,
 } from 'element-plus';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 // eslint-disable-next-line import/no-unresolved
-import { Plus, Pencil, Trash2 } from 'lucide-vue-next';
+import { Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
 import { useDesignerStore } from '../stores/designer';
 
 type FieldType = 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'enum' | 'image' | 'array';
 
 const store = useDesignerStore();
+
+const searchQuery = ref('');
+
+const filteredFields = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return store.fieldDefs;
+  return store.fieldDefs.filter(
+    (f) => f.key.toLowerCase().includes(q) || f.def.label.toLowerCase().includes(q),
+  );
+});
 const dialogOpen = ref(false);
 const dialogMode = ref<'add' | 'edit'>('add');
 
@@ -161,14 +171,23 @@ async function remove(key: string): Promise<void> {
         <Plus :size="14" :stroke-width="2" />
       </button>
     </div>
+    <div v-if="store.fieldDefs.length > 5" class="fm-search">
+      <Search :size="13" :stroke-width="2" />
+      <input type="text" v-model="searchQuery" placeholder="搜索变量名或显示名…" />
+    </div>
     <div class="fm-body">
-      <div v-if="store.fieldDefs.length === 0" class="empty">尚未声明变量<br />点击 + 添加</div>
+      <div v-if="filteredFields.length === 0 && store.fieldDefs.length === 0" class="empty">
+        尚未声明变量<br />点击 + 添加
+      </div>
+      <div v-else-if="filteredFields.length === 0" class="empty">
+        没有匹配 "{{ searchQuery }}" 的变量
+      </div>
       <div
-        v-for="{ key, def } in store.fieldDefs"
+        v-for="{ key, def } in filteredFields"
         :key="key"
         class="field-card"
-        :class="{ unused: !store.usedFieldKeys.has(key) }"
-        :title="!store.usedFieldKeys.has(key) ? '未使用' : ''"
+        :class="{ bound: store.usedFieldKeys.has(key) }"
+        :title="store.usedFieldKeys.has(key) ? '已绑定' : '未绑定'"
       >
         <div class="card-row">
           <span class="k">{{ key }}</span>
@@ -286,12 +305,13 @@ async function remove(key: string): Promise<void> {
   font-size: 12px;
   line-height: 1.7;
 }
+/* Default = unbound = light gray */
 .field-card {
   margin-bottom: 6px;
   padding: 8px 10px;
   border-radius: var(--tp-radius-item, 8px);
   border: 1px solid var(--tp-line-strong);
-  background: var(--tp-panel);
+  background: #f5f5f6;
   font-size: 12px;
   transition:
     border-color 120ms ease,
@@ -301,9 +321,11 @@ async function remove(key: string): Promise<void> {
   border-color: var(--tp-accent);
   background: var(--tp-field-bg);
 }
-.field-card.unused {
-  background: var(--tp-warn-bg);
-  border-color: var(--tp-warn-line);
+
+/* Bound = light green */
+.field-card.bound {
+  background: #e6f5ec;
+  border-color: #9bd5b3;
 }
 .card-row {
   display: flex;
@@ -375,5 +397,25 @@ async function remove(key: string): Promise<void> {
   display: flex;
   align-items: center;
   margin-bottom: 4px;
+}
+.fm-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 4px;
+  color: var(--tp-ink-faint);
+}
+.fm-search input {
+  flex: 1;
+  border: 1px solid var(--tp-line-strong);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--tp-panel);
+  color: var(--tp-ink);
+  outline: none;
+}
+.fm-search input:focus {
+  border-color: var(--tp-accent);
 }
 </style>
