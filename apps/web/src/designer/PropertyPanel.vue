@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElButton, ElInput, ElOption, ElSelect } from 'element-plus';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import type { ElementStyle, TemplateElement } from '@template-printing/schema';
 
@@ -62,6 +62,8 @@ function isTextish(el: TemplateElement | null): boolean {
   if (!el) return false;
   return ['text', 'field', 'autonumber', 'system', 'table'].includes(el.type);
 }
+
+const advancedOpen = ref(false);
 </script>
 
 <template>
@@ -241,6 +243,167 @@ function isTextish(el: TemplateElement | null): boolean {
         </div>
       </div>
 
+      <div v-if="isTextish(sel)" class="style-block">
+        <div class="style-title sclickable" @click="advancedOpen = !advancedOpen">
+          样式 · 高级 <span class="caret">{{ advancedOpen ? '▾' : '▸' }}</span>
+        </div>
+        <div v-if="advancedOpen">
+          <div class="srow">
+            <span class="slbl">字体</span>
+            <select
+              :value="sel.style.fontFamily ?? 'sans'"
+              class="ssel"
+              @change="
+                (e: Event) =>
+                  updateStyle({
+                    fontFamily: (e.target as HTMLSelectElement).value as 'sans' | 'serif' | 'mono',
+                  })
+              "
+            >
+              <option value="sans">无衬线</option>
+              <option value="serif">衬线</option>
+              <option value="mono">等宽</option>
+            </select>
+          </div>
+          <div class="srow">
+            <span class="slbl">字间距</span>
+            <input
+              type="number"
+              step="0.1"
+              :value="sel.style.letterSpacing ?? 0"
+              class="snum"
+              @input="
+                (e: Event) =>
+                  updateStyle({ letterSpacing: Number((e.target as HTMLInputElement).value) })
+              "
+            />
+            <span class="sval">px</span>
+          </div>
+          <div class="srow">
+            <span class="slbl">行高</span>
+            <input
+              type="number"
+              step="0.1"
+              min="0.8"
+              :value="sel.style.lineHeight ?? 1.4"
+              class="snum"
+              @input="
+                (e: Event) =>
+                  updateStyle({ lineHeight: Number((e.target as HTMLInputElement).value) })
+              "
+            />
+          </div>
+          <div class="srow">
+            <span class="slbl">装饰</span>
+            <select
+              :value="sel.style.textDecoration ?? 'none'"
+              class="ssel"
+              @change="
+                (e: Event) =>
+                  updateStyle({
+                    textDecoration: (e.target as HTMLSelectElement).value as
+                      | 'none'
+                      | 'underline'
+                      | 'overline'
+                      | 'line-through',
+                  })
+              "
+            >
+              <option value="none">无</option>
+              <option value="underline">下划线</option>
+              <option value="overline">上划线</option>
+              <option value="line-through">删除线</option>
+            </select>
+          </div>
+          <div class="srow">
+            <span class="slbl">背景色</span>
+            <input
+              type="color"
+              :value="sel.style.backgroundColor ?? '#ffffff'"
+              @input="
+                (e: Event) => updateStyle({ backgroundColor: (e.target as HTMLInputElement).value })
+              "
+            />
+          </div>
+          <div class="srow">
+            <span class="slbl">垂直对齐</span>
+            <div class="seg">
+              <button
+                v-for="v in ['top', 'middle', 'bottom'] as const"
+                :key="v"
+                :class="{ on: (sel.style.verticalAlign ?? 'middle') === v }"
+                @click="updateStyle({ verticalAlign: v })"
+              >
+                {{ { top: '上', middle: '中', bottom: '下' }[v] }}
+              </button>
+            </div>
+          </div>
+          <div class="srow">
+            <span class="slbl">层级 z</span>
+            <input
+              type="number"
+              :value="sel.style.zIndex ?? 0"
+              class="snum"
+              @input="
+                (e: Event) => updateStyle({ zIndex: Number((e.target as HTMLInputElement).value) })
+              "
+            />
+          </div>
+          <div class="srow">
+            <span class="slbl">旋转</span>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              step="1"
+              :value="sel.style.rotation ?? 0"
+              class="slider"
+              @input="
+                (e: Event) =>
+                  updateStyle({ rotation: Number((e.target as HTMLInputElement).value) })
+              "
+            />
+            <span class="sval mono">{{ sel.style.rotation ?? 0 }}°</span>
+          </div>
+          <div class="srow">
+            <span class="slbl">透明度</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              :value="(sel.style.opacity ?? 1) * 100"
+              class="slider"
+              @input="
+                (e: Event) =>
+                  updateStyle({ opacity: Number((e.target as HTMLInputElement).value) / 100 })
+              "
+            />
+            <span class="sval mono">{{ Math.round((sel.style.opacity ?? 1) * 100) }}%</span>
+          </div>
+          <div class="srow">
+            <span class="slbl">溢出</span>
+            <select
+              :value="sel.style.textOverflow ?? 'wrap'"
+              class="ssel"
+              @change="
+                (e: Event) =>
+                  updateStyle({
+                    textOverflow: (e.target as HTMLSelectElement).value as
+                      | 'clip'
+                      | 'ellipsis'
+                      | 'wrap',
+                  })
+              "
+            >
+              <option value="wrap">换行</option>
+              <option value="clip">裁剪</option>
+              <option value="ellipsis">省略号</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <BorderControl :model-value="sel.style.border" @update:model-value="updateStyleBorder" />
       <PaddingControl :model-value="sel.style.padding" @update:model-value="updateStylePadding" />
 
@@ -412,5 +575,18 @@ function isTextish(el: TemplateElement | null): boolean {
   background: var(--tp-accent);
   color: #fff;
   border-color: var(--tp-accent);
+}
+.sclickable {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+}
+.caret {
+  color: var(--tp-ink-faint);
+}
+.slider {
+  flex: 1;
+  accent-color: var(--tp-accent);
 }
 </style>
