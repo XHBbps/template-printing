@@ -10,24 +10,24 @@ export interface ElementMeta {
   glyph: string;
   label: string;
   group: LibraryGroup;
-  defaultGrid: { cs: number; rs: number };
+  defaultMm: { w: number; h: number };
   variant?: 'qr' | 'barcode';
 }
 
 export const LIBRARY_ITEMS: ElementMeta[] = [
-  { type: 'text', group: '文字', glyph: 'T', label: '文字', defaultGrid: { cs: 12, rs: 3 } },
-  { type: 'field', group: '文字', glyph: '{}', label: '字段', defaultGrid: { cs: 16, rs: 3 } },
-  { type: 'autonumber', group: '文字', glyph: '№', label: '编号', defaultGrid: { cs: 18, rs: 3 } },
-  { type: 'system', group: '文字', glyph: '#', label: '系统', defaultGrid: { cs: 18, rs: 3 } },
-  { type: 'rect', group: '图形', glyph: '▢', label: '矩形', defaultGrid: { cs: 16, rs: 8 } },
-  { type: 'image', group: '图形', glyph: '▤', label: '图片', defaultGrid: { cs: 16, rs: 16 } },
-  { type: 'table', group: '数据', glyph: '▦', label: '明细', defaultGrid: { cs: 60, rs: 24 } },
+  { type: 'text', group: '文字', glyph: 'T', label: '文字', defaultMm: { w: 40, h: 8 } },
+  { type: 'field', group: '文字', glyph: '{}', label: '字段', defaultMm: { w: 50, h: 8 } },
+  { type: 'autonumber', group: '文字', glyph: '№', label: '编号', defaultMm: { w: 45, h: 8 } },
+  { type: 'system', group: '文字', glyph: '#', label: '系统', defaultMm: { w: 45, h: 8 } },
+  { type: 'rect', group: '图形', glyph: '▢', label: '矩形', defaultMm: { w: 40, h: 20 } },
+  { type: 'image', group: '图形', glyph: '▤', label: '图片', defaultMm: { w: 40, h: 40 } },
+  { type: 'table', group: '数据', glyph: '▦', label: '明细', defaultMm: { w: 150, h: 60 } },
   {
     type: 'barcode',
     group: '数据',
     glyph: '▣',
     label: '二维码',
-    defaultGrid: { cs: 12, rs: 12 },
+    defaultMm: { w: 25, h: 25 },
     variant: 'qr',
   },
   {
@@ -35,10 +35,27 @@ export const LIBRARY_ITEMS: ElementMeta[] = [
     group: '数据',
     glyph: '|||',
     label: '条码',
-    defaultGrid: { cs: 30, rs: 8 },
+    defaultMm: { w: 60, h: 16 },
     variant: 'barcode',
   },
 ];
+
+export const MIN_MM: Record<string, { w: number; h: number }> = {
+  text: { w: 8, h: 4 },
+  field: { w: 12, h: 4 },
+  autonumber: { w: 12, h: 4 },
+  system: { w: 12, h: 4 },
+  rect: { w: 4, h: 4 },
+  image: { w: 10, h: 10 },
+  table: { w: 60, h: 20 },
+  qr: { w: 12, h: 12 },
+  barcode1d: { w: 25, h: 8 },
+};
+
+export function minMmFor(el: TemplateElement): { w: number; h: number } {
+  if (el.type === 'barcode') return el.symbology === 'qr' ? MIN_MM.qr : MIN_MM.barcode1d;
+  return MIN_MM[el.type];
+}
 
 function defaultBorder() {
   const side = { show: false, width: 1, style: 'solid' as const, color: '#1f1f23' };
@@ -57,17 +74,20 @@ function defaultStyle() {
 export function buildElement(
   meta: ElementMeta,
   newId: string,
-  c = 4,
-  r = 4,
-  cellW = 4,
-  cellH = 4,
+  anchorMm: { x: number; y: number },
+  cell: { w: number; h: number },
 ): TemplateElement {
-  const grid = { c, r, cs: meta.defaultGrid.cs, rs: meta.defaultGrid.rs };
   const anchor = {
-    x: (c * cellW) / PX_PER_MM,
-    y: (r * cellH) / PX_PER_MM,
-    w: (grid.cs * cellW) / PX_PER_MM,
-    h: (grid.rs * cellH) / PX_PER_MM,
+    x: anchorMm.x,
+    y: anchorMm.y,
+    w: meta.defaultMm.w,
+    h: meta.defaultMm.h,
+  };
+  const grid = {
+    c: Math.round((anchor.x * PX_PER_MM) / cell.w),
+    r: Math.round((anchor.y * PX_PER_MM) / cell.h),
+    cs: Math.max(1, Math.round((anchor.w * PX_PER_MM) / cell.w)),
+    rs: Math.max(1, Math.round((anchor.h * PX_PER_MM) / cell.h)),
   };
   const style = defaultStyle();
   switch (meta.type) {
