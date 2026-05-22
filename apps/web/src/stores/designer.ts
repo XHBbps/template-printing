@@ -221,6 +221,24 @@ export const useDesignerStore = defineStore('designer', {
         if (!raw) return false;
         const parsed = JSON.parse(raw) as Template;
 
+        // Iteration-4: migrate legacy paper enum values + ensure orientation exists.
+        const legacyPaperMap: Record<
+          string,
+          { paper: Template['canvas']['paper']; orientation: 'portrait' | 'landscape' }
+        > = {
+          'A3-Landscape': { paper: 'A3', orientation: 'landscape' },
+          'A4-Landscape': { paper: 'A4', orientation: 'landscape' },
+          'A5-Landscape': { paper: 'A5', orientation: 'landscape' },
+          GuardPass: { paper: { w_mm: 90, h_mm: 60 }, orientation: 'portrait' },
+          LogisticLabel: { paper: { w_mm: 100, h_mm: 180 }, orientation: 'portrait' },
+        };
+        if (typeof parsed.canvas.paper === 'string' && parsed.canvas.paper in legacyPaperMap) {
+          const m = legacyPaperMap[parsed.canvas.paper as string];
+          parsed.canvas.paper = m.paper;
+          parsed.canvas.orientation = m.orientation;
+        }
+        if (!parsed.canvas.orientation) parsed.canvas.orientation = 'portrait';
+
         // Step 1 — Migrate iteration-1 drafts: derive anchor from grid + OLD cell.
         const oldCell = parsed.canvas.cell;
         for (const el of parsed.elements as Array<TemplateElement & { anchor?: Anchor }>) {
