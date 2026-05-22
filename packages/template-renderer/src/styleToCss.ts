@@ -1,11 +1,16 @@
 // eslint-disable-next-line import/no-unresolved
-import type { ElementStyle } from '@template-printing/schema';
+import type { BorderSide, ElementStyle } from '@template-printing/schema';
 
 const FONT_STACK: Record<string, string> = {
   sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", system-ui, sans-serif',
   serif: 'Georgia, "Times New Roman", "Songti SC", serif',
   mono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
 };
+
+function borderSideCss(side: BorderSide): string {
+  if (!side.show) return 'none';
+  return `${side.width}px ${side.style} ${side.color}`;
+}
 
 export function styleToCss(s: ElementStyle): Record<string, string> {
   const out: Record<string, string> = {};
@@ -28,6 +33,13 @@ export function styleToCss(s: ElementStyle): Record<string, string> {
   } else if (s.textOverflow === 'clip') {
     out.overflow = 'hidden';
   }
+  if (s.border) {
+    out.borderTop = borderSideCss(s.border.top);
+    out.borderRight = borderSideCss(s.border.right);
+    out.borderBottom = borderSideCss(s.border.bottom);
+    out.borderLeft = borderSideCss(s.border.left);
+  }
+  if (s.borderRadius) out.borderRadius = `${s.borderRadius}px`;
   return out;
 }
 
@@ -35,4 +47,12 @@ export function verticalAlignToFlex(va?: ElementStyle['verticalAlign']): string 
   if (va === 'top') return 'flex-start';
   if (va === 'bottom') return 'flex-end';
   return 'center';
+}
+
+export function textAlignToJustify(ta?: ElementStyle['textAlign']): string {
+  if (ta === 'left') return 'flex-start';
+  if (ta === 'right') return 'flex-end';
+  if (ta === 'center') return 'center';
+  if (ta === 'justify') return 'space-between';
+  return 'flex-start';
 }
