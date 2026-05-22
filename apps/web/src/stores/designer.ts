@@ -1,11 +1,14 @@
 // eslint-disable-next-line import/no-unresolved
 import type { Template, TemplateElement, FieldDefSchema, Anchor } from '@template-printing/schema';
+
 // eslint-disable-next-line import/no-unresolved
 import { ElMessage } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import { defineStore } from 'pinia';
 // eslint-disable-next-line import/no-unresolved
 import type { z } from 'zod';
+
+import { minMmFor } from '../designer/elementFactory';
 
 type FieldDef = z.infer<typeof FieldDefSchema>;
 
@@ -237,6 +240,14 @@ export const useDesignerStore = defineStore('designer', {
         }
         parsed.canvas.cols = px.w / w;
         parsed.canvas.rows = px.h / h;
+
+        // Step 2.5 — Iteration-3: clamp anchor.w/h up to per-type minimum.
+        // This brings iteration-2 drafts (which had no minimums) into compliance.
+        for (const el of parsed.elements) {
+          const m = minMmFor(el);
+          if (el.anchor.w < m.w) el.anchor.w = m.w;
+          if (el.anchor.h < m.h) el.anchor.h = m.h;
+        }
 
         // Step 3 — Recompute grid for every element from anchor + new cell.
         for (const el of parsed.elements) {
