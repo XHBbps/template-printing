@@ -24,6 +24,7 @@ const store = useDesignerStore();
 
 const elRef = ref<HTMLElement | null>(null);
 const isSelected = computed(() => store.selectedIds.includes(props.element.id));
+const isSmall = computed(() => props.element.grid.rs < 6);
 
 const positionStyle = computed(() => ({
   left: `calc(${props.element.grid.c} * var(--cell-w))`,
@@ -73,7 +74,7 @@ const elementMap: Record<string, unknown> = {
       :is-resizing="store.isResizing && isSelected"
       design-mode
     />
-    <ElementGrip v-if="isSelected" @pointerdown="onGripDown" />
+    <ElementGrip v-if="isSelected" :is-small="isSmall" @pointerdown="onGripDown" />
     <HitZones
       v-if="isSelected"
       :mode="props.element.type === 'barcode' && props.element.symbology === 'qr' ? 'qr' : 'free'"
