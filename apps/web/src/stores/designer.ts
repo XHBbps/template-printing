@@ -1,7 +1,9 @@
 // eslint-disable-next-line import/no-unresolved
 import type { Template, TemplateElement, FieldDefSchema, Anchor } from '@template-printing/schema';
 // eslint-disable-next-line import/no-unresolved
+import { ElMessage } from 'element-plus';
 import { defineStore } from 'pinia';
+// eslint-disable-next-line import/no-unresolved
 // eslint-disable-next-line import/no-unresolved
 import type { z } from 'zod';
 
@@ -299,13 +301,13 @@ export const useDesignerStore = defineStore('designer', {
     // 不满足的尺寸直接拒绝；cols/rows 由 paper 与 cell 派生。
     setCellSize(w: number, h: number): void {
       const px = paperPxSize(this.template.canvas.paper);
-      if (px.w % w !== 0 || px.h % h !== 0) {
-        // Reject invalid divisor — caller (UI) is expected to only pass valid options.
-        return;
-      }
+      if (px.w % w !== 0 || px.h % h !== 0) return;
       this.template.canvas.cell = { w, h };
       this.template.canvas.cols = px.w / w;
       this.template.canvas.rows = px.h / h;
+      for (const el of this.template.elements) {
+        recomputeGridFromAnchor(el, this.template.canvas.cell);
+      }
       this.snapshot();
     },
     setCanvasSize(_cols: number, _rows: number): void {
@@ -315,18 +317,40 @@ export const useDesignerStore = defineStore('designer', {
     setPaper(paper: Template['canvas']['paper']): void {
       const px = paperPxSize(paper);
       let { w, h } = this.template.canvas.cell;
-      // If current cell no longer divides the new paper, snap to a safe default
       if (px.w % w !== 0 || px.h % h !== 0) {
         const wOpts = divisorsInRange(px.w);
         const hOpts = divisorsInRange(px.h);
         w = wOpts.includes(4) ? 4 : wOpts[0] ?? 1;
         h = hOpts.includes(4) ? 4 : hOpts[0] ?? 1;
       }
+
+      // Resolve new paper in mm so we can clamp anchors.
+      let newMm: { w_mm: number; h_mm: number };
+      if (typeof paper === 'string' && paper in PAPER_PRESETS) {
+        newMm = PAPER_PRESETS[paper];
+      } else if (typeof paper === 'object' && paper !== null && 'w_mm' in paper) {
+        newMm = { w_mm: paper.w_mm, h_mm: paper.h_mm };
+      } else {
+        newMm = PAPER_PRESETS['A4-Landscape'];
+      }
+
+      let movedCount = 0;
+      for (const el of this.template.elements) {
+        if (clampAnchorToPaper(el, newMm)) movedCount++;
+      }
+
       this.template.canvas.paper = paper;
       this.template.canvas.cell = { w, h };
       this.template.canvas.cols = px.w / w;
       this.template.canvas.rows = px.h / h;
+      for (const el of this.template.elements) {
+        recomputeGridFromAnchor(el, this.template.canvas.cell);
+      }
       this.snapshot();
+
+      if (movedCount > 0) {
+        ElMessage.warning(`${movedCount} 个元素已自动移入新画布`);
+      }
     },
     setName(name: string): void {
       this.template.meta.name = name;
