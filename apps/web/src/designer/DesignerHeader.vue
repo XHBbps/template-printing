@@ -10,32 +10,15 @@ import PreviewView from '../views/PreviewView.vue';
 const store = useDesignerStore();
 const router = useRouter();
 
-const paperOptions = [
-  'A3',
-  'A3-Landscape',
-  'A4',
-  'A4-Landscape',
-  'A5',
-  'A5-Landscape',
-  'A6',
-  'B5',
-  'Letter',
-  'GuardPass',
-  'LogisticLabel',
-] as const;
+const paperOptions = ['A3', 'A4', 'A5', 'A6', 'B5', 'Letter'] as const;
 
 const paperLabelMap: Record<string, string> = {
   A3: 'A3',
-  'A3-Landscape': 'A3 横',
   A4: 'A4',
-  'A4-Landscape': 'A4 横',
   A5: 'A5',
-  'A5-Landscape': 'A5 横',
   A6: 'A6',
   B5: 'B5',
   Letter: 'Letter',
-  GuardPass: '出门证 (90×60)',
-  LogisticLabel: '物流面单 (100×180)',
 };
 
 const customDialogOpen = ref(false);
@@ -46,8 +29,12 @@ function onCustomPaperConfirm(size: { w_mm: number; h_mm: number }): void {
 
 const paperLabel = computed(() => {
   const p = store.template.canvas.paper;
-  if (typeof p === 'string') return paperLabelMap[p] ?? p;
-  return `${p.w_mm}×${p.h_mm}mm`;
+  const o = store.template.canvas.orientation;
+  if (typeof p === 'string') {
+    return o === 'landscape' ? `${paperLabelMap[p]} 横` : paperLabelMap[p] ?? p;
+  }
+  const dim = `${p.w_mm}×${p.h_mm}mm`;
+  return o === 'landscape' ? `${dim} 横` : dim;
 });
 
 const cellLabel = computed(() => `${store.template.canvas.cell.w} px`);
@@ -128,6 +115,8 @@ const previewOpen = ref(false);
         </ElDropdownMenu>
       </template>
     </ElDropdown>
+
+    <button class="tt-btn" title="旋转 90°" @click="store.rotate()">⤴</button>
 
     <ElDropdown trigger="click">
       <button class="tt-btn">🔍 {{ zoomLabel }}</button>
