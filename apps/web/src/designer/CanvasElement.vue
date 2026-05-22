@@ -67,7 +67,12 @@ const elementMap: Record<string, unknown> = {
     :style="positionStyle"
     @click="selectMe"
   >
-    <component :is="elementMap[props.element.type]" :element="props.element" design-mode />
+    <component
+      :is="elementMap[props.element.type]"
+      :element="props.element"
+      :is-resizing="store.isResizing && isSelected"
+      design-mode
+    />
     <ElementGrip v-if="isSelected" @pointerdown="onGripDown" />
     <HitZones
       v-if="isSelected"
