@@ -1,12 +1,13 @@
+// eslint-disable-next-line import/no-unresolved
 import { describe, it, expect } from 'vitest';
 
-// eslint-disable-next-line import/no-unresolved
 import {
   TemplateSchema,
   ElementSchema,
   TextElementSchema,
   TableElementSchema,
   type Template,
+  // eslint-disable-next-line import/no-unresolved
 } from '../src/template.js';
 
 const minimalTemplate: Template = {

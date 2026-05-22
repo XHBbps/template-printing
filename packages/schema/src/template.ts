@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-unresolved
 import { z } from 'zod';
 
 // --- Border / padding shared by all elements ---
