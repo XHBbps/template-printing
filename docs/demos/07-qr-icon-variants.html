@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>QR 图标候选 (Lucide 风格)</title>
+<style>
+  :root {
+    --accent: #6C5CE7;
+    --accent-bg: #F0EEFF;
+    --panel: #FFFFFF;
+    --ink: #1F1F23;
+    --ink-soft: #5E5E66;
+    --ink-faint: #9C9CA3;
+    --line: #ECECEF;
+    --line-strong: #E0E0E4;
+    --bg: #ECECEF;
+  }
+  body { background: var(--bg); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', system-ui, sans-serif; color: var(--ink); padding: 40px 48px; margin: 0; -webkit-font-smoothing: antialiased; }
+  h1 { font-size: 18px; margin: 0 0 24px; font-weight: 700; }
+  h2 { font-size: 12px; font-weight: 600; color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; margin: 28px 0 12px; }
+
+  .row { display: flex; gap: 24px; flex-wrap: wrap; }
+  .card {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 1px 0 rgba(20,20,30,0.04), 0 4px 12px rgba(20,20,30,0.04);
+    width: 280px;
+    text-align: center;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+  .card-note { font-size: 11px; color: var(--ink-faint); line-height: 1.6; margin-bottom: 16px; }
+  .pick { display: inline-block; background: #22c55e; color: white; font-size: 9.5px; padding: 1px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+
+  .scale-row { display: flex; align-items: end; gap: 24px; justify-content: center; }
+  .scale-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .scale-label { font-size: 9.5px; color: var(--ink-faint); font-family: ui-monospace, monospace; }
+
+  .ico {
+    color: var(--ink); stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  /* 三种使用场景 */
+  .ctx { display: flex; gap: 16px; margin-top: 16px; align-items: center; justify-content: center; }
+  .lib-btn {
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    padding: 12px 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    width: 68px;
+  }
+  .lib-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .lib-btn .ico { width: 22px; height: 22px; }
+  .tt-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 6px 12px; border-radius: 999px;
+    background: transparent; border: 1px solid var(--line-strong);
+    cursor: pointer; color: var(--ink-soft); font-size: 12px;
+  }
+  .tt-btn:hover { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+  .tt-btn .ico { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+
+<h1>QR 图标候选 (Lucide 同款风格)</h1>
+
+<div class="row">
+
+  <!-- ===== A · Lucide 官方 qr-code ===== -->
+  <div class="card">
+    <div class="card-title">A · Lucide 官方 qr-code <span class="pick">推荐</span></div>
+    <div class="card-note">3 个角的 finder 方框 + 数据区零散点缀。最 QR-recognizable，Lucide 上游维护。</div>
+    <div class="scale-row">
+      <div class="scale-item">
+        <svg class="ico" style="width:48px;height:48px" viewBox="0 0 24 24">
+          <rect width="5" height="5" x="3" y="3" rx="1"/>
+          <rect width="5" height="5" x="16" y="3" rx="1"/>
+          <rect width="5" height="5" x="3" y="16" rx="1"/>
+          <path d="M21 16h-3a2 2 0 0 0-2 2v3"/>
+          <path d="M21 21v.01"/>
+          <path d="M12 7v3a2 2 0 0 1-2 2H7"/>
+          <path d="M3 12h.01"/>
+          <path d="M12 3h.01"/>
+          <path d="M12 16v.01"/>
+          <path d="M16 12h1"/>
+          <path d="M21 12v.01"/>
+          <path d="M12 21v-1"/>
+        </svg>
+        <div class="scale-label">48px</div>
+      </div>
+      <div class="scale-item">
+        <svg class="ico" style="width:24px;height:24px" viewBox="0 0 24 24">
+          <rect width="5" height="5" x="3" y="3" rx="1"/>
+          <rect width="5" height="5" x="16" y="3" rx="1"/>
+          <rect width="5" height="5" x="3" y="16" rx="1"/>
+          <path d="M21 16h-3a2 2 0 0 0-2 2v3"/>
+          <path d="M21 21v.01"/>
+          <path d="M12 7v3a2 2 0 0 1-2 2H7"/>
+          <path d="M3 12h.01"/>
+          <path d="M12 3h.01"/>
+          <path d="M12 16v.01"/>
+          <path d="M16 12h1"/>
+          <path d="M21 12v.01"/>
+          <path d="M12 21v-1"/>
+        </svg>
+        <div class="scale-label">24px</div>
+      </div>
+      <div class="scale-item">
+        <svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24">
+          <rect width="5" height="5" x="3" y="3" rx="1"/>
+          <rect width="5" height="5" x="16" y="3" rx="1"/>
+          <rect width="5" height="5" x="3" y="16" rx="1"/>
+          <path d="M21 16h-3a2 2 0 0 0-2 2v3"/>
+          <path d="M21 21v.01"/>
+          <path d="M12 7v3a2 2 0 0 1-2 2H7"/>
+          <path d="M3 12h.01"/>
+          <path d="M12 3h.01"/>
+          <path d="M12 16v.01"/>
+          <path d="M16 12h1"/>
+          <path d="M21 12v.01"/>
+          <path d="M12 21v-1"/>
+        </svg>
+        <div class="scale-label">16px</div>
+      </div>
+    </div>
+    <div class="ctx">
+      <button class="lib-btn">
+        <svg class="ico" viewBox="0 0 24 24"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+        <span>二维码</span>
+      </button>
+      <button class="tt-btn">
+        <svg class="ico" viewBox="0 0 24 24"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>
+        二维码
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== B · 简化的 3 角 + 中心点 ===== -->
+  <div class="card">
+    <div class="card-title">B · 极简 3 角 + 中心方块</div>
+    <div class="card-note">3 个 finder 方框 + 中心一个小实心方块。视觉更干净，但在 16px 下 finder 的内部方块会糊。</div>
+    <div class="scale-row">
+      <div class="scale-item">
+        <svg class="ico" style="width:48px;height:48px" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="5.5" y="5.5" width="2" height="2" rx="0.3"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="16.5" y="5.5" width="2" height="2" rx="0.3"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="5.5" y="16.5" width="2" height="2" rx="0.3"/>
+          <rect x="14" y="14" width="3" height="3" rx="0.5"/>
+          <rect x="18" y="14" width="3" height="3" rx="0.5"/>
+          <rect x="14" y="18" width="3" height="3" rx="0.5"/>
+          <rect x="18" y="18" width="3" height="3" rx="0.5"/>
+        </svg>
+        <div class="scale-label">48px</div>
+      </div>
+      <div class="scale-item">
+        <svg class="ico" style="width:24px;height:24px" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="5.5" y="5.5" width="2" height="2" rx="0.3"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="16.5" y="5.5" width="2" height="2" rx="0.3"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="5.5" y="16.5" width="2" height="2" rx="0.3"/>
+          <rect x="14" y="14" width="3" height="3" rx="0.5"/>
+          <rect x="18" y="14" width="3" height="3" rx="0.5"/>
+          <rect x="14" y="18" width="3" height="3" rx="0.5"/>
+          <rect x="18" y="18" width="3" height="3" rx="0.5"/>
+        </svg>
+        <div class="scale-label">24px</div>
+      </div>
+      <div class="scale-item">
+        <svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="5.5" y="5.5" width="2" height="2" rx="0.3"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="16.5" y="5.5" width="2" height="2" rx="0.3"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="5.5" y="16.5" width="2" height="2" rx="0.3"/>
+          <rect x="14" y="14" width="3" height="3" rx="0.5"/>
+          <rect x="18" y="14" width="3" height="3" rx="0.5"/>
+          <rect x="14" y="18" width="3" height="3" rx="0.5"/>
+          <rect x="18" y="18" width="3" height="3" rx="0.5"/>
+        </svg>
+        <div class="scale-label">16px</div>
+      </div>
+    </div>
+    <div class="ctx">
+      <button class="lib-btn">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="5.5" y="5.5" width="2" height="2" rx="0.3"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="16.5" y="5.5" width="2" height="2" rx="0.3"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="5.5" y="16.5" width="2" height="2" rx="0.3"/><rect x="14" y="14" width="3" height="3" rx="0.5"/><rect x="18" y="14" width="3" height="3" rx="0.5"/><rect x="14" y="18" width="3" height="3" rx="0.5"/><rect x="18" y="18" width="3" height="3" rx="0.5"/></svg>
+        <span>二维码</span>
+      </button>
+      <button class="tt-btn">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="5.5" y="5.5" width="2" height="2" rx="0.3"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="16.5" y="5.5" width="2" height="2" rx="0.3"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="5.5" y="16.5" width="2" height="2" rx="0.3"/><rect x="14" y="14" width="3" height="3" rx="0.5"/><rect x="18" y="14" width="3" height="3" rx="0.5"/><rect x="14" y="18" width="3" height="3" rx="0.5"/><rect x="18" y="18" width="3" height="3" rx="0.5"/></svg>
+        二维码
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== C · 密集 9 块网格 ===== -->
+  <div class="card">
+    <div class="card-title">C · 密集 9 块网格（高识别度）</div>
+    <div class="card-note">3 个 finder 加上密集的小方块阵列。最像真实 QR，但 16px 下会很糊，最适合 24px+ 场景。</div>
+    <div class="scale-row">
+      <div class="scale-item">
+        <svg class="ico" style="width:48px;height:48px" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <rect x="3" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="5" y="5" width="3" height="3" rx="0.2"/>
+          <rect x="14" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="16" y="5" width="3" height="3" rx="0.2"/>
+          <rect x="3" y="14" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="5" y="16" width="3" height="3" rx="0.2"/>
+          <!-- data region dots -->
+          <rect x="13" y="13" width="1.5" height="1.5"/>
+          <rect x="16" y="13" width="1.5" height="1.5"/>
+          <rect x="19" y="13" width="1.5" height="1.5"/>
+          <rect x="13" y="16" width="1.5" height="1.5"/>
+          <rect x="17.5" y="16" width="3" height="3" rx="0.2"/>
+          <rect x="13" y="19.5" width="1.5" height="1.5"/>
+          <rect x="16" y="19.5" width="1.5" height="1.5"/>
+          <rect x="11.5" y="3" width="1.5" height="1.5"/>
+          <rect x="11.5" y="6" width="1.5" height="1.5"/>
+          <rect x="3" y="11.5" width="1.5" height="1.5"/>
+          <rect x="6" y="11.5" width="1.5" height="1.5"/>
+        </svg>
+        <div class="scale-label">48px</div>
+      </div>
+      <div class="scale-item">
+        <svg class="ico" style="width:24px;height:24px" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <rect x="3" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="5" y="5" width="3" height="3" rx="0.2"/>
+          <rect x="14" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="16" y="5" width="3" height="3" rx="0.2"/>
+          <rect x="3" y="14" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="5" y="16" width="3" height="3" rx="0.2"/>
+          <rect x="13" y="13" width="1.5" height="1.5"/>
+          <rect x="16" y="13" width="1.5" height="1.5"/>
+          <rect x="19" y="13" width="1.5" height="1.5"/>
+          <rect x="13" y="16" width="1.5" height="1.5"/>
+          <rect x="17.5" y="16" width="3" height="3" rx="0.2"/>
+          <rect x="13" y="19.5" width="1.5" height="1.5"/>
+          <rect x="16" y="19.5" width="1.5" height="1.5"/>
+          <rect x="11.5" y="3" width="1.5" height="1.5"/>
+          <rect x="11.5" y="6" width="1.5" height="1.5"/>
+          <rect x="3" y="11.5" width="1.5" height="1.5"/>
+          <rect x="6" y="11.5" width="1.5" height="1.5"/>
+        </svg>
+        <div class="scale-label">24px</div>
+      </div>
+      <div class="scale-item">
+        <svg class="ico" style="width:16px;height:16px" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <rect x="3" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="5" y="5" width="3" height="3" rx="0.2"/>
+          <rect x="14" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="16" y="5" width="3" height="3" rx="0.2"/>
+          <rect x="3" y="14" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <rect x="5" y="16" width="3" height="3" rx="0.2"/>
+          <rect x="13" y="13" width="1.5" height="1.5"/>
+          <rect x="16" y="13" width="1.5" height="1.5"/>
+          <rect x="19" y="13" width="1.5" height="1.5"/>
+          <rect x="13" y="16" width="1.5" height="1.5"/>
+          <rect x="17.5" y="16" width="3" height="3" rx="0.2"/>
+          <rect x="13" y="19.5" width="1.5" height="1.5"/>
+          <rect x="16" y="19.5" width="1.5" height="1.5"/>
+          <rect x="11.5" y="3" width="1.5" height="1.5"/>
+          <rect x="11.5" y="6" width="1.5" height="1.5"/>
+          <rect x="3" y="11.5" width="1.5" height="1.5"/>
+          <rect x="6" y="11.5" width="1.5" height="1.5"/>
+        </svg>
+        <div class="scale-label">16px</div>
+      </div>
+    </div>
+    <div class="ctx">
+      <button class="lib-btn">
+        <svg class="ico" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="5" y="5" width="3" height="3" rx="0.2"/><rect x="14" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="16" y="5" width="3" height="3" rx="0.2"/><rect x="3" y="14" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="5" y="16" width="3" height="3" rx="0.2"/><rect x="13" y="13" width="1.5" height="1.5"/><rect x="16" y="13" width="1.5" height="1.5"/><rect x="19" y="13" width="1.5" height="1.5"/><rect x="13" y="16" width="1.5" height="1.5"/><rect x="17.5" y="16" width="3" height="3" rx="0.2"/><rect x="13" y="19.5" width="1.5" height="1.5"/><rect x="16" y="19.5" width="1.5" height="1.5"/></svg>
+        <span>二维码</span>
+      </button>
+      <button class="tt-btn">
+        <svg class="ico" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="5" y="5" width="3" height="3" rx="0.2"/><rect x="14" y="3" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="16" y="5" width="3" height="3" rx="0.2"/><rect x="3" y="14" width="7" height="7" rx="0.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="5" y="16" width="3" height="3" rx="0.2"/><rect x="13" y="13" width="1.5" height="1.5"/><rect x="16" y="13" width="1.5" height="1.5"/><rect x="19" y="13" width="1.5" height="1.5"/><rect x="13" y="16" width="1.5" height="1.5"/><rect x="17.5" y="16" width="3" height="3" rx="0.2"/></svg>
+        二维码
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<h2>对比小结</h2>
+<div style="background: white; border-radius: 12px; padding: 18px 20px; font-size: 13px; line-height: 1.8; color: var(--ink-soft); max-width: 880px;">
+  <strong style="color: var(--ink)">A · Lucide 官方 qr-code</strong> — 跟着 Lucide 上游走，升级时自动同步。3 角 + 几个零散点，含蓄但足够辨识。<strong>16px 下仍清楚。</strong><br/>
+  <strong style="color: var(--ink)">B · 极简 3 角</strong> — 干净，但 finder 里的内部小方块在 16px 下糊成一团黑色。<br/>
+  <strong style="color: var(--ink)">C · 密集 9 块</strong> — 最像真实 QR，48px 下漂亮。<strong>16px 下太密无法识别，且包含 fill 与 stroke 的混合，与 Lucide stroke-only 风格不严格统一。</strong>
+</div>
+
+<p style="margin-top: 32px; font-size: 13px; color: var(--ink-soft)">
+  推荐 <strong style="color: var(--ink)">A</strong>：跟 Lucide 上游一致，16/24/48 全 size 都能用，无自定义维护负担。
+</p>
+
+</body>
+</html>
