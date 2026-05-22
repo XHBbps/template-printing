@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, nextTick } from 'vue';
 // bwip-js uses conditional exports (browser/node/electron/react-native) that
 // vue-tsc cannot resolve with moduleResolution=Bundler. Vite picks the browser
 // bundle correctly at runtime. Suppress the TS module-not-found error here.
@@ -66,9 +66,9 @@ function render(): void {
       backgroundcolor: (props.element.backgroundColor ?? '#ffffff').replace('#', ''),
       textcolor: (props.element.foregroundColor ?? '#000000').replace('#', ''),
     });
-  } catch (e) {
+  } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn('barcode render failed', e);
+    console.error('[BarcodeElement] bwip-js render failed:', err);
   }
 }
 
@@ -86,12 +86,19 @@ watch(
     tfs: props.element.textFontSize,
     isResizing: props.isResizing,
   }),
-  (next) => {
-    if (next.isResizing) return; // skip during drag
+  async (next) => {
+    if (next.isResizing) return;
+    await nextTick();
     render();
   },
   { deep: true, immediate: true },
 );
+
+onMounted(() => {
+  // Defensive: ensure first render fires after DOM commit even if the
+  // immediate watch raced with mount.
+  render();
+});
 </script>
 
 <template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted, nextTick } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import qrcode from 'qrcode-generator';
 
@@ -40,14 +40,20 @@ function render(): void {
     qrSvg.value = '';
     return;
   }
-  const eccMap = { L: 'L', M: 'M', Q: 'Q', H: 'H' } as const;
-  const ecc = (props.element.eccLevel ?? 'M') as 'L' | 'M' | 'Q' | 'H';
-  const qr = qrcode(0, eccMap[ecc]);
-  qr.addData(contentText.value);
-  qr.make();
-  const cellSize = 4;
-  const margin = props.element.quietZone ?? 2;
-  qrSvg.value = qr.createSvgTag({ cellSize, margin });
+  try {
+    const eccMap = { L: 'L', M: 'M', Q: 'Q', H: 'H' } as const;
+    const ecc = (props.element.eccLevel ?? 'M') as 'L' | 'M' | 'Q' | 'H';
+    const qr = qrcode(0, eccMap[ecc]);
+    qr.addData(contentText.value);
+    qr.make();
+    const cellSize = 4;
+    const margin = props.element.quietZone ?? 2;
+    qrSvg.value = qr.createSvgTag({ cellSize, margin });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[QrElement] qrcode render failed:', err);
+    qrSvg.value = '';
+  }
 }
 
 watch(
@@ -61,12 +67,17 @@ watch(
     qz: props.element.quietZone,
     isResizing: props.isResizing,
   }),
-  (next) => {
+  async (next) => {
     if (next.isResizing) return;
+    await nextTick();
     render();
   },
-  { deep: true, immediate: true, flush: 'post' },
+  { deep: true, immediate: true },
 );
+
+onMounted(() => {
+  render();
+});
 </script>
 
 <template>
