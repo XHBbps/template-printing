@@ -4,7 +4,6 @@ import type { Template, TemplateElement, FieldDefSchema, Anchor } from '@templat
 import { ElMessage } from 'element-plus';
 import { defineStore } from 'pinia';
 // eslint-disable-next-line import/no-unresolved
-// eslint-disable-next-line import/no-unresolved
 import type { z } from 'zod';
 
 type FieldDef = z.infer<typeof FieldDefSchema>;
