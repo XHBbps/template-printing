@@ -171,7 +171,7 @@ async function remove(key: string): Promise<void> {
         <Plus :size="14" :stroke-width="2" />
       </button>
     </div>
-    <div v-if="store.fieldDefs.length > 5" class="fm-search">
+    <div class="fm-search">
       <Search :size="13" :stroke-width="2" />
       <input type="text" v-model="searchQuery" placeholder="搜索变量名或显示名…" />
     </div>
@@ -297,6 +297,7 @@ async function remove(key: string): Promise<void> {
   flex: 1;
   overflow-y: auto;
   padding: 8px 10px 12px;
+  max-height: 200px;
 }
 .empty {
   padding: 24px 12px;
