@@ -25,7 +25,18 @@ const store = useDesignerStore();
 
 const elRef = ref<HTMLElement | null>(null);
 const isSelected = computed(() => store.selectedIds.includes(props.element.id));
-const isSmall = computed(() => props.element.grid.rs < 6);
+const isNearTop = computed(() => {
+  // anchor.y in mm; 8 mm safely fits the outside pill (28 px ≈ 7 mm) + margin.
+  return props.element.anchor.y < 8;
+});
+
+const useInsideGrip = computed(() => {
+  // Use inside grip when element is too short, too narrow, OR too close to top.
+  if (props.element.grid.rs < 6) return true;
+  if (props.element.grid.cs < 8) return true;
+  if (isNearTop.value) return true;
+  return false;
+});
 
 const positionStyle = computed(() => ({
   left: `calc(${props.element.grid.c} * var(--cell-w))`,
@@ -76,7 +87,7 @@ const elementMap: Record<string, unknown> = {
       :is-resizing="store.isResizing && isSelected"
       design-mode
     />
-    <ElementGrip v-if="isSelected" :is-small="isSmall" @pointerdown="onGripDown" />
+    <ElementGrip v-if="isSelected" :is-small="!useInsideGrip" @pointerdown="onGripDown" />
     <HitZones
       v-if="isSelected"
       :mode="props.element.type === 'qr' ? 'qr' : 'free'"
