@@ -96,6 +96,10 @@ function doPrint(): void {
   window.print();
 }
 
+function openCustomDialog(): void {
+  customDialogOpen.value = true;
+}
+
 const previewOpen = ref(false);
 </script>
 
@@ -124,7 +128,7 @@ const previewOpen = ref(false);
           <ElDropdownItem v-for="p in paperOptions" :key="p" @click="store.setPaper(p)">
             {{ paperLabelMap[p] }}
           </ElDropdownItem>
-          <ElDropdownItem divided @click="customDialogOpen = true">
+          <ElDropdownItem divided @click="openCustomDialog">
             <Plus :size="14" :stroke-width="2" style="margin-right: 6px" />
             自定义…
           </ElDropdownItem>

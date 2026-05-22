@@ -78,6 +78,9 @@ function confirm() {
     @update:model-value="(v: boolean) => emit('update:modelValue', v)"
     title="自定义画布"
     width="420px"
+    align-center
+    :append-to-body="true"
+    :z-index="3000"
   >
     <div class="cpd-row">
       <label>宽 (mm)</label>
