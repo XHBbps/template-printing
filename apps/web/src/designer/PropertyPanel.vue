@@ -125,7 +125,8 @@ function isTextish(el: TemplateElement | null): boolean {
   return ['text', 'field', 'autonumber', 'system', 'table'].includes(el.type);
 }
 
-const advancedOpen = ref(false);
+const styleAdvOpen = ref(false);
+const layoutAdvOpen = ref(false);
 </script>
 
 <template>
@@ -339,10 +340,10 @@ const advancedOpen = ref(false);
 
       <!-- 样式 · 高级 — text-only rows (fontFamily / letterSpacing / lineHeight / textDecoration / verticalAlign / textOverflow) -->
       <div v-if="isTextish(sel)" class="style-block">
-        <div class="style-title sclickable" @click="advancedOpen = !advancedOpen">
-          样式 · 高级 <span class="caret">{{ advancedOpen ? '▾' : '▸' }}</span>
+        <div class="style-title sclickable" @click="styleAdvOpen = !styleAdvOpen">
+          样式 · 高级 <span class="caret">{{ styleAdvOpen ? '▾' : '▸' }}</span>
         </div>
-        <div v-if="advancedOpen">
+        <div v-if="styleAdvOpen">
           <div class="srow">
             <span class="slbl">字体</span>
             <select
@@ -448,10 +449,10 @@ const advancedOpen = ref(false);
 
       <!-- 布局 · 高级 — universal (backgroundColor / zIndex / rotation / opacity) -->
       <div v-if="sel" class="style-block">
-        <div class="style-title sclickable" @click="advancedOpen = !advancedOpen">
-          布局 · 高级 <span class="caret">{{ advancedOpen ? '▾' : '▸' }}</span>
+        <div class="style-title sclickable" @click="layoutAdvOpen = !layoutAdvOpen">
+          布局 · 高级 <span class="caret">{{ layoutAdvOpen ? '▾' : '▸' }}</span>
         </div>
-        <div v-if="advancedOpen">
+        <div v-if="layoutAdvOpen">
           <div class="srow">
             <span class="slbl">背景色</span>
             <input
