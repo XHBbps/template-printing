@@ -38,6 +38,7 @@ services:
     volumes:
       - ./:/workspace
       - /workspace/node_modules
+      - ./storage:/storage
     ports:
       - '3000:3000'
     depends_on:
