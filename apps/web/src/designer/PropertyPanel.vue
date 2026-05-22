@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import type { ElementStyle, TemplateElement } from '@template-printing/schema';
 
 import { useDesignerStore } from '../stores/designer';
+import BarcodeProperties from './BarcodeProperties.vue';
 import BorderControl from './BorderControl.vue';
 import PaddingControl from './PaddingControl.vue';
 
@@ -403,6 +404,12 @@ const advancedOpen = ref(false);
           </div>
         </div>
       </div>
+
+      <BarcodeProperties
+        v-if="sel && sel.type === 'barcode'"
+        :element="sel"
+        @update="(patch: Partial<TemplateElement>) => store.updateElement(sel!.id, patch)"
+      />
 
       <BorderControl :model-value="sel.style.border" @update:model-value="updateStyleBorder" />
       <PaddingControl :model-value="sel.style.padding" @update:model-value="updateStylePadding" />
