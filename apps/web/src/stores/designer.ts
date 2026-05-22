@@ -121,8 +121,9 @@ function defaultStyle() {
 export function defaultTemplate(): Template {
   const paper = 'A4-Landscape';
   const px = paperPxSize(paper);
-  const cellW = 4;
-  const cellH = 4;
+  const opts = divisorsInRange(px.w).filter((d) => divisorsInRange(px.h).includes(d));
+  const cellW = opts.includes(4) ? 4 : (opts[0] ?? 1);
+  const cellH = cellW;
   return {
     id: makeId('tpl'),
     meta: { name: '未命名模板', description: '', version: 1, tags: [] },
@@ -398,12 +399,9 @@ export const useDesignerStore = defineStore('designer', {
       const px = paperPxSize(this.template.canvas.paper);
       const wOpts = divisorsInRange(px.w);
       const hOpts = divisorsInRange(px.h);
-      const common = wOpts.filter((d) => hOpts.includes(d));
-      const out: Array<{ w: number; h: number; cols: number; rows: number }> = [];
-      for (const d of common) {
-        out.push({ w: d, h: d, cols: px.w / d, rows: px.h / d });
-      }
-      return out;
+      let common = wOpts.filter((d) => hOpts.includes(d));
+      if (common.length === 0) common = [1];
+      return common.map((d) => ({ w: d, h: d, cols: px.w / d, rows: px.h / d }));
     },
   },
 });
