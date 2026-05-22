@@ -32,7 +32,13 @@ const positionStyle = computed(() => ({
   height: `calc(${props.element.grid.rs} * var(--cell-h))`,
 }));
 
-const sizeBadge = computed(() => `${props.element.grid.cs}×${props.element.grid.rs} 格`);
+const sizeBadge = computed(() => {
+  const g = props.element.grid;
+  if (props.element.type === 'barcode' && props.element.symbology === 'qr') {
+    return `${g.cs}×${g.rs} 格 (1:1)`;
+  }
+  return `${g.cs}×${g.rs} 格`;
+});
 
 function selectMe(e: MouseEvent): void {
   e.stopPropagation();
