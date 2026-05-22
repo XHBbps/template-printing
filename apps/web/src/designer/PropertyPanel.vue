@@ -5,11 +5,13 @@ import { computed, ref } from 'vue';
 import type { ElementStyle, TemplateElement } from '@template-printing/schema';
 
 import { useDesignerStore } from '../stores/designer';
+import { useImageUpload } from '../composables/useImageUpload';
 import BarcodeProperties from './BarcodeProperties.vue';
 import BorderControl from './BorderControl.vue';
 import PaddingControl from './PaddingControl.vue';
 
 const store = useDesignerStore();
+const { upload, uploading, error: uploadError } = useImageUpload();
 
 const sel = computed<TemplateElement | null>(() => store.selectedElement);
 
@@ -44,6 +46,42 @@ function setBinding(v: string): void {
   if (!sel.value) return;
   if (sel.value.type === 'field' || sel.value.type === 'table') {
     store.updateElement(sel.value.id, { binding: v } as Partial<TemplateElement>);
+  }
+}
+
+type ImageSourceKind = 'static' | 'field' | 'upload';
+function setImageSourceKind(kind: ImageSourceKind): void {
+  if (!sel.value || sel.value.type !== 'image') return;
+  if (kind === 'static' || kind === 'upload') {
+    store.updateElement(sel.value.id, {
+      source: { kind: 'static', url: '' },
+    } as Partial<TemplateElement>);
+  } else {
+    store.updateElement(sel.value.id, {
+      source: { kind: 'field', binding: '' },
+    } as Partial<TemplateElement>);
+  }
+}
+function setStaticUrl(v: string): void {
+  if (!sel.value || sel.value.type !== 'image') return;
+  store.updateElement(sel.value.id, {
+    source: { kind: 'static', url: v },
+  } as Partial<TemplateElement>);
+}
+function setFieldBinding(v: string): void {
+  if (!sel.value || sel.value.type !== 'image') return;
+  store.updateElement(sel.value.id, {
+    source: { kind: 'field', binding: v },
+  } as Partial<TemplateElement>);
+}
+async function onFileChange(e: Event): Promise<void> {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const r = await upload(file);
+  if (r && sel.value && sel.value.type === 'image') {
+    store.updateElement(sel.value.id, {
+      source: { kind: 'static', url: r.url },
+    } as Partial<TemplateElement>);
   }
 }
 
@@ -411,6 +449,72 @@ const advancedOpen = ref(false);
         @update="(patch: Partial<TemplateElement>) => store.updateElement(sel!.id, patch)"
       />
 
+      <div v-if="sel && sel.type === 'image'" class="img-source">
+        <div class="style-title">图片来源</div>
+        <div class="srow">
+          <div class="seg">
+            <button
+              :class="{
+                on: sel.source.kind === 'static' && !sel.source.url.startsWith('/uploads/'),
+              }"
+              @click="setImageSourceKind('static')"
+            >
+              URL
+            </button>
+            <button
+              :class="{
+                on: sel.source.kind === 'static' && sel.source.url.startsWith('/uploads/'),
+              }"
+              @click="setImageSourceKind('upload')"
+            >
+              上传
+            </button>
+            <button
+              :class="{ on: sel.source.kind === 'field' }"
+              @click="setImageSourceKind('field')"
+            >
+              绑定字段
+            </button>
+          </div>
+        </div>
+
+        <div
+          v-if="sel.source.kind === 'static' && !sel.source.url.startsWith('/uploads/')"
+          class="srow"
+        >
+          <input
+            class="snum"
+            style="flex: 1"
+            :value="sel.source.url"
+            @input="(e: Event) => setStaticUrl((e.target as HTMLInputElement).value)"
+            placeholder="https://..."
+          />
+        </div>
+        <div v-else-if="sel.source.kind === 'static'" class="srow">
+          <input type="file" accept="image/svg+xml,image/png,image/jpeg" @change="onFileChange" />
+          <span v-if="uploading" class="sval">上传中…</span>
+          <span v-if="uploadError" class="sval" style="color: #d94f4f">{{ uploadError }}</span>
+          <span v-if="sel.source.url" class="sval mono">{{ sel.source.url }}</span>
+        </div>
+        <div v-else class="srow">
+          <select
+            class="ssel"
+            style="flex: 1"
+            :value="sel.source.binding"
+            @change="(e: Event) => setFieldBinding((e.target as HTMLSelectElement).value)"
+          >
+            <option value="">(选择字段)</option>
+            <option
+              v-for="f in store.fieldDefs.filter((x) => x.def.type === 'image')"
+              :key="f.key"
+              :value="f.key"
+            >
+              {{ f.key }} · {{ f.def.label }}
+            </option>
+          </select>
+        </div>
+      </div>
+
       <BorderControl :model-value="sel.style.border" @update:model-value="updateStyleBorder" />
       <PaddingControl :model-value="sel.style.padding" @update:model-value="updateStylePadding" />
 
@@ -595,5 +699,9 @@ const advancedOpen = ref(false);
 .slider {
   flex: 1;
   accent-color: var(--tp-accent);
+}
+.img-source {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--tp-line);
 }
 </style>
