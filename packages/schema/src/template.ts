@@ -125,8 +125,20 @@ export const BarcodeElementSchema = Base.extend({
   type: z.literal('barcode'),
   binding: z.string().min(1).optional(),
   content: z.object({ static: z.string() }).optional(),
-  symbology: z.enum(['qr', 'code128', 'code39', 'ean13']).default('qr'),
+  symbology: z.enum(['qr', 'code128', 'code39', 'ean13', 'ean8', 'upc-a', 'itf14']).default('qr'),
   showText: z.boolean().default(false),
+
+  // QR-only controls
+  eccLevel: z.enum(['L', 'M', 'Q', 'H']).optional(),
+
+  // Shared controls
+  foregroundColor: z.string().default('#000000'),
+  backgroundColor: z.string().default('#ffffff'),
+  quietZone: z.number().nonnegative().default(2),
+
+  // 1D-only controls
+  textPosition: z.enum(['top', 'bottom']).optional(),
+  textFontSize: z.number().positive().optional(),
 });
 
 export const AutonumberElementSchema = Base.extend({

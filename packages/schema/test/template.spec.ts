@@ -7,6 +7,7 @@ import {
   TextElementSchema,
   TableElementSchema,
   StyleSchema,
+  BarcodeElementSchema,
   type Template,
   // eslint-disable-next-line import/no-unresolved
 } from '../src/template.js';
@@ -191,5 +192,47 @@ describe('expanded StyleSchema', () => {
 
   it('rejects fontWeight outside the enum', () => {
     expect(() => StyleSchema.parse({ ...baseStyle, fontWeight: 800 })).toThrow();
+  });
+});
+
+describe('expanded BarcodeElementSchema', () => {
+  const baseBarcode = {
+    id: 'b1',
+    type: 'barcode' as const,
+    grid: { c: 0, r: 0, cs: 12, rs: 12 },
+    anchor: { x: 0, y: 0, w: 12, h: 12 },
+    style: baseStyle,
+    content: { static: 'SAMPLE' },
+    showText: false,
+  };
+
+  it('accepts qr with eccLevel + colors + quietZone', () => {
+    const el = {
+      ...baseBarcode,
+      symbology: 'qr' as const,
+      eccLevel: 'Q' as const,
+      foregroundColor: '#111',
+      backgroundColor: '#fff',
+      quietZone: 4,
+    };
+    expect(BarcodeElementSchema.parse(el).eccLevel).toBe('Q');
+  });
+
+  it('accepts code128 with textPosition + textFontSize', () => {
+    const el = {
+      ...baseBarcode,
+      symbology: 'code128' as const,
+      showText: true,
+      textPosition: 'top' as const,
+      textFontSize: 12,
+    };
+    expect(BarcodeElementSchema.parse(el).textPosition).toBe('top');
+  });
+
+  it('accepts new symbology values ean8, upc-a, itf14', () => {
+    for (const sym of ['ean8', 'upc-a', 'itf14'] as const) {
+      const el = { ...baseBarcode, symbology: sym };
+      expect(BarcodeElementSchema.parse(el).symbology).toBe(sym);
+    }
   });
 });
