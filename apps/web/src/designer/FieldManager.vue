@@ -38,12 +38,19 @@ function submit(): void {
     ElMessage.error(`字段 "${form.value.key}" 已存在`);
     return;
   }
-  store.addField(form.value.key, {
-    type: form.value.type,
-    label: form.value.label,
-    required: form.value.required,
-    example: form.value.example || undefined,
-  });
+  const f = form.value;
+  const base = { label: f.label, required: f.required, example: f.example || undefined };
+  let def;
+  if (f.type === 'string') {
+    def = { type: 'string' as const, ...base };
+  } else if (f.type === 'number') {
+    def = { type: 'number' as const, ...base, thousands: false };
+  } else if (f.type === 'date') {
+    def = { type: 'date' as const, ...base, format: 'YYYY-MM-DD' };
+  } else {
+    def = { type: 'array' as const, ...base };
+  }
+  store.addField(f.key, def);
   dialogOpen.value = false;
 }
 
