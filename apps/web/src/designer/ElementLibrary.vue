@@ -15,7 +15,10 @@ const itemsByGroup = computed<Record<LibraryGroup, ElementMeta[]>>(() => {
 
 function clickAdd(meta: ElementMeta): void {
   const cell = store.template.canvas.cell;
-  const el = buildElement(meta, store.newElementId(), 4, 4, cell.w, cell.h);
+  // Drop at a small default offset from top-left so successive clicks don't fully overlap.
+  const count = store.template.elements.length;
+  const anchorMm = { x: 4 + (count % 10) * 2, y: 4 + (count % 10) * 2 };
+  const el = buildElement(meta, store.newElementId(), anchorMm, cell);
   store.addElement(el);
 }
 

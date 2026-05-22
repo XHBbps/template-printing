@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// eslint-disable-next-line import/no-unresolved
-import type { TemplateElement } from '@template-printing/schema';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { useDesignerStore } from '../stores/designer';
@@ -44,36 +42,34 @@ function onDragLeave(e: DragEvent): void {
 }
 
 function onDrop(e: DragEvent): void {
+  e.preventDefault();
   isDropTarget.value = false;
   if (!e.dataTransfer) return;
   const raw = e.dataTransfer.getData('application/x-tp-element');
   if (!raw) return;
-  e.preventDefault();
   let meta: ElementMeta;
   try {
-    meta = JSON.parse(raw) as ElementMeta;
+    meta = JSON.parse(raw);
   } catch {
     return;
   }
   if (!paperRef.value) return;
+
   const rect = paperRef.value.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  const { w: cellW, h: cellH } = store.template.canvas.cell;
-  const { cols, rows } = store.template.canvas;
-  // Snap to cell, centered on cursor
-  let c = Math.floor(x / cellW) - Math.floor(meta.defaultGrid.cs / 2);
-  let r = Math.floor(y / cellH) - Math.floor(meta.defaultGrid.rs / 2);
-  c = Math.max(0, Math.min(cols - meta.defaultGrid.cs, c));
-  r = Math.max(0, Math.min(rows - meta.defaultGrid.rs, r));
-  const el: TemplateElement = buildElement(
-    meta,
-    store.newElementId(),
-    c,
-    r,
-    store.template.canvas.cell.w,
-    store.template.canvas.cell.h,
-  );
+  const zoom = store.view.zoom;
+  const PX_PER_MM = 4;
+  const cursorMmX = (e.clientX - rect.left) / (PX_PER_MM * zoom);
+  const cursorMmY = (e.clientY - rect.top) / (PX_PER_MM * zoom);
+
+  const paperPx = store.paperPx;
+  const paperMm = { w: paperPx.w / PX_PER_MM, h: paperPx.h / PX_PER_MM };
+
+  const anchorMm = {
+    x: Math.max(0, Math.min(paperMm.w - meta.defaultMm.w, cursorMmX - meta.defaultMm.w / 2)),
+    y: Math.max(0, Math.min(paperMm.h - meta.defaultMm.h, cursorMmY - meta.defaultMm.h / 2)),
+  };
+
+  const el = buildElement(meta, store.newElementId(), anchorMm, store.template.canvas.cell);
   store.addElement(el);
 }
 
