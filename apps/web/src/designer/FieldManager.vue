@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// eslint-disable-next-line import/no-unresolved
 import {
   ElButton,
   ElDialog,
@@ -8,48 +9,105 @@ import {
   ElMessage,
   ElOption,
   ElSelect,
+  ElCheckbox,
 } from 'element-plus';
 import { ref } from 'vue';
-
 import { useDesignerStore } from '../stores/designer';
 
-const store = useDesignerStore();
+type FieldType = 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'enum' | 'image' | 'array';
 
+const store = useDesignerStore();
 const dialogOpen = ref(false);
-const form = ref({
-  key: '',
-  label: '',
-  type: 'string' as 'string' | 'number' | 'date' | 'array',
-  required: false,
-  example: '',
-});
+
+interface FormShape {
+  key: string;
+  label: string;
+  type: FieldType;
+  required: boolean;
+  example: string;
+  // string
+  maxLength?: number;
+  // number
+  thousands?: boolean;
+  // date / datetime
+  format?: string;
+  // boolean
+  trueLabel?: string;
+  falseLabel?: string;
+  // enum
+  options?: Array<{ value: string; label: string }>;
+  // image
+  accept?: string[];
+}
+
+const form = ref<FormShape>(defaultForm());
+
+function defaultForm(): FormShape {
+  return { key: '', label: '', type: 'string', required: false, example: '' };
+}
 
 function openAdd(): void {
-  form.value = { key: '', label: '', type: 'string', required: false, example: '' };
+  form.value = defaultForm();
   dialogOpen.value = true;
 }
 
+function addOptionRow(): void {
+  if (!form.value.options) form.value.options = [];
+  form.value.options.push({ value: '', label: '' });
+}
+function removeOptionRow(i: number): void {
+  form.value.options?.splice(i, 1);
+}
+
+function toggleAcc(arr: string[] | undefined, mime: string, on: boolean): string[] {
+  const cur = arr ?? ['image/svg+xml', 'image/png', 'image/jpeg'];
+  if (on) return cur.includes(mime) ? cur : [...cur, mime];
+  return cur.filter((m) => m !== mime);
+}
+
 function submit(): void {
-  if (!form.value.key || !form.value.label) {
+  const f = form.value;
+  if (!f.key || !f.label) {
     ElMessage.warning('key 和 label 都必须填');
     return;
   }
-  if (store.template.schema[form.value.key]) {
-    ElMessage.error(`字段 "${form.value.key}" 已存在`);
+  if (store.template.schema[f.key]) {
+    ElMessage.error(`字段 "${f.key}" 已存在`);
     return;
   }
-  const f = form.value;
+
   const base = { label: f.label, required: f.required, example: f.example || undefined };
   let def;
   if (f.type === 'string') {
-    def = { type: 'string' as const, ...base };
+    def = { type: 'string' as const, ...base, ...(f.maxLength ? { maxLength: f.maxLength } : {}) };
   } else if (f.type === 'number') {
-    def = { type: 'number' as const, ...base, thousands: false };
+    def = { type: 'number' as const, ...base, thousands: f.thousands ?? false };
   } else if (f.type === 'date') {
-    def = { type: 'date' as const, ...base, format: 'YYYY-MM-DD' };
+    def = { type: 'date' as const, ...base, format: f.format || 'YYYY-MM-DD' };
+  } else if (f.type === 'datetime') {
+    def = { type: 'datetime' as const, ...base, format: f.format || 'YYYY-MM-DD HH:mm' };
+  } else if (f.type === 'boolean') {
+    def = {
+      type: 'boolean' as const,
+      ...base,
+      trueLabel: f.trueLabel || '是',
+      falseLabel: f.falseLabel || '否',
+    };
+  } else if (f.type === 'enum') {
+    const opts = (f.options ?? []).filter((o) => o.value && o.label);
+    if (opts.length === 0) {
+      ElMessage.error('enum 至少需要一个选项 (value + label 都要填)');
+      return;
+    }
+    def = { type: 'enum' as const, ...base, options: opts };
+  } else if (f.type === 'image') {
+    const accept =
+      f.accept && f.accept.length > 0 ? f.accept : ['image/svg+xml', 'image/png', 'image/jpeg'];
+    def = { type: 'image' as const, ...base, accept };
   } else {
     def = { type: 'array' as const, ...base };
   }
+
   store.addField(f.key, def);
   dialogOpen.value = false;
 }
@@ -87,25 +145,75 @@ function remove(key: string): void {
       </div>
     </div>
 
-    <ElDialog v-model="dialogOpen" title="添加字段" width="360px">
+    <ElDialog v-model="dialogOpen" title="添加字段" width="420px">
       <ElForm label-position="top">
-        <ElFormItem label="key (英文/拼音)">
-          <ElInput v-model="form.key" />
-        </ElFormItem>
-        <ElFormItem label="label (中文显示名)">
-          <ElInput v-model="form.label" />
-        </ElFormItem>
+        <ElFormItem label="key (英文/拼音)"><ElInput v-model="form.key" /></ElFormItem>
+        <ElFormItem label="label (中文显示名)"><ElInput v-model="form.label" /></ElFormItem>
         <ElFormItem label="类型">
           <ElSelect v-model="form.type">
-            <ElOption label="string" value="string" />
-            <ElOption label="number" value="number" />
-            <ElOption label="date" value="date" />
-            <ElOption label="array" value="array" />
+            <ElOption label="文本 string" value="string" />
+            <ElOption label="数字 number" value="number" />
+            <ElOption label="日期 date" value="date" />
+            <ElOption label="日期时间 datetime" value="datetime" />
+            <ElOption label="布尔 boolean" value="boolean" />
+            <ElOption label="枚举 enum" value="enum" />
+            <ElOption label="图片 image" value="image" />
+            <ElOption label="数组 array" value="array" />
           </ElSelect>
         </ElFormItem>
-        <ElFormItem label="示例值">
-          <ElInput v-model="form.example" />
+
+        <ElFormItem v-if="form.type === 'string'" label="最大长度">
+          <ElInput v-model.number="form.maxLength" type="number" />
         </ElFormItem>
+        <ElFormItem v-if="form.type === 'number'" label="千分位显示">
+          <ElCheckbox v-model="form.thousands" />
+        </ElFormItem>
+        <ElFormItem v-if="form.type === 'date' || form.type === 'datetime'" label="格式">
+          <ElInput
+            v-model="form.format"
+            :placeholder="form.type === 'datetime' ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'"
+          />
+        </ElFormItem>
+        <template v-if="form.type === 'boolean'">
+          <ElFormItem label="true 显示文案"
+            ><ElInput v-model="form.trueLabel" placeholder="是"
+          /></ElFormItem>
+          <ElFormItem label="false 显示文案"
+            ><ElInput v-model="form.falseLabel" placeholder="否"
+          /></ElFormItem>
+        </template>
+        <template v-if="form.type === 'enum'">
+          <ElFormItem label="选项">
+            <div v-for="(o, i) in form.options || []" :key="i" class="enum-row">
+              <ElInput v-model="o.value" placeholder="value" style="width: 40%" />
+              <ElInput v-model="o.label" placeholder="label" style="width: 40%; margin-left: 8px" />
+              <ElButton link type="danger" @click="removeOptionRow(i)" style="margin-left: 8px"
+                >×</ElButton
+              >
+            </div>
+            <ElButton link @click="addOptionRow" style="margin-top: 6px">+ 添加选项</ElButton>
+          </ElFormItem>
+        </template>
+        <ElFormItem v-if="form.type === 'image'" label="允许格式">
+          <ElCheckbox
+            :model-value="form.accept?.includes('image/svg+xml') ?? true"
+            @change="(v) => (form.accept = toggleAcc(form.accept, 'image/svg+xml', !!v))"
+            >SVG</ElCheckbox
+          >
+          <ElCheckbox
+            :model-value="form.accept?.includes('image/png') ?? true"
+            @change="(v) => (form.accept = toggleAcc(form.accept, 'image/png', !!v))"
+            >PNG</ElCheckbox
+          >
+          <ElCheckbox
+            :model-value="form.accept?.includes('image/jpeg') ?? true"
+            @change="(v) => (form.accept = toggleAcc(form.accept, 'image/jpeg', !!v))"
+            >JPG</ElCheckbox
+          >
+        </ElFormItem>
+
+        <ElFormItem label="示例值"><ElInput v-model="form.example" /></ElFormItem>
+
         <ElButton type="primary" style="width: 100%" @click="submit">添加</ElButton>
       </ElForm>
     </ElDialog>
@@ -212,5 +320,10 @@ function remove(key: string): void {
 .del:hover {
   background: var(--tp-field-bg);
   color: #d94f4f;
+}
+.enum-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
 }
 </style>
