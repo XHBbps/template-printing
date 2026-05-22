@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useDesignerStore } from '../stores/designer';
 import CanvasElement from './CanvasElement.vue';
 import { buildElement, type ElementMeta } from './elementFactory';
+import SnapGuides from './SnapGuides.vue';
 
 const store = useDesignerStore();
 const paperRef = ref<HTMLElement | null>(null);
@@ -122,6 +123,7 @@ onBeforeUnmount(() => {
       @drop="onDrop"
     >
       <CanvasElement v-for="el in store.template.elements" :key="el.id" :element="el" />
+      <SnapGuides v-if="store.isResizing" :guides="store.guides" />
     </div>
   </div>
 </template>
