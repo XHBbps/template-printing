@@ -6,10 +6,14 @@ import type { ElementStyle, TemplateElement } from '@template-printing/schema';
 
 import { useDesignerStore } from '../stores/designer';
 import { useImageUpload } from '../composables/useImageUpload';
-import { minMmFor } from './elementFactory';
+import { allowedFieldTypesForElement, minMmFor } from './elementFactory';
 import BarcodeProperties from './BarcodeProperties.vue';
+import QrProperties from './QrProperties.vue';
+import SliderWithInput from './SliderWithInput.vue';
 import BorderControl from './BorderControl.vue';
 import PaddingControl from './PaddingControl.vue';
+// eslint-disable-next-line import/no-unresolved
+import { Trash2 } from 'lucide-vue-next';
 
 const store = useDesignerStore();
 const { upload, uploading, error: uploadError } = useImageUpload();
@@ -17,6 +21,19 @@ const { upload, uploading, error: uploadError } = useImageUpload();
 const sel = computed<TemplateElement | null>(() => store.selectedElement);
 
 const minMmCurrent = computed(() => (sel.value ? minMmFor(sel.value) : { w: 0.25, h: 0.25 }));
+
+const compatibleFields = computed(() => {
+  if (!sel.value) return [];
+  const allowed = allowedFieldTypesForElement(sel.value.type);
+  return store.fieldDefs.filter((f) => allowed.includes(f.def.type));
+});
+
+const currentBindingMissing = computed(() => {
+  if (!sel.value || !('binding' in sel.value)) return false;
+  const b = (sel.value as { binding?: string }).binding;
+  if (!b) return false;
+  return !compatibleFields.value.some((f) => f.key === b);
+});
 
 function updateStyleBorder(v: ElementStyle['border']): void {
   if (!sel.value) return;
@@ -209,14 +226,46 @@ const advancedOpen = ref(false);
           @update:model-value="setTextContent"
         />
       </div>
-      <div v-if="sel.type === 'field' || sel.type === 'table'" class="row">
+
+      <!-- 绑定 — field (with (未绑定) sentinel + type-filtered options + warning) -->
+      <div v-if="sel && sel.type === 'field'" class="row">
         <span class="lbl">绑定</span>
-        <ElSelect size="small" :model-value="sel.binding" style="flex: 1" @change="setBinding">
+        <ElSelect
+          size="small"
+          :model-value="sel.binding"
+          style="flex: 1"
+          @change="(v: string) => setBinding(v)"
+        >
+          <ElOption value="" label="（未绑定）" />
           <ElOption
-            v-for="f in store.fieldDefs"
+            v-for="f in compatibleFields"
             :key="f.key"
             :value="f.key"
-            :label="`${f.key} (${f.def.label})`"
+            :label="`${f.key} · ${f.def.label}`"
+          />
+          <ElOption
+            v-if="currentBindingMissing"
+            :value="sel.binding"
+            :label="`⚠ ${sel.binding} (类型不兼容)`"
+            disabled
+          />
+        </ElSelect>
+      </div>
+
+      <!-- 绑定 — table (binding required, no (未绑定) option) -->
+      <div v-if="sel && sel.type === 'table'" class="row">
+        <span class="lbl">绑定</span>
+        <ElSelect
+          size="small"
+          :model-value="sel.binding"
+          style="flex: 1"
+          @change="(v: string) => setBinding(v)"
+        >
+          <ElOption
+            v-for="f in compatibleFields"
+            :key="f.key"
+            :value="f.key"
+            :label="`${f.key} · ${f.def.label}`"
           />
         </ElSelect>
       </div>
@@ -266,10 +315,10 @@ const advancedOpen = ref(false);
                 })
             "
           >
-            <option :value="400">常规 400</option>
-            <option :value="500">中等 500</option>
-            <option :value="600">半粗 600</option>
-            <option :value="700">粗体 700</option>
+            <option :value="400">偏细</option>
+            <option :value="500">常规</option>
+            <option :value="600">加粗</option>
+            <option :value="700">特粗</option>
           </select>
         </div>
 
@@ -282,12 +331,13 @@ const advancedOpen = ref(false);
               :class="{ on: sel.style.textAlign === a }"
               @click="updateStyle({ textAlign: a })"
             >
-              {{ { left: '左', center: '中', right: '右', justify: '端' }[a] }}
+              {{ { left: '左', center: '中', right: '右', justify: '两端' }[a] }}
             </button>
           </div>
         </div>
       </div>
 
+      <!-- 样式 · 高级 — text-only rows (fontFamily / letterSpacing / lineHeight / textDecoration / verticalAlign / textOverflow) -->
       <div v-if="isTextish(sel)" class="style-block">
         <div class="style-title sclickable" @click="advancedOpen = !advancedOpen">
           样式 · 高级 <span class="caret">{{ advancedOpen ? '▾' : '▸' }}</span>
@@ -361,16 +411,6 @@ const advancedOpen = ref(false);
             </select>
           </div>
           <div class="srow">
-            <span class="slbl">背景色</span>
-            <input
-              type="color"
-              :value="sel.style.backgroundColor ?? '#ffffff'"
-              @input="
-                (e: Event) => updateStyle({ backgroundColor: (e.target as HTMLInputElement).value })
-              "
-            />
-          </div>
-          <div class="srow">
             <span class="slbl">垂直对齐</span>
             <div class="seg">
               <button
@@ -382,49 +422,6 @@ const advancedOpen = ref(false);
                 {{ { top: '上', middle: '中', bottom: '下' }[v] }}
               </button>
             </div>
-          </div>
-          <div class="srow">
-            <span class="slbl">层级 z</span>
-            <input
-              type="number"
-              :value="sel.style.zIndex ?? 0"
-              class="snum"
-              @input="
-                (e: Event) => updateStyle({ zIndex: Number((e.target as HTMLInputElement).value) })
-              "
-            />
-          </div>
-          <div class="srow">
-            <span class="slbl">旋转</span>
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              step="1"
-              :value="sel.style.rotation ?? 0"
-              class="slider"
-              @input="
-                (e: Event) =>
-                  updateStyle({ rotation: Number((e.target as HTMLInputElement).value) })
-              "
-            />
-            <span class="sval mono">{{ sel.style.rotation ?? 0 }}°</span>
-          </div>
-          <div class="srow">
-            <span class="slbl">透明度</span>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              :value="(sel.style.opacity ?? 1) * 100"
-              class="slider"
-              @input="
-                (e: Event) =>
-                  updateStyle({ opacity: Number((e.target as HTMLInputElement).value) / 100 })
-              "
-            />
-            <span class="sval mono">{{ Math.round((sel.style.opacity ?? 1) * 100) }}%</span>
           </div>
           <div class="srow">
             <span class="slbl">溢出</span>
@@ -449,8 +446,65 @@ const advancedOpen = ref(false);
         </div>
       </div>
 
+      <!-- 布局 · 高级 — universal (backgroundColor / zIndex / rotation / opacity) -->
+      <div v-if="sel" class="style-block">
+        <div class="style-title sclickable" @click="advancedOpen = !advancedOpen">
+          布局 · 高级 <span class="caret">{{ advancedOpen ? '▾' : '▸' }}</span>
+        </div>
+        <div v-if="advancedOpen">
+          <div class="srow">
+            <span class="slbl">背景色</span>
+            <input
+              type="color"
+              :value="sel.style.backgroundColor ?? '#ffffff'"
+              @input="
+                (e: Event) => updateStyle({ backgroundColor: (e.target as HTMLInputElement).value })
+              "
+            />
+          </div>
+          <div class="srow">
+            <span class="slbl">层级 z</span>
+            <input
+              type="number"
+              :value="sel.style.zIndex ?? 0"
+              class="snum"
+              @input="
+                (e: Event) => updateStyle({ zIndex: Number((e.target as HTMLInputElement).value) })
+              "
+            />
+          </div>
+          <div class="srow">
+            <span class="slbl">旋转</span>
+            <SliderWithInput
+              :model-value="sel.style.rotation ?? 0"
+              :min="-180"
+              :max="180"
+              :step="1"
+              :format="(v: number) => `${v}°`"
+              @update:model-value="(v: number) => updateStyle({ rotation: v })"
+            />
+          </div>
+          <div class="srow">
+            <span class="slbl">透明度</span>
+            <SliderWithInput
+              :model-value="Math.round((sel.style.opacity ?? 1) * 100)"
+              :min="0"
+              :max="100"
+              :step="1"
+              :format="(v: number) => `${v}%`"
+              @update:model-value="(v: number) => updateStyle({ opacity: v / 100 })"
+            />
+          </div>
+        </div>
+      </div>
+
       <BarcodeProperties
         v-if="sel && sel.type === 'barcode'"
+        :element="sel"
+        @update="(patch: Partial<TemplateElement>) => store.updateElement(sel!.id, patch)"
+      />
+      <QrProperties
+        v-if="sel && sel.type === 'qr'"
         :element="sel"
         @update="(patch: Partial<TemplateElement>) => store.updateElement(sel!.id, patch)"
       />
@@ -526,7 +580,8 @@ const advancedOpen = ref(false);
 
       <div style="padding: 12px 16px">
         <ElButton type="danger" plain size="small" style="width: 100%" @click="del">
-          删除元素
+          <Trash2 :size="14" :stroke-width="2" />
+          <span style="margin-left: 6px">删除元素</span>
         </ElButton>
       </div>
     </div>
