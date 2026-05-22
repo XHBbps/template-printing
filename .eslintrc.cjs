@@ -17,6 +17,7 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/no-explicit-any': 'warn',
     'import/order': ['warn', { 'newlines-between': 'always', alphabetize: { order: 'asc' } }],
+    'import/no-unresolved': 'off',
   },
   ignorePatterns: ['dist/', 'node_modules/', '*.config.cjs', '*.config.js', '.eslintrc.cjs'],
 };

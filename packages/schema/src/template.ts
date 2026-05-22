@@ -47,11 +47,22 @@ export const GridPosSchema = z.object({
 });
 export type GridPos = z.infer<typeof GridPosSchema>;
 
+// --- Anchor coordinates ---
+
+export const AnchorSchema = z.object({
+  x: z.number().nonnegative(),
+  y: z.number().nonnegative(),
+  w: z.number().positive(),
+  h: z.number().positive(),
+});
+export type Anchor = z.infer<typeof AnchorSchema>;
+
 // --- Element variants (8 types) ---
 
 const Base = z.object({
   id: z.string().min(1),
   grid: GridPosSchema,
+  anchor: AnchorSchema,
   style: StyleSchema,
 });
 

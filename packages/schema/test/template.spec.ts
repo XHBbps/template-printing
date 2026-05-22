@@ -65,6 +65,7 @@ describe('ElementSchema', () => {
       id: 'e1',
       type: 'text',
       grid: { c: 0, r: 0, cs: 10, rs: 2 },
+      anchor: { x: 0, y: 0, w: 10, h: 2 },
       style: baseStyle,
       content: { static: 'Hello' },
     });
@@ -77,6 +78,7 @@ describe('ElementSchema', () => {
         id: 'e2',
         type: 'table',
         grid: { c: 0, r: 0, cs: 20, rs: 10 },
+        anchor: { x: 0, y: 0, w: 20, h: 10 },
         style: baseStyle,
         binding: 'items',
         columns: [],
@@ -91,6 +93,7 @@ describe('ElementSchema', () => {
       id: 'b1',
       type: 'barcode',
       grid: { c: 0, r: 0, cs: 8, rs: 8 },
+      anchor: { x: 0, y: 0, w: 8, h: 8 },
       style: baseStyle,
       symbology: 'qr',
       content: { static: 'https://example.com' },
@@ -108,8 +111,47 @@ describe('ElementSchema', () => {
         id: 'x',
         type: 'unknown',
         grid: { c: 0, r: 0, cs: 1, rs: 1 },
+        anchor: { x: 0, y: 0, w: 1, h: 1 },
         style: baseStyle,
       }),
     ).toThrow();
+  });
+
+  describe('anchor field', () => {
+    it('parses an element with an anchor', () => {
+      const el = {
+        id: 'e1',
+        type: 'text',
+        grid: { c: 0, r: 0, cs: 4, rs: 2 },
+        anchor: { x: 0, y: 0, w: 4, h: 2 },
+        style: baseStyle,
+        content: { static: 'hi' },
+      };
+      expect(ElementSchema.parse(el)).toMatchObject({ anchor: { x: 0, y: 0, w: 4, h: 2 } });
+    });
+
+    it('rejects negative anchor coordinates', () => {
+      const el = {
+        id: 'e1',
+        type: 'text',
+        grid: { c: 0, r: 0, cs: 4, rs: 2 },
+        anchor: { x: -1, y: 0, w: 4, h: 2 },
+        style: baseStyle,
+        content: { static: 'hi' },
+      };
+      expect(() => ElementSchema.parse(el)).toThrow();
+    });
+
+    it('rejects zero-size anchor', () => {
+      const el = {
+        id: 'e1',
+        type: 'text',
+        grid: { c: 0, r: 0, cs: 4, rs: 2 },
+        anchor: { x: 0, y: 0, w: 0, h: 2 },
+        style: baseStyle,
+        content: { static: 'hi' },
+      };
+      expect(() => ElementSchema.parse(el)).toThrow();
+    });
   });
 });
