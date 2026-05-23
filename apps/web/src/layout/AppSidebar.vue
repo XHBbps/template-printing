@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { FileText, User, Key, Users, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next';
+import { FileText, User, Key, Users, LogOut, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 
 import { useAuthStore } from '../stores/auth';
@@ -36,8 +36,8 @@ async function logout(): Promise<void> {
     <div class="sb-head">
       <span v-if="!collapsed" class="sb-logo">模板打印</span>
       <button class="sb-toggle" type="button" :title="collapsed ? '展开' : '折叠'" @click="toggle">
-        <PanelLeftOpen v-if="collapsed" :size="16" :stroke-width="2" />
-        <PanelLeftClose v-else :size="16" :stroke-width="2" />
+        <ChevronRight v-if="collapsed" :size="18" :stroke-width="2.5" />
+        <ChevronLeft v-else :size="18" :stroke-width="2.5" />
       </button>
     </div>
 
@@ -61,14 +61,15 @@ async function logout(): Promise<void> {
     </nav>
 
     <div class="sb-foot">
-      <div class="sb-user">
+      <div v-if="!collapsed" class="sb-user-row">
         <div class="sb-avatar">{{ (auth.user?.name ?? '?').charAt(0).toUpperCase() }}</div>
-        <div v-if="!collapsed" class="sb-user-meta">
-          <div class="sb-user-name">{{ auth.user?.name ?? '未登录' }}</div>
-          <button class="sb-logout" @click="logout">
-            <LogOut :size="11" :stroke-width="2" /> 退出
-          </button>
-        </div>
+        <div class="sb-user-name">{{ auth.user?.name ?? '未登录' }}</div>
+        <button class="sb-logout-icon" title="退出登录" @click="logout">
+          <LogOut :size="14" :stroke-width="2" />
+        </button>
+      </div>
+      <div v-else class="sb-user-row sb-user-row--collapsed">
+        <div class="sb-avatar">{{ (auth.user?.name ?? '?').charAt(0).toUpperCase() }}</div>
       </div>
     </div>
   </aside>
@@ -151,48 +152,53 @@ async function logout(): Promise<void> {
   padding: 10px 8px;
   border-top: 1px solid var(--tp-line, #ececef);
 }
-.sb-user {
+.sb-user-row {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 4px 2px;
+}
+.sb-user-row--collapsed {
+  justify-content: center;
 }
 .sb-avatar {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: var(--tp-accent, #6c5ce7);
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
 }
-.sb-user-meta {
+.sb-user-name {
   flex: 1;
   min-width: 0;
-}
-.sb-user-name {
   font-size: 12px;
   color: var(--tp-ink, #1f1f23);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sb-logout {
-  background: transparent;
+.sb-logout-icon {
+  width: 28px;
+  height: 28px;
   border: none;
+  background: transparent;
   color: var(--tp-ink-faint, #9c9ca3);
-  font-size: 11px;
   cursor: pointer;
-  padding: 0;
-  margin-top: 2px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 120ms ease;
 }
-.sb-logout:hover {
+.sb-logout-icon:hover {
+  background: #fee5e5;
   color: #d94f4f;
 }
 </style>
