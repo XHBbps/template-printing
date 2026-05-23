@@ -1,13 +1,37 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
 import { Undo2, Redo2, Hand, Minus, Plus } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 
 import { useDesignerStore } from '../stores/designer';
 
 const store = useDesignerStore();
 
 const zoomLabel = computed(() => `${Math.round(store.view.zoom * 100)}%`);
+
+// Double-click on zoom label → editable input
+const editing = ref(false);
+const inputValue = ref('');
+const inputRef = ref<HTMLInputElement | null>(null);
+
+async function startEdit(): Promise<void> {
+  editing.value = true;
+  inputValue.value = String(Math.round(store.view.zoom * 100));
+  await nextTick();
+  inputRef.value?.select();
+}
+
+function commitEdit(): void {
+  const v = Number(inputValue.value);
+  if (Number.isFinite(v) && v >= 25 && v <= 400) {
+    store.setZoom(v / 100);
+  }
+  editing.value = false;
+}
+
+function cancelEdit(): void {
+  editing.value = false;
+}
 </script>
 
 <template>
@@ -35,9 +59,28 @@ const zoomLabel = computed(() => `${Math.round(store.view.zoom * 100)}%`);
     <button class="cft-btn" title="缩小" @click="store.zoomOut">
       <Minus :size="16" :stroke-width="2" />
     </button>
-    <span class="cft-zoom-label" title="点击适配窗口" @click="store.fitView">
+    <span
+      v-if="!editing"
+      class="cft-zoom-label"
+      title="单击适配窗口 / 双击手动输入"
+      @click="store.fitView"
+      @dblclick.stop="startEdit"
+    >
       {{ zoomLabel }}
     </span>
+    <input
+      v-else
+      ref="inputRef"
+      v-model="inputValue"
+      type="number"
+      min="25"
+      max="400"
+      step="1"
+      class="cft-zoom-input"
+      @blur="commitEdit"
+      @keydown.enter="commitEdit"
+      @keydown.esc="cancelEdit"
+    />
     <button class="cft-btn" title="放大" @click="store.zoomIn">
       <Plus :size="16" :stroke-width="2" />
     </button>
@@ -110,5 +153,27 @@ const zoomLabel = computed(() => `${Math.round(store.view.zoom * 100)}%`);
 }
 .cft-zoom-label:hover {
   background: var(--tp-field-bg, rgba(108, 92, 231, 0.06));
+}
+.cft-zoom-input {
+  width: 56px;
+  text-align: center;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  font-weight: 500;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--tp-accent, #6c5ce7);
+  outline: none;
+  color: var(--tp-ink, #1f1f23);
+  background: #fff;
+}
+/* Hide number input spinners */
+.cft-zoom-input::-webkit-outer-spin-button,
+.cft-zoom-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cft-zoom-input[type='number'] {
+  -moz-appearance: textfield;
 }
 </style>

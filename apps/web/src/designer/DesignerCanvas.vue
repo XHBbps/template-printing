@@ -131,34 +131,37 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    ref="canvasAreaRef"
-    class="tp-canvas-area"
-    :class="{ 'tp-canvas-area--pan': store.panMode }"
-    :style="canvasAreaStyle"
-    @pointerdown="onCanvasPointerDown"
-  >
+  <div class="tp-canvas-host">
     <div
-      ref="paperRef"
-      class="tp-paper"
-      :class="{
-        'is-dragging': store.isResizing,
-        'is-drop-target': isDropTarget,
-        heavy: store.template.elements.length > 500,
-      }"
-      :style="{
-        ...cssVars,
-        width: 'var(--canvas-w)',
-        height: 'var(--canvas-h)',
-      }"
-      @click="clickPaperBackground"
-      @dragover="onDragOver"
-      @dragleave="onDragLeave"
-      @drop="onDrop"
+      ref="canvasAreaRef"
+      class="tp-canvas-area"
+      :class="{ 'tp-canvas-area--pan': store.panMode }"
+      :style="canvasAreaStyle"
+      @pointerdown="onCanvasPointerDown"
     >
-      <CanvasElement v-for="el in store.template.elements" :key="el.id" :element="el" />
-      <SnapGuides v-if="store.isResizing" :guides="store.guides" />
+      <div
+        ref="paperRef"
+        class="tp-paper"
+        :class="{
+          'is-dragging': store.isResizing,
+          'is-drop-target': isDropTarget,
+          heavy: store.template.elements.length > 500,
+        }"
+        :style="{
+          ...cssVars,
+          width: 'var(--canvas-w)',
+          height: 'var(--canvas-h)',
+        }"
+        @click="clickPaperBackground"
+        @dragover="onDragOver"
+        @dragleave="onDragLeave"
+        @drop="onDrop"
+      >
+        <CanvasElement v-for="el in store.template.elements" :key="el.id" :element="el" />
+        <SnapGuides v-if="store.isResizing" :guides="store.guides" />
+      </div>
     </div>
+    <!-- Floating toolbar is a sibling of canvas-area so scroll doesn't move it -->
     <CanvasFloatingToolbar />
   </div>
 </template>
