@@ -107,9 +107,9 @@ function formatTime(iso: string): string {
   <div class="tv-wrap">
     <!-- List mode -->
     <div v-if="mode === 'list'" class="tv-list">
-      <header class="tv-head">
+      <header class="tv-hero">
         <h1 class="tv-title">模板中心</h1>
-        <ElButton type="primary" size="large" @click="createNew">
+        <ElButton type="primary" size="large" class="tv-new-btn" @click="createNew">
           <Plus :size="14" :stroke-width="2" style="margin-right: 6px" />
           新建模板
         </ElButton>
@@ -171,17 +171,41 @@ function formatTime(iso: string): string {
   max-width: none;
   padding: 0;
 }
-.tv-head {
+.tv-hero {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 18px 28px;
   margin-bottom: 24px;
+  background: linear-gradient(135deg, #fff 0%, #f4f0ff 100%);
+  border: 1px solid #ebebf3;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.tv-hero::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, rgba(108, 92, 231, 0.18), transparent 70%);
+  pointer-events: none;
 }
 .tv-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--tp-ink, #1f1f23);
+  position: relative;
+  font-size: 26px;
+  font-weight: 700;
   margin: 0;
+  background: linear-gradient(135deg, #1f1f23, #6c5ce7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.5px;
+}
+.tv-new-btn {
+  position: relative;
 }
 .tv-grid {
   display: grid;
