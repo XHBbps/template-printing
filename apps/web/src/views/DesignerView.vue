@@ -12,7 +12,7 @@ import FieldManager from '../designer/FieldManager.vue';
 import PropertyPanel from '../designer/PropertyPanel.vue';
 import TemplateNameEditor from '../designer/TemplateNameEditor.vue';
 import { apiFetch } from '../lib/api';
-import { useDesignerStore } from '../stores/designer';
+import { defaultTemplate, useDesignerStore } from '../stores/designer';
 import type { Template } from '@template-printing/schema';
 
 const props = defineProps<{
@@ -30,13 +30,41 @@ function getEffectiveId(): string | undefined {
   return Array.isArray(param) ? param[0] : param || undefined;
 }
 
+function isCompleteTemplate(data: unknown): data is Template {
+  if (!data || typeof data !== 'object') return false;
+  const t = data as Partial<Template>;
+  return (
+    typeof t.meta?.version === 'number' &&
+    typeof t.canvas?.cell?.w === 'number' &&
+    typeof t.canvas?.cell?.h === 'number' &&
+    Array.isArray(t.elements) &&
+    typeof t.schema === 'object'
+  );
+}
+
 async function loadById(id: string): Promise<void> {
   try {
     const record = await apiFetch<{ id: string; name: string; data: unknown }>(`/templates/${id}`);
-    const data = record.data as Template;
+    let data: Template;
+    if (isCompleteTemplate(record.data)) {
+      data = record.data;
+    } else {
+      // Self-heal: old template was created with incomplete defaultData.
+      // Rebuild a fresh complete structure but preserve the saved name.
+      // eslint-disable-next-line no-console
+      console.warn(`[Template ${id}] 数据残缺，自动重建结构`);
+      const fresh = defaultTemplate();
+      fresh.meta.name = record.name;
+      data = fresh;
+      // Write the repaired template back so next load is clean. Fire-and-forget.
+      void apiFetch(`/templates/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ data }),
+      });
+    }
     store.loadTemplate(data);
   } catch {
-    // If fetch fails, fall back to a fresh template rather than showing an error screen.
+    // If fetch fails (network / 401 / 404), fall back to a fresh template.
     store.reset();
   }
 }
