@@ -29,6 +29,22 @@ export async function renderJobOnPage(
   const heightPx = Math.round(args.paperMm.h * 4);
   await page.setViewport({ width: widthPx, height: heightPx, deviceScaleFactor: 2 });
 
+  // Surface browser-side errors / warnings to worker stdout for diagnostics.
+  // (debug / log / info muted to avoid Vite HMR noise.)
+  const onConsole = (msg: { type: () => string; text: () => string }): void => {
+    const type = msg.type();
+    if (type === 'error' || type === 'warning') {
+      // eslint-disable-next-line no-console
+      console.log(`[render][page.${type}] ${msg.text()}`);
+    }
+  };
+  const onPageError = (err: Error): void => {
+    // eslint-disable-next-line no-console
+    console.error(`[render][page.error] ${err.message}`);
+  };
+  page.on('console', onConsole);
+  page.on('pageerror', onPageError);
+
   // 2. Navigate to /print-headless route
   await page.goto(`${WEB_BASE}/print-headless/${args.jobId}`, { waitUntil: 'networkidle0' });
 
@@ -73,6 +89,9 @@ export async function renderJobOnPage(
       clip: { x: 0, y: 0, width: widthPx, height: heightPx },
     });
   }
+
+  page.off('console', onConsole);
+  page.off('pageerror', onPageError);
 
   return {
     pdfPath,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
 import { TemplateRenderer } from '@template-printing/template-renderer';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import type { Template } from '@template-printing/schema';
 
@@ -27,12 +27,14 @@ onMounted(() => {
     if (window.__renderInput) {
       template.value = window.__renderInput.template;
       data.value = window.__renderInput.data;
-      // Allow Vue to render, then signal puppeteer to take screenshot/PDF.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+      // Flush Vue reactive updates, then wait 50ms for a paint, then signal.
+      // Don't use requestAnimationFrame — headless pages can deprioritise RAF
+      // when offscreen, leaving the puppeteer worker waiting forever.
+      void nextTick().then(() => {
+        setTimeout(() => {
           ready.value = true;
           window.__renderReady = true;
-        });
+        }, 50);
       });
     } else {
       setTimeout(poll, 50);
