@@ -16,6 +16,8 @@ import { SecurityHeadersMiddleware } from './common/security-headers.middleware.
 // eslint-disable-next-line import/no-unresolved
 import { HealthModule } from './health/health.module.js';
 // eslint-disable-next-line import/no-unresolved
+import { LarkImModule } from './lark/lark-im.module.js';
+// eslint-disable-next-line import/no-unresolved
 import { PrismaModule } from './prisma/prisma.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { UploadsModule } from './uploads/uploads.module.js';
@@ -32,6 +34,7 @@ import { UploadsModule } from './uploads/uploads.module.js';
     HealthModule,
     AuthModule,
     UploadsModule,
+    LarkImModule,
   ],
 })
 export class AppModule implements NestModule {
