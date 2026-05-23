@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Patch,
@@ -80,6 +81,26 @@ export class MeController {
         mustChangePassword: false,
         // Ensure localUsername set (in case it was somehow null)
         localUsername: user.localUsername ?? user.larkUserId ?? user.id,
+      },
+    });
+    return { ok: true };
+  }
+
+  @Delete('me/lark-binding')
+  async unbindLark(@CurrentUser() jwt: JwtClaims): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
+    if (!user) throw new UnauthorizedException();
+    // Refuse if user would be left with NO way to log in
+    if (!user.localPasswordHash) {
+      throw new BadRequestException('set_password_before_unbinding_lark');
+    }
+    await this.prisma.user.update({
+      where: { id: jwt.sub },
+      data: {
+        larkOpenId: null,
+        larkUnionId: null,
+        larkUserId: null,
+        avatarUrl: null,
       },
     });
     return { ok: true };
