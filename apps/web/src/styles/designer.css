@@ -286,6 +286,7 @@
   }
   .tp-grip,
   .tp-hit-zones,
+  .tp-handle,
   .tp-size-badge {
     display: none !important;
   }
