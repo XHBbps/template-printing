@@ -2,6 +2,7 @@
 import 'element-plus/dist/index.css';
 import './styles/theme.css';
 import './styles/transitions.css';
+import './styles/print.css';
 
 // eslint-disable-next-line import/no-unresolved
 import ElementPlus from 'element-plus';

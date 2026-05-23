@@ -1,0 +1,51 @@
+/* ===========================================
+   Global print rules
+   After iter 20 inline editor refactor, the designer is rendered inside
+   TemplatesView (under AppShell + AppSidebar). The previous designer.css
+   @media print only hides designer-internal chrome — we now also need
+   to hide the global sidebar + the TemplatesView breadcrumb + remove all
+   wrap padding so only the .tp-paper area prints.
+   =========================================== */
+
+@media print {
+  /* Hide global app chrome */
+  .app-sidebar {
+    display: none !important;
+  }
+
+  /* Hide TemplatesView breadcrumb when in editor mode */
+  .tv-breadcrumb {
+    display: none !important;
+  }
+
+  /* Strip wrap padding / max-width so the paper sits flush */
+  .app-shell {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .app-main {
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .tv-wrap,
+  .tv-editor-mode,
+  .tv-editor-host,
+  .tv-list {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* Force body background white */
+  body {
+    background: #fff !important;
+  }
+
+  /* Reset page margins (the @page rule injected at print time controls paper size) */
+  @page {
+    margin: 0;
+  }
+}
