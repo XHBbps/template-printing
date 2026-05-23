@@ -43,6 +43,15 @@ defineEmits<{ (e: 'pointerdown', ev: PointerEvent): void }>();
 }
 .tp-grip--inside {
   top: 4px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 4px 6px;
+  width: auto;
+  height: auto;
+}
+.tp-grip--inside:hover {
+  background: rgba(108, 92, 231, 0.08);
 }
 .tp-grip--outside-above {
   top: -28px;
