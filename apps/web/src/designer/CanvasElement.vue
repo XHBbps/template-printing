@@ -110,9 +110,9 @@ const elementMap: Record<string, unknown> = {
   border-radius: 4px;
 }
 .tp-element.is-selected {
-  outline: 1.5px solid var(--tp-accent);
-  outline-offset: 3px;
-  box-shadow: 0 0 24px rgba(108, 92, 231, 0.18);
+  box-shadow:
+    inset 0 0 0 2px var(--tp-accent),
+    0 0 16px rgba(108, 92, 231, 0.18);
 }
 /* 4 corner handles — white fill, purple border, circular (#3) */
 .tp-handle {
