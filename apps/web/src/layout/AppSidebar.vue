@@ -23,7 +23,11 @@ function toggle(): void {
 
 async function logout(): Promise<void> {
   await auth.logout();
-  void router.push('/login');
+  // Hard navigation (not router.push) so the browser discards its bfcache
+  // snapshot of the authenticated page. Otherwise pressing back after logout
+  // restores the cached /templates with stale Pinia state and the user is
+  // "logged in" again before the async hydrate can correct it.
+  window.location.assign('/login');
 }
 </script>
 
