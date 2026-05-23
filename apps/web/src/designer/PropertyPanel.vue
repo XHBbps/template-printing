@@ -342,7 +342,7 @@ const layoutAdvOpen = ref(false);
       <!-- 样式 · 高级 — text-only rows (fontFamily / letterSpacing / lineHeight / textDecoration / verticalAlign / textOverflow) -->
       <div v-if="isTextish(sel)" class="style-block">
         <div class="style-title sclickable" @click="styleAdvOpen = !styleAdvOpen">
-          样式 · 高级 <span class="caret">{{ styleAdvOpen ? '▾' : '▸' }}</span>
+          字体 · 高级 <span class="caret">{{ styleAdvOpen ? '▾' : '▸' }}</span>
         </div>
         <div v-if="styleAdvOpen">
           <div class="srow">
