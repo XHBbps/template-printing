@@ -51,6 +51,12 @@ const router = createRouter({
       component: () => import('../views/ApiDocsView.vue'),
     },
     {
+      path: '/print-headless/:id',
+      name: 'print-headless',
+      meta: { requiresAuth: false, fullscreen: true },
+      component: () => import('../views/PrintHeadlessView.vue'),
+    },
+    {
       path: '/admin/users',
       name: 'admin-users',
       meta: { requiresAuth: true, adminOnly: true },
