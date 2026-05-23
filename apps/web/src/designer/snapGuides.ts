@@ -1,5 +1,5 @@
 export const SNAP_THRESHOLD_MM = 1.5;
-export const GUIDE_THRESHOLD_MM = 5;
+export const GUIDE_THRESHOLD_MM = 2;
 
 export interface SnapInput {
   target: { x: number; y: number; w: number; h: number };
@@ -62,14 +62,20 @@ export function computeSnap(input: SnapInput): SnapResult {
   if (bestV) {
     snapDx = bestV.delta;
   }
-  // Independent of bestV: collect all candidate v-lines within guideThreshold
-  // for visual display, even when no snap fires.
+  // Collect candidate v-lines within guideThreshold, then keep ONLY the
+  // closest one (smallest distance from any target line). Avoids visual
+  // clutter when multiple alignments are simultaneously near.
+  let bestVHit: { cl: number; absDistance: number } | null = null;
   for (const tl of t.v) {
     const newPos = tl + snapDx;
     for (const cl of c.v) {
-      if (Math.abs(cl - newPos) <= input.guideThreshold) hitV.push(cl);
+      const d = Math.abs(cl - newPos);
+      if (d <= input.guideThreshold && (bestVHit === null || d < bestVHit.absDistance)) {
+        bestVHit = { cl, absDistance: d };
+      }
     }
   }
+  if (bestVHit) hitV.push(bestVHit.cl);
 
   // Best horizontal alignment (snap y)
   let bestH: { delta: number; abs: number } | null = null;
@@ -85,13 +91,17 @@ export function computeSnap(input: SnapInput): SnapResult {
   if (bestH) {
     snapDy = bestH.delta;
   }
-  // Independent of bestH: collect all candidate h-lines within guideThreshold
+  let bestHHit: { cl: number; absDistance: number } | null = null;
   for (const tl of t.h) {
     const newPos = tl + snapDy;
     for (const cl of c.h) {
-      if (Math.abs(cl - newPos) <= input.guideThreshold) hitH.push(cl);
+      const d = Math.abs(cl - newPos);
+      if (d <= input.guideThreshold && (bestHHit === null || d < bestHHit.absDistance)) {
+        bestHHit = { cl, absDistance: d };
+      }
     }
   }
+  if (bestHHit) hitH.push(bestHHit.cl);
 
   // Distance labels
   const tSnapped = {
