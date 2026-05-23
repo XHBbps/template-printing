@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { computed } from 'vue';
 
+import MustChangePasswordDialog from '../components/MustChangePasswordDialog.vue';
 import AppSidebar from './AppSidebar.vue';
 
 const route = useRoute();
@@ -17,6 +18,7 @@ const collapsed = ref(localStorage.getItem('tp_sidebar_collapsed') === 'true');
     <main class="app-main" :class="{ 'app-main--full': isFullscreen }">
       <RouterView />
     </main>
+    <MustChangePasswordDialog />
   </div>
 </template>
 
