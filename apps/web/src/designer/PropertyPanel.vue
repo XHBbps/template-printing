@@ -135,6 +135,7 @@ function isTextish(el: TemplateElement | null): boolean {
 
 const styleAdvOpen = ref(false);
 const layoutAdvOpen = ref(false);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 
 type ImageMode = 'url' | 'upload' | 'field';
 const imageMode = ref<ImageMode>('url');
@@ -589,13 +590,32 @@ watch(
             placeholder="https://..."
           />
         </div>
-        <div v-else-if="imageMode === 'upload'" class="srow">
-          <input type="file" accept="image/svg+xml,image/png,image/jpeg" @change="onFileChange" />
-          <span v-if="uploading" class="sval">上传中…</span>
-          <span v-if="uploadError" class="sval" style="color: #d94f4f">{{ uploadError }}</span>
-          <span v-if="sel.source.kind === 'static' && sel.source.url" class="sval mono">{{
-            sel.source.url
-          }}</span>
+        <div v-else-if="imageMode === 'upload'" class="srow upload-row">
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/svg+xml,image/png,image/jpeg"
+            class="hidden-file-input"
+            @change="onFileChange"
+          />
+          <button
+            type="button"
+            class="upload-btn"
+            :disabled="uploading"
+            @click="fileInputRef?.click()"
+          >
+            <span v-if="uploading">上传中…</span>
+            <span v-else-if="sel.source.kind === 'static' && sel.source.url">重新选择…</span>
+            <span v-else>📁 选择文件</span>
+          </button>
+          <div v-if="uploadError" class="upload-error">⚠ {{ uploadError }}</div>
+          <div
+            v-else-if="sel.source.kind === 'static' && sel.source.url"
+            class="upload-success"
+            :title="sel.source.url"
+          >
+            ✓ 已上传：{{ sel.source.url.split('/').pop() }}
+          </div>
         </div>
         <div v-else class="srow">
           <select
@@ -846,5 +866,55 @@ watch(
 .img-source {
   padding: 12px 14px;
   border-bottom: 1px solid var(--tp-line);
+}
+.upload-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.hidden-file-input {
+  display: none;
+}
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px dashed var(--tp-accent);
+  background: var(--tp-accent-bg);
+  color: var(--tp-accent-ink);
+  border-radius: var(--tp-radius-item);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.upload-btn:hover:not(:disabled) {
+  background: var(--tp-accent);
+  color: #fff;
+  border-style: solid;
+}
+.upload-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.upload-success {
+  font-size: 11px;
+  color: #4a7a4a;
+  background: #eef7ee;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.upload-error {
+  font-size: 11px;
+  color: #d94f4f;
+  background: #fff5f5;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 </style>
