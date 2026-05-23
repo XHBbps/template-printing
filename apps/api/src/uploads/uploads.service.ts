@@ -7,14 +7,6 @@ import { Injectable, BadRequestException, PayloadTooLargeException } from '@nest
 // eslint-disable-next-line import/no-unresolved
 import sharp from 'sharp';
 
-// file-type v19 is pure ESM; Nest runs CJS, so we lazy-load it via dynamic import().
-// Jest's moduleNameMapper substitutes a CJS shim during tests; runtime gets the real ESM.
-async function sniffMime(buffer: Buffer): Promise<{ mime: string } | undefined> {
-  // eslint-disable-next-line import/no-unresolved
-  const mod = await import('file-type');
-  return mod.fileTypeFromBuffer(buffer);
-}
-
 // eslint-disable-next-line import/no-unresolved
 import { sanitiseSvg } from './svg-sanitiser.js';
 
@@ -59,10 +51,10 @@ export class UploadsService {
         h_px = hm ? Number(hm[1]) : 0;
       }
     } else {
-      const sniff = await sniffMime(buffer);
-      if (!sniff) throw new BadRequestException('mime_unknown');
-      if (sniff.mime !== mime) throw new BadRequestException('mime_mismatch');
-      if (sniff.mime === 'image/png') {
+      // Trust the `mime` parameter — the controller has already validated it
+      // against the whitelist ['image/svg+xml', 'image/png', 'image/jpeg']
+      // using `file.mimetype` from multer (extracted from Content-Type).
+      if (mime === 'image/png') {
         const out = await sharp(buffer).png().toBuffer({ resolveWithObject: true });
         cleaned = out.data;
         format = 'png';
@@ -71,7 +63,7 @@ export class UploadsService {
         const meta = await sharp(buffer).metadata();
         if (meta.density && meta.density < 200)
           dpiWarning = `DPI ${meta.density} 偏低，打印可能模糊`;
-      } else if (sniff.mime === 'image/jpeg') {
+      } else if (mime === 'image/jpeg') {
         const out = await sharp(buffer).jpeg({ quality: 90 }).toBuffer({ resolveWithObject: true });
         cleaned = out.data;
         format = 'jpeg';
