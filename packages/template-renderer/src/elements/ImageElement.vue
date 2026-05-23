@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
@@ -31,11 +31,40 @@ const src = computed<string | null>(() => {
 });
 
 const objectFit = computed(() => props.element.fit ?? 'contain');
+
+const loadFailed = ref(false);
+
+function onLoadError(): void {
+  loadFailed.value = true;
+}
+function onLoadSuccess(): void {
+  loadFailed.value = false;
+}
+
+watch(src, () => {
+  loadFailed.value = false;
+});
 </script>
 
 <template>
-  <div :style="containerStyle" :class="{ 'tp-image-design': props.designMode && !src }">
-    <img v-if="src" :src="src" :style="{ width: '100%', height: '100%', objectFit }" />
+  <div
+    :style="containerStyle"
+    :class="{
+      'tp-image-design': props.designMode && !src,
+      'tp-image-failed': loadFailed,
+    }"
+  >
+    <img
+      v-if="src && !loadFailed"
+      :src="src"
+      referrerpolicy="no-referrer"
+      :style="{ width: '100%', height: '100%', objectFit }"
+      @load="onLoadSuccess"
+      @error="onLoadError"
+    />
+    <span v-else-if="props.designMode && loadFailed" class="tp-image-placeholder"
+      >⚠ 图片加载失败</span
+    >
     <span v-else-if="props.designMode" class="tp-image-placeholder">▤ 图片</span>
   </div>
 </template>
@@ -48,5 +77,12 @@ const objectFit = computed(() => props.element.fit ?? 'contain');
 .tp-image-placeholder {
   color: #86909c;
   font-size: 11px;
+}
+.tp-image-failed {
+  border: 1px dashed #d94f4f;
+  background: #fff5f5;
+}
+.tp-image-failed .tp-image-placeholder {
+  color: #d94f4f;
 }
 </style>
