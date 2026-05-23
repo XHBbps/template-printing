@@ -157,6 +157,10 @@ export function usePointerDrag(
       if (x + w > paperW) w = paperW - x;
       if (y + h > paperH) h = paperH - y;
 
+      // Final safety net: prevent zero/negative dimensions from any combination of clamps above
+      w = Math.max(minMm.w, w);
+      h = Math.max(minMm.h, h);
+
       store.resizeElementMm(elementId, { x, y, w, h });
     }
     function onUp(): void {

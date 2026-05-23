@@ -334,6 +334,18 @@ export const useDesignerStore = defineStore('designer', {
           recomputeGridFromAnchor(el, parsed.canvas.cell);
         }
 
+        // Step 4 — Iter 10: clamp every element to current paper bounds.
+        // Handles stale drafts where elements ended up off-paper due to old buggy
+        // resize behavior or paper changes without proper clamping.
+        const paperMm = {
+          w_mm: px.w / PX_PER_MM,
+          h_mm: px.h / PX_PER_MM,
+        };
+        for (const el of parsed.elements) {
+          clampAnchorToPaper(el, paperMm);
+          recomputeGridFromAnchor(el, parsed.canvas.cell);
+        }
+
         this.template = parsed;
         this.history = [JSON.stringify(parsed)];
         this.historyIndex = 0;
@@ -469,6 +481,12 @@ export const useDesignerStore = defineStore('designer', {
       if (idx < 0) return;
       const cur = this.template.elements[idx];
       const next = { ...cur, anchor: { ...cur.anchor, ...patch } } as TemplateElement;
+      // Clamp to paper bounds — prevents property panel typing from sending element off-canvas
+      const paperMm = {
+        w_mm: this.paperPx.w / PX_PER_MM,
+        h_mm: this.paperPx.h / PX_PER_MM,
+      };
+      clampAnchorToPaper(next, paperMm);
       recomputeGridFromAnchor(next, this.template.canvas.cell);
       this.template.elements[idx] = next;
       this.snapshot();
