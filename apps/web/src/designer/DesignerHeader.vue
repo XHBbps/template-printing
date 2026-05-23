@@ -15,7 +15,7 @@ import {
   Printer,
   Plus,
 } from 'lucide-vue-next';
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useDesignerStore } from '../stores/designer';
@@ -90,6 +90,23 @@ async function exitToHome(): Promise<void> {
   }
   void router.push('/');
 }
+
+let savedZoom = 1;
+function onBeforePrint(): void {
+  savedZoom = store.view.zoom;
+  store.setZoom(1);
+}
+function onAfterPrint(): void {
+  store.setZoom(savedZoom);
+}
+onMounted(() => {
+  window.addEventListener('beforeprint', onBeforePrint);
+  window.addEventListener('afterprint', onAfterPrint);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeprint', onBeforePrint);
+  window.removeEventListener('afterprint', onAfterPrint);
+});
 
 function doPrint(): void {
   window.print();
