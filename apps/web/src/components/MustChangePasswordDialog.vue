@@ -48,12 +48,15 @@ async function submit(): Promise<void> {
     :close-on-click-modal="false"
     :show-close="false"
   >
-    <p style="font-size: 12px; color: #888; margin: 0 0 16px">
+    <p style="font-size: 12px; color: #888; margin: 0 0 16px; line-height: 1.6">
       系统检测到您正在使用初始密码，请修改后继续。
     </p>
     <ElForm label-position="top">
       <ElFormItem label="当前密码">
-        <ElInput v-model="current" type="password" />
+        <ElInput v-model="current" type="password" placeholder="即刚才登录使用的密码" />
+        <div style="font-size: 11px; color: #aaa; margin-top: 4px">
+          应急管理员默认密码请咨询系统部署者（来自后端 .env 的 INITIAL_ADMIN_LOCAL_PASSWORD）
+        </div>
       </ElFormItem>
       <ElFormItem label="新密码（至少 8 位）">
         <ElInput v-model="next" type="password" />
