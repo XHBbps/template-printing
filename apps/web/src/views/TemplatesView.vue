@@ -6,21 +6,45 @@ import { Plus, FileText, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 
 import { useTemplatesStore } from '../stores/templates';
+import DesignerView from './DesignerView.vue';
 
 const templates = useTemplatesStore();
 
-// Mode state — list vs editor. Editor integration lands in T4.
+// Mode state — list vs editor.
 type Mode = 'list' | 'editor';
 const mode = ref<Mode>('list');
 const currentId = ref<string | null>(null);
+
+const currentTemplateName = computed(() => {
+  if (!currentId.value) return '';
+  const t = templates.list.find((x) => x.id === currentId.value);
+  return t?.name ?? '未命名';
+});
+
+// Wrap mode transitions with View Transitions API where available.
+async function transitionTo(target: 'list' | 'editor', id?: string): Promise<void> {
+  const doSwitch = (): void => {
+    if (target === 'editor' && id) currentId.value = id;
+    mode.value = target;
+    if (target === 'list') currentId.value = null;
+  };
+  type ViewTransitionAPI = Document & {
+    startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+  };
+  const doc = document as ViewTransitionAPI;
+  if (typeof doc.startViewTransition === 'function') {
+    doc.startViewTransition(doSwitch);
+  } else {
+    doSwitch();
+  }
+}
 
 onMounted(async () => {
   await templates.fetchList();
 });
 
 function openTemplate(id: string): void {
-  currentId.value = id;
-  mode.value = 'editor';
+  void transitionTo('editor', id);
 }
 
 async function createNew(): Promise<void> {
@@ -28,10 +52,14 @@ async function createNew(): Promise<void> {
   const defaultData = { canvas: { paper: 'A4' }, elements: [] };
   try {
     const tpl = await templates.create('未命名模板', defaultData);
-    openTemplate(tpl.id);
-  } catch (e) {
+    void transitionTo('editor', tpl.id);
+  } catch {
     ElMessage.error('创建失败');
   }
+}
+
+async function returnToList(): Promise<void> {
+  await transitionTo('list');
 }
 
 async function deleteTemplate(id: string, name: string): Promise<void> {
@@ -97,16 +125,16 @@ function formatTime(iso: string): string {
       </div>
     </div>
 
-    <!-- Editor mode placeholder — T4 fills in -->
-    <div v-else class="tv-editor-placeholder">
-      <ElButton
-        @click="
-          mode = 'list';
-          currentId = null;
-        "
-        >← 返回列表</ElButton
-      >
-      <p>编辑器占位（T4 集成）：模板 id = {{ currentId }}</p>
+    <!-- Editor mode -->
+    <div v-else class="tv-editor-mode" :style="{ viewTransitionName: 'tpl-editor-host' }">
+      <header class="tv-breadcrumb">
+        <button class="tv-back" @click="returnToList">← 返回模板中心</button>
+        <span class="tv-bc-sep">/</span>
+        <span class="tv-bc-current">{{ currentTemplateName }}</span>
+      </header>
+      <div class="tv-editor-host">
+        <DesignerView v-if="currentId" :template-id="currentId" :embedded="true" />
+      </div>
     </div>
   </div>
 </template>
@@ -116,6 +144,15 @@ function formatTime(iso: string): string {
   padding: 32px 40px;
   max-width: 1400px;
   margin: 0 auto;
+  min-height: 100%;
+}
+.tv-list {
+  /* list mode keeps padding wrap */
+}
+/* Editor mode breaks out of max-width to fill */
+.tv-wrap:has(.tv-editor-mode) {
+  max-width: none;
+  padding: 0;
 }
 .tv-head {
   display: flex;
@@ -194,8 +231,43 @@ function formatTime(iso: string): string {
   text-align: center;
   color: var(--tp-ink-faint, #9c9ca3);
 }
-.tv-editor-placeholder {
-  padding: 60px;
-  text-align: center;
+.tv-editor-mode {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.tv-breadcrumb {
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid var(--tp-line, #ececef);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--tp-ink-soft, #5e5e66);
+}
+.tv-back {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tp-accent, #6c5ce7);
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 120ms ease;
+}
+.tv-back:hover {
+  background: var(--tp-accent-bg, #f0eeff);
+}
+.tv-bc-sep {
+  color: var(--tp-ink-faint, #9c9ca3);
+}
+.tv-bc-current {
+  color: var(--tp-ink, #1f1f23);
+  font-weight: 500;
+}
+.tv-editor-host {
+  flex: 1;
+  min-height: 0;
 }
 </style>

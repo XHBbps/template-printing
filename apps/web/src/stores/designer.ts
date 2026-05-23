@@ -396,6 +396,18 @@ export const useDesignerStore = defineStore('designer', {
       this.dirty = false;
       this.persist();
     },
+    /**
+     * Load template data fetched from the API (e.g. GET /api/templates/:id).
+     * Resets history so undo does not cross the load boundary.
+     */
+    loadTemplate(data: Template): void {
+      this.template = data;
+      this.history = [JSON.stringify(data)];
+      this.historyIndex = 0;
+      this.selectedIds = [];
+      this.dirty = false;
+      this.persist();
+    },
     select(ids: string[]): void {
       this.selectedIds = ids;
     },
