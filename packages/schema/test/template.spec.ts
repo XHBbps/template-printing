@@ -392,3 +392,30 @@ describe('FieldElementSchema (iteration 5)', () => {
     expect(FieldElementSchema.parse(el).binding).toBe('');
   });
 });
+
+describe('TemplateElementSchema element type coverage (iter 11)', () => {
+  it('all schema-declared element types match renderer maps', () => {
+    // Source of truth: which types the schema declares (discriminated union members)
+    const schemaTypes = (ElementSchema.options as Array<{ shape: { type: { value: string } } }>)
+      .map((opt) => opt.shape.type.value)
+      .sort();
+
+    // Mirror: which types the renderers handle.
+    // Keep this list in sync with:
+    //   - apps/web/src/designer/CanvasElement.vue (elementMap)
+    //   - packages/template-renderer/src/TemplateRenderer.vue (elementMap)
+    const renderedTypes = [
+      'text',
+      'field',
+      'image',
+      'table',
+      'barcode',
+      'qr',
+      'autonumber',
+      'system',
+      'rect',
+    ].sort();
+
+    expect(schemaTypes).toEqual(renderedTypes);
+  });
+});

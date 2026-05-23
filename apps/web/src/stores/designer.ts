@@ -192,7 +192,7 @@ export const useDesignerStore = defineStore('designer', {
       for (const el of s.template.elements) {
         if (el.type === 'field' || el.type === 'table') used.add(el.binding);
         if (el.type === 'image' && el.source.kind === 'field') used.add(el.source.binding);
-        if (el.type === 'barcode' && el.binding) used.add(el.binding);
+        if ((el.type === 'barcode' || el.type === 'qr') && el.binding) used.add(el.binding);
       }
       return used;
     },
