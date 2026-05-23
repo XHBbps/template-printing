@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import { useDesignerStore } from '../stores/designer';
 import CanvasElement from './CanvasElement.vue';
@@ -76,8 +76,6 @@ function onDrop(e: DragEvent): void {
 
 const canvasAreaRef = ref<HTMLElement | null>(null);
 
-let resizeObserver: ResizeObserver | null = null;
-
 onMounted(() => {
   store.registerCanvasArea(() => {
     const el = canvasAreaRef.value;
@@ -86,19 +84,11 @@ onMounted(() => {
   });
   // Initial fit after mount + first paint.
   requestAnimationFrame(() => store.fitView());
-
-  if (canvasAreaRef.value && typeof ResizeObserver !== 'undefined') {
-    let raf = 0;
-    resizeObserver = new ResizeObserver(() => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => store.fitView());
-    });
-    resizeObserver.observe(canvasAreaRef.value);
-  }
-});
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect();
+  // NOTE: Removed the ResizeObserver auto-fit. When the user manually sets
+  // zoom > fit (e.g. 150%), the paper overflows and a scrollbar appears inside
+  // .tp-canvas-area, which shrinks its contentBoxSize. ResizeObserver fires →
+  // fitView snaps zoom back down → user can never zoom above fit.
+  // Now: zoom is sticky. User must click the "Fit" toolbar button to re-fit.
 });
 </script>
 
