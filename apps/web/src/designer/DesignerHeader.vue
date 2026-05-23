@@ -141,6 +141,44 @@ function openCustomDialog(): void {
 }
 
 const previewOpen = ref(false);
+
+// tick so "X 秒前" text refreshes every 5s
+const tickNow = ref(Date.now());
+let tickTimer: ReturnType<typeof setInterval> | null = null;
+onMounted(() => {
+  tickTimer = setInterval(() => {
+    tickNow.value = Date.now();
+  }, 5000);
+});
+onBeforeUnmount(() => {
+  if (tickTimer) clearInterval(tickTimer);
+});
+
+const saveStatusText = computed(() => {
+  void tickNow.value; // dep — triggers re-eval every 5s for "X 秒前" text
+  if (!store.templateId) return '';
+  if (store.saveStatus === 'saving') return '保存中…';
+  if (store.saveStatus === 'pending') return '改动未保存';
+  if (store.saveStatus === 'error') return `⚠ 保存失败 · 点击重试`;
+  if (store.saveStatus === 'saved' && store.lastSavedAt) {
+    const sec = Math.floor((Date.now() - store.lastSavedAt) / 1000);
+    if (sec < 5) return '✓ 已保存';
+    if (sec < 60) return `✓ 已保存 · ${sec}s 前`;
+    const min = Math.floor(sec / 60);
+    return `✓ 已保存 · ${min}m 前`;
+  }
+  return '';
+});
+
+const saveStatusColor = computed(() => {
+  if (store.saveStatus === 'error') return '#d94f4f';
+  if (store.saveStatus === 'saving' || store.saveStatus === 'pending') return '#888';
+  return '#5a9b6a';
+});
+
+function retrySave(): void {
+  if (store.saveStatus === 'error') void store.saveToBackend();
+}
 </script>
 
 <template>
@@ -215,6 +253,18 @@ const previewOpen = ref(false);
     </ElDropdown>
 
     <span class="tt-spacer" />
+
+    <span
+      v-if="saveStatusText"
+      class="tt-save-status"
+      :style="{
+        color: saveStatusColor,
+        cursor: store.saveStatus === 'error' ? 'pointer' : 'default',
+      }"
+      @click="retrySave"
+    >
+      {{ saveStatusText }}
+    </span>
 
     <button class="tt-btn" @click="previewOpen = true">
       <Eye :size="16" :stroke-width="2" />
@@ -292,5 +342,11 @@ const previewOpen = ref(false);
   height: 20px;
   background: var(--tp-line-strong);
   margin: 0 8px;
+}
+.tt-save-status {
+  font-size: 12px;
+  margin: 0 12px;
+  white-space: nowrap;
+  user-select: none;
 }
 </style>
