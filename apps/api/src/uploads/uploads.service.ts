@@ -54,26 +54,34 @@ export class UploadsService {
       // Trust the `mime` parameter — the controller has already validated it
       // against the whitelist ['image/svg+xml', 'image/png', 'image/jpeg']
       // using `file.mimetype` from multer (extracted from Content-Type).
-      if (mime === 'image/png') {
-        const out = await sharp(buffer).png().toBuffer({ resolveWithObject: true });
-        cleaned = out.data;
-        format = 'png';
-        w_px = out.info.width;
-        h_px = out.info.height;
-        const meta = await sharp(buffer).metadata();
-        if (meta.density && meta.density < 200)
-          dpiWarning = `DPI ${meta.density} 偏低，打印可能模糊`;
-      } else if (mime === 'image/jpeg') {
-        const out = await sharp(buffer).jpeg({ quality: 90 }).toBuffer({ resolveWithObject: true });
-        cleaned = out.data;
-        format = 'jpeg';
-        w_px = out.info.width;
-        h_px = out.info.height;
-        const meta = await sharp(buffer).metadata();
-        if (meta.density && meta.density < 200)
-          dpiWarning = `DPI ${meta.density} 偏低，打印可能模糊`;
-      } else {
-        throw new BadRequestException('mime_not_allowed');
+      try {
+        if (mime === 'image/png') {
+          const out = await sharp(buffer).png().toBuffer({ resolveWithObject: true });
+          cleaned = out.data;
+          format = 'png';
+          w_px = out.info.width;
+          h_px = out.info.height;
+          const meta = await sharp(buffer).metadata();
+          if (meta.density && meta.density < 200)
+            dpiWarning = `DPI ${meta.density} 偏低，打印可能模糊`;
+        } else if (mime === 'image/jpeg') {
+          const out = await sharp(buffer)
+            .jpeg({ quality: 90 })
+            .toBuffer({ resolveWithObject: true });
+          cleaned = out.data;
+          format = 'jpeg';
+          w_px = out.info.width;
+          h_px = out.info.height;
+          const meta = await sharp(buffer).metadata();
+          if (meta.density && meta.density < 200)
+            dpiWarning = `DPI ${meta.density} 偏低，打印可能模糊`;
+        } else {
+          throw new BadRequestException('mime_not_allowed');
+        }
+      } catch (e) {
+        if (e instanceof BadRequestException) throw e;
+        // sharp decode failure (e.g. buffer magic bytes don't match mime claim)
+        throw new BadRequestException('image_decode_failed');
       }
     }
 
