@@ -88,8 +88,11 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 watch(
   () => store.template,
   () => {
-    // Only auto-save when we have a backing template id
     if (!store.templateId) return;
+    // Skip while drag/resize is active — every pointermove mutates anchor and
+    // the deep watch traversal accumulates cost. We catch up via the isResizing
+    // watcher below when the gesture ends.
+    if (store.isResizing) return;
     store.markPendingSave();
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
@@ -98,6 +101,22 @@ watch(
     }, SAVE_DEBOUNCE_MS);
   },
   { deep: true },
+);
+
+// When a drag/resize gesture completes (isResizing becomes false), schedule
+// one pending save to capture the final anchor state.
+watch(
+  () => store.isResizing,
+  (now, prev) => {
+    if (prev && !now && store.templateId) {
+      store.markPendingSave();
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        void store.saveToBackend();
+        saveTimer = null;
+      }, SAVE_DEBOUNCE_MS);
+    }
+  },
 );
 
 function onBeforeUnload(e: BeforeUnloadEvent): void {
