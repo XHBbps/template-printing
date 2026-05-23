@@ -15,8 +15,16 @@ const username = ref('');
 const password = ref('');
 const submitting = ref(false);
 
-function goLark(): void {
+async function goLark(): Promise<void> {
   const continueTo = (router.currentRoute.value.query.continue as string | undefined) ?? '/';
+  // Clear any stale session before redirecting to Lark — otherwise canceling
+  // the Lark flow and pressing back leaves the user "logged in" with an
+  // unexpected account.
+  try {
+    await authStore.logout();
+  } catch {
+    // ignore — logout endpoint may 401 if already logged out
+  }
   window.location.assign(buildLarkLoginUrl(continueTo));
 }
 

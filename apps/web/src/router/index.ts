@@ -84,13 +84,17 @@ const router = createRouter({
   ],
 });
 
-let hydrated = false;
+let hasHydratedOnce = false;
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
-  if (!hydrated) {
+  // First-time hydrate on app boot (always).
+  // Re-hydrate when entering a protected route with unknown auth (catches
+  // bfcache restore where module state persists but session may have changed).
+  const shouldHydrate = !hasHydratedOnce || (to.meta.requiresAuth && !auth.isAuthenticated);
+  if (shouldHydrate) {
     await auth.hydrate();
-    hydrated = true;
+    hasHydratedOnce = true;
   }
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { path: '/login', query: { continue: to.fullPath } };
