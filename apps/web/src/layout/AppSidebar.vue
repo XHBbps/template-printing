@@ -11,7 +11,10 @@ const emit = defineEmits<{ (e: 'update:collapsed', v: boolean): void }>();
 const auth = useAuthStore();
 const router = useRouter();
 
-const isAdmin = () => auth.user?.role === 'admin';
+const isAdmin = (): boolean => {
+  const role = auth.user?.role;
+  return role === 'admin' || role === 'emergency_admin';
+};
 
 function toggle(): void {
   emit('update:collapsed', !props.collapsed);

@@ -99,8 +99,11 @@ router.beforeEach(async (to) => {
   if (to.path === '/login' && auth.isAuthenticated) {
     return { path: '/templates' };
   }
-  if (to.meta.adminOnly && auth.user?.role !== 'admin') {
-    return { path: '/403' };
+  if (to.meta.adminOnly) {
+    const role = auth.user?.role;
+    if (role !== 'admin' && role !== 'emergency_admin') {
+      return { path: '/403' };
+    }
   }
   return true;
 });
