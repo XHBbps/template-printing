@@ -6,6 +6,8 @@ import { ElMessage } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import { defineStore } from 'pinia';
 // eslint-disable-next-line import/no-unresolved
+import { nextTick } from 'vue';
+// eslint-disable-next-line import/no-unresolved
 import type { z } from 'zod';
 
 import { minMmFor, allowedFieldTypesForElement } from '../designer/elementFactory';
@@ -547,7 +549,10 @@ export const useDesignerStore = defineStore('designer', {
       }
       this.snapshot();
       // Re-fit on paper change since the relative size jumps.
-      this.fitView();
+      // Defer to nextTick so Vue has applied the new paperPx to cssVars before
+      // fitView reads canvasAreaSize — this prevents a stale-zoom frame where the
+      // paper is already new size but the zoom is still calibrated to the old one.
+      void nextTick(() => this.fitView());
 
       if (movedCount > 0) {
         ElMessage.warning(`${movedCount} 个元素已自动移入新画布`);
