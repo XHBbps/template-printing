@@ -4,6 +4,21 @@ import { minMmFor } from './elementFactory';
 import { computeSnap, SNAP_THRESHOLD_MM, GUIDE_THRESHOLD_MM } from './snapGuides';
 
 const PX_PER_MM = 4;
+const EDGE_PX = 30;
+const SCROLL_STEP = 8;
+
+function autoScrollNearEdge(ev: PointerEvent): void {
+  const ca = document.querySelector('.tp-canvas-area') as HTMLElement | null;
+  if (!ca) return;
+  const rect = ca.getBoundingClientRect();
+  let dx = 0;
+  let dy = 0;
+  if (ev.clientX < rect.left + EDGE_PX) dx = -SCROLL_STEP;
+  else if (ev.clientX > rect.right - EDGE_PX) dx = SCROLL_STEP;
+  if (ev.clientY < rect.top + EDGE_PX) dy = -SCROLL_STEP;
+  else if (ev.clientY > rect.bottom - EDGE_PX) dy = SCROLL_STEP;
+  if (dx !== 0 || dy !== 0) ca.scrollBy(dx, dy);
+}
 
 type ResizeSide = 'n' | 'e' | 's' | 'w' | 'nw' | 'ne' | 'sw' | 'se';
 type ResizeMode = 'free' | 'qr-lock' | 'barcode';
@@ -63,6 +78,7 @@ export function usePointerDrag(
       const clampedX = Math.max(0, Math.min(snap.snapped.x, paperW - elW));
       const clampedY = Math.max(0, Math.min(snap.snapped.y, paperH - elH));
       store.moveElementMm(elementId, clampedX, clampedY);
+      autoScrollNearEdge(ev);
     }
 
     function onUp(): void {
@@ -162,6 +178,7 @@ export function usePointerDrag(
       h = Math.max(minMm.h, h);
 
       store.resizeElementMm(elementId, { x, y, w, h });
+      autoScrollNearEdge(ev);
     }
     function onUp(): void {
       window.removeEventListener('pointermove', onMove);
