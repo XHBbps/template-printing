@@ -59,13 +59,7 @@ function cancelEdit(): void {
     <button class="cft-btn" title="缩小" @click="store.zoomOut">
       <Minus :size="16" :stroke-width="2" />
     </button>
-    <span
-      v-if="!editing"
-      class="cft-zoom-label"
-      title="单击适配窗口 / 双击手动输入"
-      @click="store.fitView"
-      @dblclick.stop="startEdit"
-    >
+    <span v-if="!editing" class="cft-zoom-label" title="点击输入比例" @click="startEdit">
       {{ zoomLabel }}
     </span>
     <input
