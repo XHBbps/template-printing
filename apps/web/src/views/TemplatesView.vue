@@ -3,10 +3,11 @@
 import { ElButton, ElEmpty, ElMessage, ElMessageBox } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import { Plus, FileText, Trash2 } from 'lucide-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useTemplatesStore } from '../stores/templates';
+import { defaultTemplate } from '../stores/designer';
 import DesignerView from './DesignerView.vue';
 
 const templates = useTemplatesStore();
@@ -26,19 +27,22 @@ const currentTemplateName = computed(() => {
 
 // Wrap mode transitions with View Transitions API where available.
 async function transitionTo(target: 'list' | 'editor', id?: string): Promise<void> {
-  const doSwitch = (): void => {
+  const doSwitch = async (): Promise<void> => {
     if (target === 'editor' && id) currentId.value = id;
     mode.value = target;
     if (target === 'list') currentId.value = null;
+    // Wait for Vue to patch the DOM before the browser snapshots the new state,
+    // otherwise the View Transitions API captures stale DOM and shows no animation.
+    await nextTick();
   };
   type ViewTransitionAPI = Document & {
-    startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+    startViewTransition?: (cb: () => Promise<void> | void) => { finished: Promise<void> };
   };
   const doc = document as ViewTransitionAPI;
   if (typeof doc.startViewTransition === 'function') {
-    doc.startViewTransition(doSwitch);
+    await doc.startViewTransition(doSwitch).finished;
   } else {
-    doSwitch();
+    await doSwitch();
   }
 }
 
@@ -59,10 +63,12 @@ function openTemplate(id: string): void {
 }
 
 async function createNew(): Promise<void> {
-  // Minimum default data — DesignerView will populate when mounted.
-  const defaultData = { canvas: { paper: 'A4' }, elements: [] };
+  // Build a complete Template using the store's defaultTemplate() so the
+  // shape matches what DesignerView expects (meta.version, canvas.cell, etc.).
+  const data = defaultTemplate();
+  data.meta.name = '未命名模板';
   try {
-    const tpl = await templates.create('未命名模板', defaultData);
+    const tpl = await templates.create(data.meta.name, data);
     void transitionTo('editor', tpl.id);
   } catch {
     ElMessage.error('创建失败');
