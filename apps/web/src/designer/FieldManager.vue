@@ -297,7 +297,7 @@ async function remove(key: string): Promise<void> {
   flex: 1;
   overflow-y: auto;
   padding: 8px 10px 12px;
-  max-height: 200px;
+  max-height: 168px;
 }
 .empty {
   padding: 24px 12px;
