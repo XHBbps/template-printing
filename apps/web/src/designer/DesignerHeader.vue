@@ -108,8 +108,16 @@ onBeforeUnmount(() => {
   window.removeEventListener('afterprint', onAfterPrint);
 });
 
-function doPrint(): void {
+async function doPrint(): Promise<void> {
+  const prevZoom = store.view.zoom;
+  if (prevZoom !== 1) {
+    store.setZoom(1);
+    await nextTick();
+  }
   window.print();
+  if (prevZoom !== 1) {
+    store.setZoom(prevZoom);
+  }
 }
 
 function openCustomDialog(): void {
