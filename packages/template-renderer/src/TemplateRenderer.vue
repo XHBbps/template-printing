@@ -8,9 +8,12 @@ import FieldElement from './elements/FieldElement.vue';
 import ImageElement from './elements/ImageElement.vue';
 import TableElement from './elements/TableElement.vue';
 import BarcodeElement from './elements/BarcodeElement.vue';
+import QrElement from './elements/QrElement.vue';
 import AutonumberElement from './elements/AutonumberElement.vue';
 import SystemElement from './elements/SystemElement.vue';
 import RectElement from './elements/RectElement.vue';
+
+const PX_PER_MM = 4;
 
 const props = defineProps<{
   template: Template;
@@ -37,6 +40,7 @@ const elementMap: Record<string, Component> = {
   image: ImageElement,
   table: TableElement,
   barcode: BarcodeElement,
+  qr: QrElement,
   autonumber: AutonumberElement,
   system: SystemElement,
   rect: RectElement,
@@ -50,10 +54,10 @@ const elementMap: Record<string, Component> = {
       :key="el.id"
       class="tp-element"
       :style="{
-        left: `calc(${el.grid.c} * var(--cell-w))`,
-        top: `calc(${el.grid.r} * var(--cell-h))`,
-        width: `calc(${el.grid.cs} * var(--cell-w))`,
-        height: `calc(${el.grid.rs} * var(--cell-h))`,
+        left: `${el.anchor.x * PX_PER_MM}px`,
+        top: `${el.anchor.y * PX_PER_MM}px`,
+        width: `${el.anchor.w * PX_PER_MM}px`,
+        height: `${el.anchor.h * PX_PER_MM}px`,
       }"
     >
       <component
