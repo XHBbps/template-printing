@@ -30,6 +30,10 @@ function commitEdit(): void {
 }
 
 function cancelEdit(): void {
+  // Reset inputValue to the current zoom first, so the blur-triggered
+  // commitEdit (fired when v-if removes the input) is a no-op rather than
+  // applying the (rejected) typed value.
+  inputValue.value = String(Math.round(store.view.zoom * 100));
   editing.value = false;
 }
 </script>
@@ -84,8 +88,8 @@ function cancelEdit(): void {
 <style scoped>
 .cft-bar {
   position: absolute;
-  bottom: 18px;
-  right: 18px;
+  bottom: 32px;
+  right: 24px;
   z-index: 10;
   display: inline-flex;
   align-items: center;
