@@ -140,8 +140,9 @@ type ImageMode = 'url' | 'upload' | 'field';
 const imageMode = ref<ImageMode>('url');
 
 watch(
-  () => sel.value,
-  (el) => {
+  () => sel.value?.id,
+  () => {
+    const el = sel.value;
     if (!el || el.type !== 'image') return;
     if (el.source.kind === 'field') imageMode.value = 'field';
     else if (el.source.url?.startsWith('/uploads/')) imageMode.value = 'upload';
