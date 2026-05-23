@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-unresolved
 import type { BorderSide, ElementStyle } from '@template-printing/schema';
 
-const FONT_STACK: Record<string, string> = {
+const FONT_STACK: Record<'sans' | 'serif' | 'mono', string> = {
   sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", system-ui, sans-serif',
   serif: 'Georgia, "Times New Roman", "Songti SC", serif',
   mono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
