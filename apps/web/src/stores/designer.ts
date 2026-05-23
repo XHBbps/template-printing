@@ -177,6 +177,10 @@ export const useDesignerStore = defineStore('designer', {
         value: number;
       }>,
     },
+    templateId: null as string | null,
+    saveStatus: 'idle' as 'idle' | 'pending' | 'saving' | 'saved' | 'error',
+    lastSavedAt: null as number | null,
+    saveError: null as string | null,
   }),
   getters: {
     canUndo: (s): boolean => s.historyIndex > 0,
@@ -407,6 +411,9 @@ export const useDesignerStore = defineStore('designer', {
       this.selectedIds = [];
       this.dirty = false;
       this.persist();
+      this.saveStatus = 'idle';
+      this.saveError = null;
+      this.lastSavedAt = null;
     },
     select(ids: string[]): void {
       this.selectedIds = ids;
@@ -505,6 +512,38 @@ export const useDesignerStore = defineStore('designer', {
     },
     commit(): void {
       this.snapshot();
+    },
+    setTemplateId(id: string | null): void {
+      this.templateId = id;
+      this.saveStatus = 'idle';
+      this.saveError = null;
+    },
+    // Internal — called by the debounced wrapper in DesignerView
+    async saveToBackend(): Promise<void> {
+      if (!this.templateId) return;
+      this.saveStatus = 'saving';
+      this.saveError = null;
+      try {
+        const { apiFetch } = await import('../lib/api');
+        await apiFetch<{ id: string }>(`/templates/${this.templateId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: this.template.meta.name,
+            data: this.template,
+          }),
+        });
+        this.saveStatus = 'saved';
+        this.lastSavedAt = Date.now();
+        this.dirty = false;
+      } catch (e) {
+        this.saveStatus = 'error';
+        this.saveError = (e as Error).message ?? '保存失败';
+      }
+    },
+    markPendingSave(): void {
+      if (this.templateId && this.saveStatus !== 'saving') {
+        this.saveStatus = 'pending';
+      }
     },
     deleteElement(id: string): void {
       this.template.elements = this.template.elements.filter((e) => e.id !== id);
