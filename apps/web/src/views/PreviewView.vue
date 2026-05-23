@@ -65,6 +65,11 @@ const paperStyle = computed(() => ({
   transformOrigin: 'top left',
   background: '#fff',
 }));
+
+const boundFieldDefs = computed(() => {
+  const used = store.usedFieldKeys;
+  return Object.entries(store.template.schema).filter(([k]) => used.has(k));
+});
 </script>
 
 <template>
@@ -72,9 +77,9 @@ const paperStyle = computed(() => ({
     <div class="preview-layout">
       <div class="data-form">
         <h4>示例数据</h4>
-        <ElForm v-if="store.fieldDefs.length > 0" label-position="top">
+        <ElForm v-if="boundFieldDefs.length > 0" label-position="top">
           <ElFormItem
-            v-for="(def, key) in store.template.schema"
+            v-for="[key, def] in boundFieldDefs"
             :key="key"
             :label="`${key} (${def.label})`"
           >
@@ -85,7 +90,8 @@ const paperStyle = computed(() => ({
             />
           </ElFormItem>
         </ElForm>
-        <p v-else class="empty">未声明数据字段</p>
+        <p v-else-if="store.fieldDefs.length === 0" class="empty">未声明数据字段</p>
+        <p v-else class="empty">模板未绑定任何字段<br />无需填写示例数据</p>
       </div>
       <div class="pv-wrap">
         <div ref="modalContainerRef" class="pv-container">
