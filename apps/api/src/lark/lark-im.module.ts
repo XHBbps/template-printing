@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-unresolved
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 
 // eslint-disable-next-line import/no-unresolved
 import { validateEnv } from '../common/env.js';
@@ -9,6 +9,7 @@ import { LarkImService } from './lark-im.service.js';
 
 const env = validateEnv();
 
+@Global()
 @Module({
   providers: [
     {

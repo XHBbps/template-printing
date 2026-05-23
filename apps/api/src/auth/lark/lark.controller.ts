@@ -1,9 +1,14 @@
 import { randomBytes } from 'node:crypto';
 
+// eslint-disable-next-line import/no-unresolved
 import { BadRequestException, Controller, Get, Inject, Query, Req, Res } from '@nestjs/common';
+// eslint-disable-next-line import/no-unresolved
 import { PrismaClient } from '@prisma/client';
+// eslint-disable-next-line import/no-unresolved
 import type { Request, Response } from 'express';
 
+// eslint-disable-next-line import/no-unresolved
+import { LarkImService } from '../../lark/lark-im.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { Public } from '../decorators/public.decorator.js';
 // eslint-disable-next-line import/no-unresolved
@@ -39,6 +44,7 @@ export class LarkController {
     private readonly refresh: RefreshTokenService,
     private readonly prisma: PrismaClient,
     @Inject('LARK_CONFIG') private readonly cfg: LarkConfig,
+    private readonly larkIm: LarkImService,
   ) {}
 
   @Public()
@@ -93,27 +99,45 @@ export class LarkController {
     const info = await this.lark.fetchUserInfo(tokenResp.access_token);
 
     const shouldBeAdmin = this.cfg.initialAdminLarkUserIds.includes(info.user_id);
-    const user = await this.prisma.user.upsert({
-      where: { larkOpenId: info.open_id },
-      update: {
-        larkUnionId: info.union_id,
-        larkUserId: info.user_id,
-        name: info.name,
-        email: info.email ?? null,
-        avatarUrl: info.avatar_url,
-        lastLoginAt: new Date(),
-      },
-      create: {
-        larkOpenId: info.open_id,
-        larkUnionId: info.union_id,
-        larkUserId: info.user_id,
-        name: info.name,
-        email: info.email ?? null,
-        avatarUrl: info.avatar_url,
-        role: shouldBeAdmin ? 'admin' : 'user',
-        lastLoginAt: new Date(),
-      },
-    });
+    let user = await this.prisma.user.findUnique({ where: { larkOpenId: info.open_id } });
+    if (user) {
+      user = await this.prisma.user.update({
+        where: { larkOpenId: info.open_id },
+        data: {
+          larkUnionId: info.union_id,
+          larkUserId: info.user_id,
+          name: info.name,
+          email: info.email ?? null,
+          avatarUrl: info.avatar_url,
+          lastLoginAt: new Date(),
+        },
+      });
+    } else {
+      user = await this.prisma.user.create({
+        data: {
+          larkOpenId: info.open_id,
+          larkUnionId: info.union_id,
+          larkUserId: info.user_id,
+          name: info.name,
+          email: info.email ?? null,
+          avatarUrl: info.avatar_url,
+          role: shouldBeAdmin ? 'admin' : 'user',
+          // Pre-populate localUsername with larkUserId so user can later set
+          // a local password and login via username/password if needed.
+          localUsername: info.user_id,
+          lastLoginAt: new Date(),
+        },
+      });
+      // Fire-and-forget welcome IM. Don't block login on failure.
+      this.larkIm
+        .sendTextToUser(
+          info.open_id,
+          `欢迎使用模板打印平台！您的账号已自动创建。\n` +
+            `用户名：${info.user_id}\n` +
+            `如需用户名密码登录方式，请在「个人中心 → 设置密码」中设置密码。`,
+        )
+        .catch(() => {});
+    }
 
     const { token: access, csrf } = this.jwt.sign({
       sub: user.id,
