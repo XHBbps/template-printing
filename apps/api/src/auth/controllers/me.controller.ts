@@ -28,6 +28,8 @@ export interface MeResponse {
   avatarUrl: string | null;
   role: 'admin' | 'user' | 'emergency_admin';
   mustChangePassword: boolean;
+  larkUserId: string | null;
+  hasLocalPassword: boolean;
   csrf: string;
 }
 
@@ -54,6 +56,8 @@ export class MeController {
         avatarUrl: user.avatarUrl,
         role: user.role as MeResponse['role'],
         mustChangePassword: user.mustChangePassword,
+        larkUserId: user.larkUserId,
+        hasLocalPassword: Boolean(user.localPasswordHash),
         csrf: jwt.csrf,
       },
     };

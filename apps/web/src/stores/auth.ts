@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-unresolved
 import { defineStore } from 'pinia';
 
 import { apiFetch, ApiClientError, setCsrfTokenGetter } from '../lib/api';
@@ -9,6 +10,8 @@ export interface AuthUser {
   avatarUrl: string | null;
   role: 'admin' | 'user' | 'emergency_admin';
   mustChangePassword: boolean;
+  larkUserId?: string | null;
+  hasLocalPassword?: boolean;
 }
 
 interface MeResponse {
