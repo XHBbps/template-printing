@@ -110,11 +110,27 @@ onBeforeUnmount(() => {
 
 async function doPrint(): Promise<void> {
   const prevZoom = store.view.zoom;
+
+  // Inject @page rule so browser uses the template's paper size,
+  // not the printer's default (usually A4). Prevents content scaling /
+  // overflow / extra blank pages when template paper != A4.
+  const PX_PER_MM = 4;
+  const paperMm = {
+    w: store.paperPx.w / PX_PER_MM,
+    h: store.paperPx.h / PX_PER_MM,
+  };
+  const styleEl = document.createElement('style');
+  styleEl.id = '__tp_print_page__';
+  styleEl.textContent = `@page { size: ${paperMm.w}mm ${paperMm.h}mm; margin: 0; }`;
+  document.head.appendChild(styleEl);
+
   if (prevZoom !== 1) {
     store.setZoom(1);
     await nextTick();
   }
   window.print();
+
+  styleEl.remove();
   if (prevZoom !== 1) {
     store.setZoom(prevZoom);
   }
