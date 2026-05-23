@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import '../styles/designer.css';
 
-import { onMounted, watch } from 'vue';
+import { onBeforeUnmount, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import CanvasElementsList from '../designer/CanvasElementsList.vue';
@@ -63,9 +63,11 @@ async function loadById(id: string): Promise<void> {
       });
     }
     store.loadTemplate(data);
+    store.setTemplateId(id);
   } catch {
     // If fetch fails (network / 401 / 404), fall back to a fresh template.
     store.reset();
+    store.setTemplateId(null);
   }
 }
 
@@ -76,11 +78,48 @@ async function initialize(): Promise<void> {
   } else {
     const restored = store.restore();
     if (!restored) store.reset();
+    store.setTemplateId(null);
+  }
+}
+
+const SAVE_DEBOUNCE_MS = 1500;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(
+  () => store.template,
+  () => {
+    // Only auto-save when we have a backing template id
+    if (!store.templateId) return;
+    store.markPendingSave();
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      void store.saveToBackend();
+      saveTimer = null;
+    }, SAVE_DEBOUNCE_MS);
+  },
+  { deep: true },
+);
+
+function onBeforeUnload(e: BeforeUnloadEvent): void {
+  if (store.saveStatus === 'pending' || store.saveStatus === 'saving' || store.dirty) {
+    e.preventDefault();
+    e.returnValue = '';
   }
 }
 
 onMounted(() => {
   void initialize();
+  window.addEventListener('beforeunload', onBeforeUnload);
+});
+
+onBeforeUnmount(() => {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    // Fire one last save before unmounting to flush pending changes
+    void store.saveToBackend();
+  }
+  window.removeEventListener('beforeunload', onBeforeUnload);
 });
 
 // When templateId prop changes (e.g. navigating between templates inline), reload.
