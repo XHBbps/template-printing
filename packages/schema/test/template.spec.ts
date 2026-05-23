@@ -218,7 +218,9 @@ describe('FieldDefSchema discriminated union', () => {
 
   it('parses a boolean field with custom labels', () => {
     const f = { type: 'boolean', label: 'Active', trueLabel: 'Yes', falseLabel: 'No' };
-    expect(FieldDefSchema.parse(f).trueLabel).toBe('Yes');
+    const parsed = FieldDefSchema.parse(f);
+    if (parsed.type !== 'boolean') throw new Error('expected boolean field');
+    expect(parsed.trueLabel).toBe('Yes');
   });
 
   it('parses an enum field with options', () => {
@@ -230,12 +232,16 @@ describe('FieldDefSchema discriminated union', () => {
         { value: 'b', label: '已拒绝' },
       ],
     };
-    expect(FieldDefSchema.parse(f).options).toHaveLength(2);
+    const parsed = FieldDefSchema.parse(f);
+    if (parsed.type !== 'enum') throw new Error('expected enum field');
+    expect(parsed.options).toHaveLength(2);
   });
 
   it('parses an image field with accept', () => {
     const f = { type: 'image', label: 'Logo', accept: ['image/svg+xml', 'image/png'] };
-    expect(FieldDefSchema.parse(f).accept).toContain('image/svg+xml');
+    const parsed = FieldDefSchema.parse(f);
+    if (parsed.type !== 'image') throw new Error('expected image field');
+    expect(parsed.accept).toContain('image/svg+xml');
   });
 
   it('rejects an enum field with no options', () => {
