@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElButton, ElInput, ElOption, ElSelect } from 'element-plus';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import type { ElementStyle, TemplateElement } from '@template-printing/schema';
 
@@ -73,14 +73,21 @@ function setBinding(v: string): void {
   }
 }
 
-type ImageSourceKind = 'static' | 'field' | 'upload';
+type ImageSourceKind = 'url' | 'upload' | 'field';
 function setImageSourceKind(kind: ImageSourceKind): void {
   if (!sel.value || sel.value.type !== 'image') return;
-  if (kind === 'static' || kind === 'upload') {
+  if (kind === 'url') {
+    imageMode.value = 'url';
+    store.updateElement(sel.value.id, {
+      source: { kind: 'static', url: '' },
+    } as Partial<TemplateElement>);
+  } else if (kind === 'upload') {
+    imageMode.value = 'upload';
     store.updateElement(sel.value.id, {
       source: { kind: 'static', url: '' },
     } as Partial<TemplateElement>);
   } else {
+    imageMode.value = 'field';
     store.updateElement(sel.value.id, {
       source: { kind: 'field', binding: '' },
     } as Partial<TemplateElement>);
@@ -128,6 +135,20 @@ function isTextish(el: TemplateElement | null): boolean {
 
 const styleAdvOpen = ref(false);
 const layoutAdvOpen = ref(false);
+
+type ImageMode = 'url' | 'upload' | 'field';
+const imageMode = ref<ImageMode>('url');
+
+watch(
+  () => sel.value,
+  (el) => {
+    if (!el || el.type !== 'image') return;
+    if (el.source.kind === 'field') imageMode.value = 'field';
+    else if (el.source.url?.startsWith('/uploads/')) imageMode.value = 'upload';
+    else imageMode.value = 'url';
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -546,54 +567,40 @@ const layoutAdvOpen = ref(false);
         <div class="style-title">图片来源</div>
         <div class="srow">
           <div class="seg">
-            <button
-              :class="{
-                on: sel.source.kind === 'static' && !sel.source.url.startsWith('/uploads/'),
-              }"
-              @click="setImageSourceKind('static')"
-            >
+            <button :class="{ on: imageMode === 'url' }" @click="setImageSourceKind('url')">
               URL
             </button>
-            <button
-              :class="{
-                on: sel.source.kind === 'static' && sel.source.url.startsWith('/uploads/'),
-              }"
-              @click="setImageSourceKind('upload')"
-            >
+            <button :class="{ on: imageMode === 'upload' }" @click="setImageSourceKind('upload')">
               上传
             </button>
-            <button
-              :class="{ on: sel.source.kind === 'field' }"
-              @click="setImageSourceKind('field')"
-            >
+            <button :class="{ on: imageMode === 'field' }" @click="setImageSourceKind('field')">
               绑定字段
             </button>
           </div>
         </div>
 
-        <div
-          v-if="sel.source.kind === 'static' && !sel.source.url.startsWith('/uploads/')"
-          class="srow"
-        >
+        <div v-if="imageMode === 'url'" class="srow">
           <input
             class="snum"
             style="flex: 1"
-            :value="sel.source.url"
+            :value="sel.source.kind === 'static' ? sel.source.url : ''"
             @input="(e: Event) => setStaticUrl((e.target as HTMLInputElement).value)"
             placeholder="https://..."
           />
         </div>
-        <div v-else-if="sel.source.kind === 'static'" class="srow">
+        <div v-else-if="imageMode === 'upload'" class="srow">
           <input type="file" accept="image/svg+xml,image/png,image/jpeg" @change="onFileChange" />
           <span v-if="uploading" class="sval">上传中…</span>
           <span v-if="uploadError" class="sval" style="color: #d94f4f">{{ uploadError }}</span>
-          <span v-if="sel.source.url" class="sval mono">{{ sel.source.url }}</span>
+          <span v-if="sel.source.kind === 'static' && sel.source.url" class="sval mono">{{
+            sel.source.url
+          }}</span>
         </div>
         <div v-else class="srow">
           <select
             class="ssel"
             style="flex: 1"
-            :value="sel.source.binding"
+            :value="sel.source.kind === 'field' ? sel.source.binding : ''"
             @change="(e: Event) => setFieldBinding((e.target as HTMLSelectElement).value)"
           >
             <option value="">(选择字段)</option>
