@@ -4,11 +4,14 @@ import { ElButton, ElEmpty, ElMessage, ElMessageBox } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import { Plus, FileText, Trash2 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import { useTemplatesStore } from '../stores/templates';
 import DesignerView from './DesignerView.vue';
 
 const templates = useTemplatesStore();
+const route = useRoute();
+const router = useRouter();
 
 // Mode state — list vs editor.
 type Mode = 'list' | 'editor';
@@ -41,6 +44,14 @@ async function transitionTo(target: 'list' | 'editor', id?: string): Promise<voi
 
 onMounted(async () => {
   await templates.fetchList();
+  if (route.query.new === '1') {
+    void createNew();
+    void router.replace({ query: {} });
+  } else if (typeof route.query.open === 'string') {
+    const id = route.query.open;
+    openTemplate(id);
+    void router.replace({ query: {} });
+  }
 });
 
 function openTemplate(id: string): void {

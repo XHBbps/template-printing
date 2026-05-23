@@ -29,17 +29,14 @@ const router = createRouter({
       meta: { requiresAuth: false, fullscreen: true },
       component: () => import('../views/LoginCallbackView.vue'),
     },
+    // Legacy direct designer URLs — redirect to templates with query so TemplatesView opens that one inline
     {
       path: '/designer/new',
-      name: 'designer-new',
-      meta: { requiresAuth: true, fullscreen: true },
-      component: () => import('../views/DesignerView.vue'),
+      redirect: '/templates?new=1',
     },
     {
       path: '/designer/:id',
-      name: 'designer-edit',
-      meta: { requiresAuth: true, fullscreen: true },
-      component: () => import('../views/DesignerView.vue'),
+      redirect: (to) => `/templates?open=${to.params.id as string}`,
     },
     {
       path: '/me',
