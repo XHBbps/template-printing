@@ -103,10 +103,8 @@ onMounted(() => {
   justify-content: center;
 }
 .qr-svg :deep(svg) {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
 }
 .qr-empty {
   width: 100%;
@@ -138,13 +136,5 @@ onMounted(() => {
 .qr-label {
   font-size: 10px;
   color: var(--tp-ink-soft, #555);
-}
-@media print {
-  .qr-svg :deep(svg) {
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
-  }
 }
 </style>
