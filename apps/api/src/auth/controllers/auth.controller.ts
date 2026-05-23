@@ -12,8 +12,6 @@ import { PrismaClient } from '@prisma/client';
 import type { Request, Response } from 'express';
 
 // eslint-disable-next-line import/no-unresolved
-import { CurrentUser } from '../decorators/current-user.decorator.js';
-// eslint-disable-next-line import/no-unresolved
 import { Public } from '../decorators/public.decorator.js';
 /* eslint-disable import/no-unresolved */
 import {
@@ -24,7 +22,7 @@ import {
 } from '../jwt/jwt-cookie.helper.js';
 /* eslint-enable import/no-unresolved */
 // eslint-disable-next-line import/no-unresolved
-import { JwtAuthService, type JwtClaims } from '../jwt/jwt.service.js';
+import { JwtAuthService } from '../jwt/jwt.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { RefreshTokenService } from '../jwt/refresh-token.service.js';
 
@@ -37,19 +35,26 @@ export class AuthController {
     @Inject('COOKIE_ENV') private readonly cookieEnv: CookieEnv,
   ) {}
 
+  @Public()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(
-    @CurrentUser() user: JwtClaims,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
+    // Idempotent: always clear cookies even if access token expired or absent.
+    // Otherwise an expired-token user can't actually logout — the JwtAuthGuard
+    // returns 401 before clearAuthCookies runs, leaving cookies stale.
     const cookies = (req as Request & { cookies?: Record<string, string> }).cookies ?? {};
     const refreshToken = cookies[REFRESH_COOKIE];
     if (refreshToken) {
-      const v = await this.refresh.verify(refreshToken);
-      if (v && v.userId === user.sub) {
-        await this.refresh.revoke(v.id);
+      try {
+        const v = await this.refresh.verify(refreshToken);
+        if (v) {
+          await this.refresh.revoke(v.id);
+        }
+      } catch {
+        // Refresh token invalid / expired / tampered — still clear cookies.
       }
     }
     clearAuthCookies(res, this.cookieEnv);

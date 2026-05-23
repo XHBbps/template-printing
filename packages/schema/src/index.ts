@@ -1,4 +1,6 @@
+// eslint-disable-next-line import/no-unresolved
 import { USER_ROLES } from '@template-printing/types';
+// eslint-disable-next-line import/no-unresolved
 import { z } from 'zod';
 
 export const UserRoleSchema = z.enum(USER_ROLES);
@@ -20,3 +22,6 @@ export const ApiErrorSchema = z.object({
   }),
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
+
+// eslint-disable-next-line import/no-unresolved
+export * from './template.js';

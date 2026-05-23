@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>对齐辅助线演示</title>
+<style>
+  :root {
+    --accent: #6C5CE7;
+    --accent-strong: #4F3FCC;
+    --accent-shadow: 0 0 12px rgba(108,92,231,0.3);
+    --panel: #FFFFFF;
+    --ink: #1F1F23;
+    --ink-soft: #5E5E66;
+    --ink-faint: #9C9CA3;
+    --bg: #ECECEF;
+    --canvas-bg: #F2F2F5;
+  }
+  body { background: var(--bg); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', system-ui, sans-serif; color: var(--ink); padding: 40px 48px; margin: 0; -webkit-font-smoothing: antialiased; }
+  h1 { font-size: 18px; margin: 0 0 8px; font-weight: 700; }
+  .sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 28px; line-height: 1.6; }
+  h2 { font-size: 12px; font-weight: 600; color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; margin: 28px 0 12px; }
+
+  .row { display: flex; gap: 24px; flex-wrap: wrap; }
+  .card {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 1px 0 rgba(20,20,30,0.04), 0 4px 12px rgba(20,20,30,0.04);
+  }
+  .card-title { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+  .card-desc { font-size: 11px; color: var(--ink-faint); margin-bottom: 12px; line-height: 1.6; }
+
+  /* ===== 演示画布 ===== */
+  .paper {
+    width: 420px;
+    height: 280px;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    position: relative;
+    background-image: radial-gradient(circle, rgba(108,92,231,0.07) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+
+  /* 元素 */
+  .elem {
+    position: absolute;
+    background: #fafafa;
+    border: 1.5px solid var(--accent);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--ink-soft);
+    user-select: none;
+  }
+  .elem.target {
+    border-color: var(--accent-strong);
+    background: #fff;
+    box-shadow:
+      0 0 0 1px rgba(108,92,231,0.15),
+      0 0 24px rgba(108,92,231,0.18);
+    z-index: 3;
+  }
+  .elem .corner { position: absolute; width: 8px; height: 8px; background: #fff; border: 1.5px solid var(--accent); border-radius: 50%; }
+  .elem.target .corner.tl { top: -5px; left: -5px; }
+  .elem.target .corner.tr { top: -5px; right: -5px; }
+  .elem.target .corner.bl { bottom: -5px; left: -5px; }
+  .elem.target .corner.br { bottom: -5px; right: -5px; }
+
+  /* 辅助线 */
+  .guide {
+    position: absolute;
+    background: var(--accent);
+    box-shadow: var(--accent-shadow);
+    z-index: 2;
+    pointer-events: none;
+  }
+  .guide.h { left: 0; right: 0; height: 1.5px; }
+  .guide.v { top: 0; bottom: 0; width: 1.5px; }
+  .guide.dashed.h {
+    background: none;
+    border-top: 1.5px dashed var(--accent);
+    height: 0;
+    box-shadow: none;
+  }
+  .guide.dashed.v {
+    background: none;
+    border-left: 1.5px dashed var(--accent);
+    width: 0;
+    box-shadow: none;
+  }
+
+  /* 距离标签 */
+  .dist-label {
+    position: absolute;
+    background: var(--accent);
+    color: #fff;
+    font-size: 9px;
+    font-family: ui-monospace, monospace;
+    padding: 1px 5px;
+    border-radius: 3px;
+    z-index: 4;
+    line-height: 1.4;
+  }
+
+  /* 等间距小箭头标记 */
+  .interval {
+    position: absolute;
+    background: var(--accent);
+    height: 1px;
+    z-index: 2;
+  }
+  .interval::before, .interval::after {
+    content: '';
+    position: absolute;
+    width: 1px; height: 5px;
+    background: var(--accent);
+    top: -2px;
+  }
+  .interval::before { left: 0; }
+  .interval::after { right: 0; }
+
+  .legend {
+    background: white;
+    border-radius: 12px;
+    padding: 16px 20px;
+    max-width: 980px;
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--ink-soft);
+    box-shadow: 0 1px 0 rgba(20,20,30,0.04), 0 4px 12px rgba(20,20,30,0.04);
+  }
+  .legend strong { color: var(--ink); }
+  .legend code { background: #f5f5f6; padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>对齐辅助线视觉方案</h1>
+<p class="sub">
+  拖动 / 缩放元素时，元素的 6 条边（top / bottom / left / right / 垂直中心 / 水平中心）
+  与其他元素和纸张的对应线对比，命中阈值（≤ 6 屏幕像素）时显示紫色辅助线 + 自动吸附。
+</p>
+
+<h2>场景 1 · 左对齐 (target 元素左边 = 另一个元素左边)</h2>
+<div class="row">
+  <div class="card">
+    <div class="card-title">📍 单条垂直线 (左对齐)</div>
+    <div class="card-desc">target 元素拖动到和顶部元素的左边对齐时，紫色虚线高亮，元素吸附到该位置。</div>
+    <div class="paper">
+      <div class="elem" style="left: 60px; top: 40px; width: 90px; height: 36px;">参考元素</div>
+      <div class="elem target" style="left: 60px; top: 130px; width: 110px; height: 40px;">
+        target
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      </div>
+      <!-- 垂直辅助线在 left=60 -->
+      <div class="guide v" style="left: 60px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📍 顶对齐 (单条水平线)</div>
+    <div class="card-desc">target 元素拖动到和另一个元素顶边对齐。</div>
+    <div class="paper">
+      <div class="elem" style="left: 40px; top: 70px; width: 100px; height: 36px;">参考</div>
+      <div class="elem target" style="left: 220px; top: 70px; width: 120px; height: 50px;">
+        target
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      </div>
+      <!-- 水平辅助线在 top=70 -->
+      <div class="guide h" style="top: 70px;"></div>
+    </div>
+  </div>
+</div>
+
+<h2>场景 2 · 中心对齐 + 距离标签</h2>
+<div class="row">
+  <div class="card">
+    <div class="card-title">📍 纸张中心对齐（最强吸附）</div>
+    <div class="card-desc">target 元素拖动到纸张水平/垂直中心时，两条贯穿线 + 居中显示距离 0。</div>
+    <div class="paper">
+      <div class="elem target" style="left: 165px; top: 110px; width: 90px; height: 60px;">
+        居中
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      </div>
+      <div class="guide v" style="left: 210px;"></div>
+      <div class="guide h" style="top: 140px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📍 两元素中心对齐（短线段）</div>
+    <div class="card-desc">target 的水平中心和参考元素的水平中心对齐时，显示一条贯穿两元素的辅助线。</div>
+    <div class="paper">
+      <div class="elem" style="left: 50px; top: 50px; width: 100px; height: 50px;">参考</div>
+      <div class="elem target" style="left: 240px; top: 60px; width: 80px; height: 30px;">
+        target
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      </div>
+      <!-- 水平中心 = top 75 -->
+      <div class="guide h" style="top: 75px;"></div>
+    </div>
+  </div>
+</div>
+
+<h2>场景 3 · 距离标签（拖动期间显示与最近元素的间距）</h2>
+<div class="row">
+  <div class="card">
+    <div class="card-title">📐 与最近元素的距离</div>
+    <div class="card-desc">拖动期间显示和最近元素水平 / 垂直方向的间距值，类似 Figma 的辅助提示。</div>
+    <div class="paper">
+      <div class="elem" style="left: 60px; top: 50px; width: 90px; height: 36px;">参考A</div>
+      <div class="elem target" style="left: 220px; top: 50px; width: 100px; height: 36px;">
+        target
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      </div>
+      <!-- 距离标签 between left=150 (right of A) and left=220 (left of target) → midpoint 185 -->
+      <div class="interval" style="left: 150px; right: calc(100% - 220px); top: 68px;"></div>
+      <span class="dist-label" style="left: 175px; top: 76px;">70 px</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📐 距纸张边距</div>
+    <div class="card-desc">元素靠近纸张边界时显示和边界的距离。</div>
+    <div class="paper">
+      <div class="elem target" style="left: 24px; top: 60px; width: 120px; height: 48px;">
+        target
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      </div>
+      <div class="guide dashed v" style="left: 24px;"></div>
+      <span class="dist-label" style="left: 6px; top: 80px;">24</span>
+    </div>
+  </div>
+</div>
+
+<h2>场景 4 · 等间距分布（多元素）</h2>
+<div class="row">
+  <div class="card" style="flex: 1; max-width: 700px">
+    <div class="card-title">📐 多个元素等间距时显示等距标签</div>
+    <div class="card-desc">target 拖动到使三个元素水平等距时，元素间显示 = 标记。</div>
+    <div class="paper" style="width: 600px">
+      <div class="elem" style="left: 40px; top: 100px; width: 80px; height: 40px;">A</div>
+      <div class="elem target" style="left: 220px; top: 100px; width: 80px; height: 40px;">
+        B
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      </div>
+      <div class="elem" style="left: 400px; top: 100px; width: 80px; height: 40px;">C</div>
+
+      <!-- 等距标记 -->
+      <div class="interval" style="left: 120px; right: calc(100% - 220px); top: 122px;"></div>
+      <span class="dist-label" style="left: 150px; top: 105px;">= 100</span>
+
+      <div class="interval" style="left: 300px; right: calc(100% - 400px); top: 122px;"></div>
+      <span class="dist-label" style="left: 330px; top: 105px;">= 100</span>
+    </div>
+  </div>
+</div>
+
+<h2>实现要点</h2>
+<div class="legend">
+  <strong>触发时机</strong>：仅在 <code>store.isResizing === true</code>（拖动/缩放期间）显示辅助线。pointerup 立即清除。<br/>
+  <strong>计算候选线</strong>：拖动期间用 RAF 节流，每帧计算当前 target 元素 6 条线（L/R/T/B/HC/VC）与其他元素 + 纸张 6 条线的距离。<br/>
+  <strong>吸附阈值</strong>：屏幕像素 6px（除以 view.zoom 转 mm）。Alt 键按下时禁用 snap 但仍显示辅助线。<br/>
+  <strong>样式</strong>：实线 = 当前命中并吸附 (左/右/顶/底/中心)；虚线 = 仅参考距离（如距纸张边）；紫色 = <code>--tp-accent</code>。<br/>
+  <strong>距离标签</strong>：紫色背景白字胶囊，显示 mm 或 px（按用户当前 zoom 切换）。<br/>
+  <strong>等间距检测</strong>：找到任意 3 个元素水平/垂直方向间距相等时，自动显示 <code>= 100</code> 类标签。优先级低于一对一对齐。<br/>
+  <strong>性能</strong>：candidates 由静态元素列表（不含 target）预先计算；target 移动时只 diff target 的 6 条线。50 元素以下流畅。<br/>
+</div>
+
+<p style="margin-top: 32px; font-size: 13px; color: var(--ink-soft)">
+  4 种典型场景的视觉方案都给出了。<strong style="color: var(--ink)">建议 MVP 实现场景 1 + 2</strong>（边对齐 + 中心对齐 + 纸张中心，最常用）。
+  <strong>场景 3 距离标签</strong>实现成本中等，可纳入。
+  <strong>场景 4 等间距</strong>需要更复杂的候选检测，留到后续 iteration。
+</p>
+
+</body>
+</html>

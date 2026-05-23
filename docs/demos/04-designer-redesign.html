@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>04 · Designer 重设计（分区调整）</title>
+<style>
+  :root {
+    --bg:           #ECECEF;
+    --panel:        #FFFFFF;
+    --canvas-bg:    #F2F2F5;
+    --ink:          #1F1F23;
+    --ink-soft:     #5E5E66;
+    --ink-faint:    #9C9CA3;
+    --line:         #ECECEF;
+    --line-strong:  #E0E0E4;
+    --accent:       #6C5CE7;
+    --accent-bg:    #F0EEFF;
+    --accent-ink:   #4F3FCC;
+    --accent-shadow:0 4px 16px rgba(108,92,231,0.20);
+    --warn-bg:      #FFF7E0;
+    --warn-line:    #F0CC68;
+    --warn-ink:     #8A6500;
+    --radius-panel: 18px;
+    --radius-pill:  999px;
+    --radius-btn:   10px;
+    --radius-item:  8px;
+    --shadow-panel: 0 1px 0 rgba(20,20,30,0.04), 0 4px 12px rgba(20,20,30,0.04), 0 16px 32px rgba(20,20,30,0.06);
+    --shadow-pill:  0 1px 0 rgba(20,20,30,0.06), 0 4px 16px rgba(20,20,30,0.08);
+    --field-bg:     rgba(108,92,231,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--ink);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  code, .mono { font-family: 'JetBrains Mono', ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  button { font-family: inherit; }
+
+  .root {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr) 320px;
+    grid-template-areas: "left center right";
+    gap: 14px;
+    padding: 14px;
+  }
+
+  /* =========================================================
+     共用：浮卡 / 标题
+     ========================================================= */
+  .panel {
+    background: var(--panel);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .panel-head {
+    padding: 14px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px;
+    min-width: 0;
+    flex-shrink: 0;
+  }
+
+  /* 顶部 chip 样式（panel 内每个 section 的标题胶囊） */
+  .sub-head {
+    padding: 12px 14px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+  }
+  .sub-title {
+    font-size: 11px; font-weight: 600;
+    color: var(--ink-soft);
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .sub-hint { font-size: 11px; color: var(--ink-faint); font-weight: normal; }
+  .sub-add {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: transparent; border: none; cursor: pointer;
+    color: var(--ink-faint); font-size: 14px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .sub-add:hover { color: var(--accent); background: var(--field-bg); }
+
+  /* =========================================================
+     A) 左侧：上半 添加新元素 / 下半 画布元素
+     ========================================================= */
+  .left { grid-area: left; }
+  .left-head {
+    flex-shrink: 0;
+  }
+  .avatar {
+    flex-shrink: 0;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #FF8B66, #FF6B9D);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 12px;
+  }
+  .head-text { min-width: 0; flex: 1; }
+  .head-title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .head-sub { font-size: 11px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* 上半：元素库 */
+  .section-add {
+    flex-shrink: 0;
+    max-height: 50%;
+    display: flex; flex-direction: column;
+    border-bottom: 1px solid var(--line);
+    min-height: 0;
+  }
+  .lib-grid {
+    flex: 1; overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 8px 10px 12px;
+  }
+  .lib-btn {
+    padding: 10px 4px;
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-item);
+    cursor: grab;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--ink-soft);
+    font-size: 11px;
+    transition: all 120ms ease;
+    user-select: none;
+  }
+  .lib-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(108,92,231,0.12);
+  }
+  .lib-btn:active { cursor: grabbing; transform: none; }
+  .lib-glyph { font-family: ui-monospace, monospace; font-weight: 700; font-size: 14px; }
+
+  /* 下半：画布元素 */
+  .section-canvas-elems {
+    flex: 1;
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .elem-list { flex: 1; overflow-y: auto; padding: 6px 8px 14px; }
+  .elem-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--radius-item);
+    cursor: pointer;
+    color: var(--ink); font-size: 12.5px;
+    margin-bottom: 2px;
+  }
+  .elem-row:hover { background: var(--field-bg); }
+  .elem-row.is-active {
+    background: var(--accent-bg);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .elem-row.is-active .elem-icon { background: var(--accent); color: #fff; }
+  .elem-icon {
+    flex-shrink: 0;
+    width: 22px; height: 22px; border-radius: 5px;
+    background: var(--field-bg); color: var(--accent);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: ui-monospace, monospace; font-weight: 600; font-size: 11px;
+  }
+  .elem-row-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .elem-row-vis {
+    flex-shrink: 0;
+    width: 18px; height: 18px;
+    color: var(--ink-faint); font-size: 12px; opacity: 0.6;
+  }
+  .elem-row:hover .elem-row-vis { opacity: 1; }
+  .elem-empty {
+    padding: 32px 16px; text-align: center;
+    color: var(--ink-faint); font-size: 12px;
+  }
+
+  /* =========================================================
+     B) 中间画布 + 顶部 toolbar
+     ========================================================= */
+  .center {
+    grid-area: center;
+    position: relative;
+    background: var(--canvas-bg);
+    border-radius: var(--radius-panel);
+    overflow: hidden;
+    box-shadow: var(--shadow-panel);
+    min-width: 0;
+  }
+  .top-toolbar {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    background: var(--panel);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-pill);
+    padding: 5px;
+    display: inline-flex; align-items: center; gap: 2px;
+    z-index: 10;
+    max-width: calc(100% - 28px);
+    white-space: nowrap;
+  }
+  .tt-icon-btn {
+    width: 32px; height: 32px;
+    background: transparent; border: none; border-radius: 8px;
+    cursor: pointer; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 15px; line-height: 1;
+  }
+  .tt-icon-btn:hover { background: var(--field-bg); }
+  .tt-icon-btn[disabled] { color: var(--ink-faint); cursor: not-allowed; }
+  .tt-divider { width: 1px; height: 18px; background: var(--line-strong); margin: 0 4px; flex-shrink: 0; }
+  .tt-pill {
+    height: 32px; padding: 0 12px;
+    background: transparent; border: none; border-radius: 8px;
+    cursor: pointer; color: var(--ink); font: inherit; font-size: 12.5px;
+    display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .tt-pill:hover { background: var(--field-bg); }
+  .pill-faint { color: var(--ink-faint); }
+  .tt-btn {
+    height: 32px; padding: 0 14px;
+    border-radius: 8px;
+    background: transparent; border: none;
+    cursor: pointer; color: var(--ink); font: inherit; font-size: 12.5px;
+    display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .tt-btn:hover { background: var(--field-bg); }
+  .tt-primary {
+    height: 32px; padding: 0 16px;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 8px;
+    cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600;
+    box-shadow: var(--accent-shadow);
+    white-space: nowrap;
+  }
+  .tt-primary:hover { background: #5847cc; }
+
+  .canvas-area {
+    position: absolute; inset: 80px 24px 24px 24px;
+    display: flex; justify-content: center; align-items: flex-start;
+    overflow: auto;
+    background-image: radial-gradient(circle, rgba(108,92,231,0.07) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  .paper {
+    width: 720px; height: 360px;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow:
+      0 1px 0 rgba(0,0,0,0.04),
+      0 4px 12px rgba(0,0,0,0.04),
+      0 24px 48px rgba(0,0,0,0.06);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .elem { position: absolute; box-sizing: border-box; }
+  .elem.text { font-size: 22px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+  .elem.label { color: var(--ink-soft); font-size: 13px; padding: 4px 0; }
+  .elem.field { color: var(--accent); font-weight: 500; padding: 4px 0; border-bottom: 1.5px solid var(--ink); }
+  .elem.qr {
+    background: linear-gradient(135deg,#fafafa,#eef1f4);
+    border: 1px dashed #c0c7ff;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-faint); font-size: 11px;
+  }
+  .elem.is-sel {
+    border: 1.5px solid var(--accent) !important;
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px rgba(108,92,231,0.15), 0 0 24px rgba(108,92,231,0.18);
+  }
+  .handle {
+    position: absolute; width: 9px; height: 9px;
+    background: #fff; border: 1.5px solid var(--accent);
+    border-radius: 50%;
+  }
+  .handle.t-l { top: -5px; left: -5px; }
+  .handle.t-r { top: -5px; right: -5px; }
+  .handle.b-l { bottom: -5px; left: -5px; }
+  .handle.b-r { bottom: -5px; right: -5px; }
+  .grip {
+    position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1.5px solid var(--accent);
+    border-radius: 8px; width: 32px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--accent-shadow);
+    cursor: grab;
+  }
+  .grip-dots { display: grid; grid-template-columns: repeat(3, 3px); grid-template-rows: repeat(2, 3px); gap: 2.5px; }
+  .grip-dots i { background: var(--accent); border-radius: 50%; width: 3px; height: 3px; display: block; }
+  .size-badge {
+    position: absolute; bottom: -26px; right: -1px;
+    background: var(--ink); color: #fff;
+    font-family: ui-monospace, monospace; font-size: 11px;
+    padding: 2px 8px; border-radius: 5px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    white-space: nowrap;
+  }
+
+  /* =========================================================
+     C) 右侧：上半 数据字段 / 下半 属性
+     ========================================================= */
+  .right { grid-area: right; }
+
+  /* 上半：数据字段 */
+  .section-fields {
+    flex-shrink: 0;
+    max-height: 42%;
+    display: flex; flex-direction: column;
+    border-bottom: 1px solid var(--line);
+    min-height: 0;
+  }
+  .field-list { flex: 1; overflow-y: auto; padding: 8px 10px 12px; }
+  .field-card {
+    margin-bottom: 6px;
+    padding: 8px 10px;
+    border-radius: var(--radius-item);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .field-card:hover { border-color: var(--line-strong); background: #FAFAFB; }
+  .field-card.unused { background: var(--warn-bg); border-color: var(--warn-line); }
+  .fc-row1 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .fc-k {
+    font-family: ui-monospace, monospace;
+    font-weight: 600; font-size: 12px; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex-shrink: 1; min-width: 0;
+  }
+  .fc-l {
+    color: var(--ink-faint); font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+  .fc-meta {
+    display: flex; gap: 6px; font-size: 10.5px; color: var(--ink-faint);
+    margin-top: 3px;
+  }
+  .fc-required { color: var(--accent); }
+  .fc-warn { color: var(--warn-ink); }
+
+  /* 下半：属性 */
+  .section-properties {
+    flex: 1;
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .prop-head {
+    padding: 12px 14px 10px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+  .prop-title { font-size: 11px; font-weight: 600; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; }
+  .prop-type-pill {
+    background: var(--accent-bg); color: var(--accent);
+    font-family: ui-monospace, monospace; font-weight: 600; font-size: 11px;
+    padding: 2px 8px; border-radius: 999px;
+  }
+
+  .prop-body { flex: 1; overflow-y: auto; min-height: 0; }
+  .empty-state {
+    padding: 48px 20px; text-align: center;
+    color: var(--ink-faint); font-size: 12px;
+  }
+  .pp-section { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .pp-section:last-child { border-bottom: none; }
+  .pp-sec-title {
+    font-size: 11.5px; font-weight: 600; color: var(--ink);
+    margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 0;
+    min-width: 0;
+  }
+  .row .lbl { flex-shrink: 0; width: 44px; color: var(--ink-soft); font-size: 12px; }
+  .row .ctrl { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: center; }
+
+  .bind-pill {
+    flex: 1;
+    height: 30px; padding: 0 10px;
+    background: var(--bg); border: none; border-radius: 7px;
+    cursor: pointer; font: inherit; font-size: 12px; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: space-between;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bind-pill:hover { background: var(--field-bg); }
+
+  .axis-group { display: flex; gap: 6px; flex: 1; }
+  .axis {
+    flex: 1;
+    display: inline-flex; align-items: center;
+    background: var(--bg);
+    border-radius: 7px;
+    padding: 3px 4px 3px 3px;
+    min-width: 0;
+  }
+  .axis-lbl {
+    flex-shrink: 0;
+    background: var(--accent-bg); color: var(--accent);
+    font-family: ui-monospace, monospace; font-weight: 600; font-size: 10.5px;
+    padding: 2px 6px; border-radius: 5px;
+    margin-right: 6px;
+  }
+  .axis input {
+    flex: 1; min-width: 0;
+    border: none; background: transparent; outline: none;
+    text-align: right; font: inherit; font-size: 12px; color: var(--ink);
+  }
+
+  .border-pad {
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr;
+    grid-template-rows: 26px 1fr 26px;
+    height: 88px;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .bp-cell {
+    background: transparent; border: none; cursor: pointer;
+    border-radius: 5px;
+    font-family: ui-monospace, monospace; font-size: 10.5px;
+    color: var(--ink-soft);
+    transition: all 120ms ease;
+  }
+  .bp-cell:hover { background: rgba(108,92,231,0.08); }
+  .bp-cell.is-on { background: var(--accent); color: #fff; font-weight: 600; }
+  .bp-cell.t { grid-area: 1 / 1 / 2 / 4; }
+  .bp-cell.b { grid-area: 3 / 1 / 4 / 4; }
+  .bp-cell.l { grid-area: 2 / 1 / 3 / 2; }
+  .bp-cell.r { grid-area: 2 / 3 / 3 / 4; }
+  .bp-center {
+    grid-area: 2 / 2 / 3 / 3;
+    background: var(--panel);
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--ink-faint);
+  }
+  .border-style-row {
+    display: flex; gap: 6px; margin-top: 8px;
+  }
+  .border-style-row select {
+    flex: 1; min-width: 0;
+    padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px;
+    font: inherit; font-size: 11px; background: var(--panel); color: var(--ink);
+  }
+  .border-style-row input[type="color"] {
+    flex-shrink: 0;
+    width: 28px; height: 28px; padding: 0;
+    border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--panel);
+  }
+
+  .pad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .pad-grid label {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 11px; color: var(--ink-soft);
+    min-width: 0;
+  }
+  .pad-grid input {
+    flex: 1; min-width: 0;
+    padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 6px;
+    font: inherit; font-size: 11px; text-align: right; background: var(--panel);
+  }
+
+  .delete-btn {
+    width: 100%; padding: 8px;
+    background: transparent; border: 1px solid #FFC9C9; border-radius: 8px;
+    color: #DC2626; font: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: all 120ms ease;
+  }
+  .delete-btn:hover { background: #FEF2F2; border-color: #DC2626; }
+</style>
+</head>
+<body>
+<div class="root">
+
+  <!-- ============== LEFT PANEL ============== -->
+  <!--  上半：添加新元素   下半：画布元素      -->
+  <aside class="panel left">
+    <div class="panel-head left-head">
+      <div class="avatar">扬</div>
+      <div class="head-text">
+        <div class="head-title">扬力出门证</div>
+        <div class="head-sub">v3 · 草稿已保存</div>
+      </div>
+    </div>
+
+    <!-- 上半：添加新元素 -->
+    <div class="section-add">
+      <div class="sub-head">
+        <span class="sub-title">添加新元素</span>
+        <span class="sub-hint">点击或拖入</span>
+      </div>
+      <div class="lib-grid">
+        <button class="lib-btn"><span class="lib-glyph">T</span>文字</button>
+        <button class="lib-btn"><span class="lib-glyph">{}</span>字段</button>
+        <button class="lib-btn"><span class="lib-glyph">▤</span>图片</button>
+        <button class="lib-btn"><span class="lib-glyph">▢</span>矩形</button>
+        <button class="lib-btn"><span class="lib-glyph">▦</span>明细</button>
+        <button class="lib-btn"><span class="lib-glyph">▣</span>二维码</button>
+        <button class="lib-btn"><span class="lib-glyph">|||</span>条码</button>
+        <button class="lib-btn"><span class="lib-glyph">№</span>编号</button>
+      </div>
+    </div>
+
+    <!-- 下半：画布元素 -->
+    <div class="section-canvas-elems">
+      <div class="sub-head">
+        <span class="sub-title">画布元素 · 7</span>
+      </div>
+      <div class="elem-list">
+        <div class="elem-row">
+          <span class="elem-icon">T</span>
+          <span class="elem-row-label">text · 出门证标题</span>
+          <span class="elem-row-vis">👁</span>
+        </div>
+        <div class="elem-row is-active">
+          <span class="elem-icon">{}</span>
+          <span class="elem-row-label">field · 提货单位</span>
+          <span class="elem-row-vis">👁</span>
+        </div>
+        <div class="elem-row">
+          <span class="elem-icon">{}</span>
+          <span class="elem-row-label">field · 品名</span>
+          <span class="elem-row-vis">👁</span>
+        </div>
+        <div class="elem-row">
+          <span class="elem-icon">{}</span>
+          <span class="elem-row-label">field · 数量</span>
+          <span class="elem-row-vis">👁</span>
+        </div>
+        <div class="elem-row">
+          <span class="elem-icon">▣</span>
+          <span class="elem-row-label">qr · 单号</span>
+          <span class="elem-row-vis">👁</span>
+        </div>
+        <div class="elem-row">
+          <span class="elem-icon">{}</span>
+          <span class="elem-row-label">field · date</span>
+          <span class="elem-row-vis">👁</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============== CENTER ============== -->
+  <section class="center">
+    <div class="top-toolbar">
+      <button class="tt-icon-btn" title="返回">←</button>
+      <span class="tt-divider"></span>
+      <button class="tt-icon-btn" title="撤销">↶</button>
+      <button class="tt-icon-btn" title="重做" disabled>↷</button>
+      <span class="tt-divider"></span>
+      <button class="tt-pill">
+        <span class="pill-faint">纸张</span>
+        <span style="font-weight:500">A4 横向</span>
+        <span class="pill-faint">▾</span>
+      </button>
+      <button class="tt-pill">
+        <span class="pill-faint">cell</span>
+        <span class="mono" style="font-weight:600">4×4</span>
+        <span class="pill-faint">px ▾</span>
+      </button>
+      <span class="tt-divider"></span>
+      <button class="tt-btn">👁 预览</button>
+      <button class="tt-btn">🖨 打印</button>
+      <button class="tt-primary">保存</button>
+    </div>
+
+    <div class="canvas-area">
+      <div class="paper">
+        <div class="elem text" style="left: 32px; top: 24px;">扬 力 集 团 · 出 门 证</div>
+
+        <div class="elem label" style="left: 32px; top: 90px; width: 80px; height: 24px">提货单位</div>
+        <div class="elem field is-sel" style="left: 120px; top: 90px; width: 280px; height: 24px">
+          {{ 提货单位 }}
+          <div class="grip"><span class="grip-dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+          <span class="handle t-l"></span>
+          <span class="handle t-r"></span>
+          <span class="handle b-l"></span>
+          <span class="handle b-r"></span>
+          <span class="size-badge">70×6 格</span>
+        </div>
+
+        <div class="elem label" style="left: 32px; top: 140px; width: 80px; height: 24px">品名</div>
+        <div class="elem field" style="left: 120px; top: 140px; width: 280px; height: 24px">{{ 品名 }}</div>
+
+        <div class="elem label" style="left: 32px; top: 190px; width: 80px; height: 24px">数量</div>
+        <div class="elem field" style="left: 120px; top: 190px; width: 180px; height: 24px">{{ 数量 }}</div>
+
+        <div class="elem qr" style="left: 600px; top: 80px; width: 80px; height: 80px">▣ QR</div>
+
+        <div class="elem label" style="left: 32px; top: 280px; width: 120px; height: 24px">出公司日期</div>
+        <div class="elem field" style="left: 160px; top: 280px; width: 200px; height: 24px">{{ date }}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== RIGHT PANEL ============== -->
+  <!--  上半：数据字段  下半：属性  -->
+  <aside class="panel right">
+    <!-- 上半：数据字段 -->
+    <div class="section-fields">
+      <div class="sub-head">
+        <span class="sub-title">数据字段 · 3</span>
+        <button class="sub-add" title="添加字段">+</button>
+      </div>
+      <div class="field-list">
+        <div class="field-card">
+          <div class="fc-row1">
+            <span class="fc-k">tihuoDanwei</span>
+            <span class="fc-l">提货单位</span>
+          </div>
+          <div class="fc-meta">
+            <span>string</span><span class="fc-required">必填</span>
+          </div>
+        </div>
+        <div class="field-card">
+          <div class="fc-row1">
+            <span class="fc-k">pinming</span>
+            <span class="fc-l">品名</span>
+          </div>
+          <div class="fc-meta"><span>string</span></div>
+        </div>
+        <div class="field-card unused">
+          <div class="fc-row1">
+            <span class="fc-k">beizhu</span>
+            <span class="fc-l">备注</span>
+          </div>
+          <div class="fc-meta">
+            <span>string</span><span class="fc-warn">⚠ 未使用</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 下半：属性 -->
+    <div class="section-properties">
+      <div class="prop-head">
+        <span class="prop-title">属性</span>
+        <span class="prop-type-pill">field</span>
+      </div>
+
+      <div class="prop-body">
+        <div class="pp-section">
+          <div class="row">
+            <span class="lbl">绑定</span>
+            <button class="bind-pill">
+              <span><span class="mono">tihuoDanwei</span> · 提货单位</span>
+              <span class="pill-faint">▾</span>
+            </button>
+          </div>
+          <div class="row">
+            <span class="lbl">位置</span>
+            <div class="axis-group">
+              <span class="axis"><span class="axis-lbl">列</span><input value="20"></span>
+              <span class="axis"><span class="axis-lbl">行</span><input value="15"></span>
+            </div>
+          </div>
+          <div class="row">
+            <span class="lbl">尺寸</span>
+            <div class="axis-group">
+              <span class="axis"><span class="axis-lbl">宽</span><input value="70"></span>
+              <span class="axis"><span class="axis-lbl">高</span><input value="6"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pp-section">
+          <div class="pp-sec-title">边框</div>
+          <div class="border-pad">
+            <button class="bp-cell t">上</button>
+            <button class="bp-cell l">左</button>
+            <div class="bp-center">elem</div>
+            <button class="bp-cell r">右</button>
+            <button class="bp-cell b is-on">下</button>
+          </div>
+          <div class="border-style-row">
+            <select>
+              <option>1.5 px</option><option>1 px</option><option>2 px</option>
+            </select>
+            <select>
+              <option>实线</option><option>虚线</option>
+            </select>
+            <input type="color" value="#1f1f23">
+          </div>
+        </div>
+
+        <div class="pp-section">
+          <div class="pp-sec-title">
+            内边距 <span class="sub-hint" style="font-weight:normal">px</span>
+          </div>
+          <div class="pad-grid">
+            <label>上 <input value="0"></label>
+            <label>右 <input value="4"></label>
+            <label>下 <input value="2"></label>
+            <label>左 <input value="4"></label>
+          </div>
+        </div>
+
+        <div class="pp-section">
+          <button class="delete-btn">删除元素</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+</body>
+</html>

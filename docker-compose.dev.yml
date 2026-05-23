@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: template_printing
     ports:
-      - '5432:5432'
+      # Host port 6432 avoids the 5255-5996 Windows-reserved range.
+      - '6432:5432'
     volumes:
       - ./.pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -38,6 +39,7 @@ services:
     volumes:
       - ./:/workspace
       - /workspace/node_modules
+      - ./storage:/storage
     ports:
       - '3000:3000'
     depends_on:
@@ -63,10 +65,19 @@ services:
   render:
     build:
       context: .
-      dockerfile: docker/render.Dockerfile
+      dockerfile: docker/render.Dockerfile.dev
     env_file: .env
     environment:
       REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/template_printing
+      WEB_BASE: http://web:5173
+      STORAGE_ROOT: /storage
+    volumes:
+      - ./:/workspace
+      - /workspace/node_modules
+      - ./storage:/storage
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy

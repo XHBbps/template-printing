@@ -1,6 +1,7 @@
+// eslint-disable-next-line import/no-unresolved
 import { defineStore } from 'pinia';
 
-import { apiFetch, ApiClientError, setCsrfTokenGetter } from '../lib/api';
+import { apiFetch, ApiClientError, setCsrfTokenGetter, setRefreshOn401 } from '../lib/api';
 
 export interface AuthUser {
   id: string;
@@ -9,6 +10,8 @@ export interface AuthUser {
   avatarUrl: string | null;
   role: 'admin' | 'user' | 'emergency_admin';
   mustChangePassword: boolean;
+  larkUserId?: string | null;
+  hasLocalPassword?: boolean;
 }
 
 interface MeResponse {
@@ -86,4 +89,15 @@ export const useAuthStore = defineStore('auth', {
 
 export function installCsrfHook(): void {
   setCsrfTokenGetter(() => useAuthStore().csrf);
+  setRefreshOn401(async () => {
+    const auth = useAuthStore();
+    // Don't recurse if not previously authenticated (no point refreshing when never logged in)
+    if (!auth.user) return false;
+    try {
+      await auth.tryRefresh();
+      return auth.user !== null;
+    } catch {
+      return false;
+    }
+  });
 }

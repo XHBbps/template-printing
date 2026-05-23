@@ -1,12 +1,7 @@
 <script setup lang="ts">
-import { useAuthStore } from './stores/auth';
-
-import AppHeader from './components/AppHeader.vue';
-
-const auth = useAuthStore();
+import AppShell from './layout/AppShell.vue';
 </script>
 
 <template>
-  <AppHeader v-if="auth.user || !auth.loading" />
-  <RouterView />
+  <AppShell />
 </template>

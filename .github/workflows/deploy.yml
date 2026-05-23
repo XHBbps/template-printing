@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要部署的 tag (例如 v1.2.3)'
+        required: true
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/template-printing
+            git fetch --tags
+            ./scripts/deploy/update.sh ${{ steps.tag.outputs.tag }}
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "✓ Deploy ${{ steps.tag.outputs.tag }} 成功"
+          # TODO: 接入飞书 webhook 通知
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "✗ Deploy ${{ steps.tag.outputs.tag }} 失败"
+          # TODO: 接入飞书 webhook 通知

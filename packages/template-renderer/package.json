@@ -11,10 +11,14 @@
     "test": "echo 'no tests yet' && exit 0"
   },
   "dependencies": {
+    "@template-printing/schema": "workspace:^",
     "@template-printing/types": "workspace:*",
+    "bwip-js": "4.5.1",
+    "qrcode-generator": "1.4.4",
     "vue": "3.4.27"
   },
   "devDependencies": {
+    "@types/qrcode-generator": "1.0.6",
     "vue-tsc": "2.0.19"
   }
 }

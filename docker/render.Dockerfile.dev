@@ -1,0 +1,23 @@
+FROM node:20-alpine
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+# Chromium + 中文字体 + build essentials (alpine = much faster downloads vs bookworm)
+RUN apk add --no-cache \
+      chromium \
+      font-noto-cjk \
+      font-noto-emoji \
+      ca-certificates \
+      python3 \
+      make \
+      g++ \
+      vips-dev \
+      bash \
+      openssl \
+      libc6-compat
+
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+WORKDIR /workspace
+
+# Source code mounted as volume — install handled at container start
+CMD sh -c "pnpm install && pnpm --filter @template-printing/render dev"

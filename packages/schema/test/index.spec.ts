@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-unresolved
 import { describe, it, expect } from 'vitest';
 
 // eslint-disable-next-line import/no-unresolved -- TS path; resolver not configured yet

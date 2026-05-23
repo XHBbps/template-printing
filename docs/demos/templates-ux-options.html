@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>模板中心 inline 编辑 UX 方案对比</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+body { background: #f4f4f7; color: #1f1f23; padding: 32px; }
+h1 { font-size: 22px; margin-bottom: 6px; }
+.subtitle { color: #777; margin-bottom: 24px; font-size: 13px; }
+.option-grid { display: grid; grid-template-columns: 1fr; gap: 28px; }
+.option { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #ececef; }
+.option h2 { font-size: 16px; margin-bottom: 8px; color: #6c5ce7; }
+.option .desc { font-size: 12px; color: #666; margin-bottom: 16px; line-height: 1.7; }
+.option .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; font-size: 11px; }
+.option .pros, .option .cons { padding: 8px 12px; border-radius: 6px; line-height: 1.7; }
+.option .pros { background: #eef7ee; color: #2c6b3a; }
+.option .cons { background: #fff5e6; color: #8a5a00; }
+
+/* Mockup frame */
+.mock { width: 100%; height: 360px; border: 1px solid #d0d0d6; border-radius: 8px; overflow: hidden; display: flex; background: #fafafb; font-size: 11px; position: relative; }
+.mock-sidebar { width: 140px; background: #fff; border-right: 1px solid #ececef; padding: 14px 8px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.mock-sidebar-head { font-size: 11px; font-weight: 600; color: #6c5ce7; padding: 4px 8px; margin-bottom: 8px; }
+.mock-sidebar-item { padding: 6px 8px; border-radius: 6px; color: #444; cursor: default; }
+.mock-sidebar-item.active { background: #f0eeff; color: #4f3fcc; font-weight: 600; }
+.mock-sidebar-foot { margin-top: auto; padding: 8px; border-top: 1px solid #ececef; font-size: 10px; color: #888; }
+
+.mock-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mock-tlist { width: 200px; background: #fff; border-right: 1px solid #ececef; padding: 12px 8px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
+.mock-tlist-collapsed { width: 44px; padding: 12px 4px; }
+.mock-tlist-head { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; margin-bottom: 6px; }
+.mock-tlist-head-text { font-size: 11px; font-weight: 600; color: #1f1f23; }
+.mock-tlist-newbtn { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #6c5ce7; color: #fff; }
+.mock-tlist-item { padding: 8px 8px; border-radius: 6px; font-size: 11px; color: #444; display: flex; align-items: center; gap: 6px; }
+.mock-tlist-item.active { background: #f0eeff; color: #4f3fcc; font-weight: 600; }
+.mock-tlist-item.collapsed { padding: 6px; justify-content: center; }
+.mock-tlist-icon { width: 14px; height: 14px; background: #6c5ce7; border-radius: 3px; flex-shrink: 0; }
+
+.mock-editor { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mock-editor-toolbar { background: #fff; border-bottom: 1px solid #ececef; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+.mock-editor-toolbar-l { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #666; }
+.mock-breadcrumb-dd { padding: 3px 8px; background: #f0eeff; color: #4f3fcc; border-radius: 4px; font-weight: 600; }
+.mock-editor-toolbar-r { display: flex; gap: 6px; }
+.mock-tbar-btn { padding: 4px 10px; background: #eef; color: #4f3fcc; border-radius: 4px; font-size: 10px; }
+
+.mock-editor-canvas-wrap { flex: 1; background: #f8f8fb; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.mock-editor-canvas { width: 70%; height: 100%; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-radius: 4px; position: relative; padding: 14px; }
+.mock-element { position: absolute; border: 1px solid #c0c0c6; background: #fafafa; font-size: 10px; padding: 4px; }
+
+/* Card grid (Option B default) */
+.mock-cards { padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; background: #fafafb; flex: 1; }
+.mock-card { background: #fff; border: 1px solid #ececef; border-radius: 6px; padding: 10px; min-height: 70px; }
+.mock-card-thumb { height: 36px; background: #f0eeff; border-radius: 3px; margin-bottom: 6px; }
+.mock-card-name { font-size: 11px; font-weight: 600; }
+.mock-card-time { font-size: 9px; color: #999; }
+
+/* Tabs (Option C) */
+.mock-tabbar { background: #fff; border-bottom: 1px solid #ececef; padding: 0 8px; display: flex; gap: 2px; align-items: end; padding-top: 6px; }
+.mock-tab { padding: 6px 12px; background: #f4f4f7; border: 1px solid #ececef; border-bottom: none; border-radius: 4px 4px 0 0; font-size: 10px; color: #666; }
+.mock-tab.active { background: #fff; color: #1f1f23; font-weight: 600; position: relative; top: 1px; }
+.mock-tab-close { margin-left: 6px; color: #aaa; }
+.mock-tab-add { padding: 4px 10px; color: #6c5ce7; font-weight: 600; }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 9px; font-weight: 600; }
+.tag-rec { background: #6c5ce7; color: #fff; }
+</style>
+</head>
+<body>
+
+<h1>模板中心 inline 编辑 — UX 方案对比</h1>
+<p class="subtitle">三种方案的视觉对比。所有方案都「无路由跳转」，URL 始终保持 /templates。</p>
+
+<div class="option-grid">
+
+  <!-- OPTION A -->
+  <div class="option">
+    <h2>方案 A — 双栏 master-detail，列表可折叠 <span class="tag tag-rec">推荐</span></h2>
+    <p class="desc">
+      参考 <strong>Figma 文件抽屉、VSCode 文件浏览器</strong>。默认列表常驻，鼠标可一键折叠为 56px 仅 icon 模式。
+      切换模板 = 一次点击。
+    </p>
+
+    <div class="mock">
+      <div class="mock-sidebar">
+        <div class="mock-sidebar-head">模板打印</div>
+        <div class="mock-sidebar-item active">📋 模板中心</div>
+        <div class="mock-sidebar-item">👤 个人中心</div>
+        <div class="mock-sidebar-item">🔑 API 说明</div>
+        <div class="mock-sidebar-foot">👤 Emergency Admin</div>
+      </div>
+      <div class="mock-content">
+        <div class="mock-tlist">
+          <div class="mock-tlist-head">
+            <span class="mock-tlist-head-text">我的模板 (4)</span>
+            <span class="mock-tlist-newbtn">+ 新建</span>
+          </div>
+          <div class="mock-tlist-item active"><span class="mock-tlist-icon"></span>出门证 v2</div>
+          <div class="mock-tlist-item"><span class="mock-tlist-icon"></span>物流单</div>
+          <div class="mock-tlist-item"><span class="mock-tlist-icon"></span>销售单</div>
+          <div class="mock-tlist-item"><span class="mock-tlist-icon"></span>库存单</div>
+        </div>
+        <div class="mock-editor">
+          <div class="mock-editor-toolbar">
+            <div class="mock-editor-toolbar-l">B4 / 121% / 出门证 v2</div>
+            <div class="mock-editor-toolbar-r">
+              <div class="mock-tbar-btn">预览</div>
+              <div class="mock-tbar-btn">立即打印</div>
+            </div>
+          </div>
+          <div class="mock-editor-canvas-wrap">
+            <div class="mock-editor-canvas">
+              <div class="mock-element" style="left:8%; top:8%; width:24%; height:30%">QR</div>
+              <div class="mock-element" style="left:38%; top:8%; width:40%; height:14%">条码</div>
+              <div class="mock-element" style="left:8%; top:50%; width:80%; height:24%">明细表格</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        ✓ 列表常驻，切换最快（1 次点击）<br>
+        ✓ Figma / Sketch / VSCode 都是这种<br>
+        ✓ 可折叠回收空间
+      </div>
+      <div class="cons">
+        ✕ 默认状态下编辑器宽度被压缩<br>
+        ✕ 多一栏视觉复杂度
+      </div>
+    </div>
+
+    <!-- 同方案 A 折叠形态 -->
+    <div style="font-size:11px; color:#666; margin: 12px 0 6px;">▼ 列表折叠后（hover/点钉展开）</div>
+    <div class="mock" style="height: 200px;">
+      <div class="mock-sidebar">
+        <div class="mock-sidebar-head">模板打印</div>
+        <div class="mock-sidebar-item active">📋 模板中心</div>
+        <div class="mock-sidebar-item">👤 个人中心</div>
+        <div class="mock-sidebar-foot">👤 EA</div>
+      </div>
+      <div class="mock-content">
+        <div class="mock-tlist mock-tlist-collapsed">
+          <div class="mock-tlist-item collapsed" style="background:#6c5ce7;color:#fff;font-weight:700">+</div>
+          <div class="mock-tlist-item collapsed active"><span class="mock-tlist-icon"></span></div>
+          <div class="mock-tlist-item collapsed"><span class="mock-tlist-icon"></span></div>
+          <div class="mock-tlist-item collapsed"><span class="mock-tlist-icon"></span></div>
+        </div>
+        <div class="mock-editor">
+          <div class="mock-editor-toolbar">
+            <div class="mock-editor-toolbar-l">B4 / 出门证 v2</div>
+            <div class="mock-editor-toolbar-r">
+              <div class="mock-tbar-btn">预览</div><div class="mock-tbar-btn">打印</div>
+            </div>
+          </div>
+          <div class="mock-editor-canvas-wrap">
+            <div class="mock-editor-canvas">
+              <div class="mock-element" style="left:8%; top:8%; width:24%; height:30%">QR</div>
+              <div class="mock-element" style="left:38%; top:8%; width:40%; height:14%">条码</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION B -->
+  <div class="option">
+    <h2>方案 B — 面包屑切换（卡片网格 + 全屏编辑器）</h2>
+    <p class="desc">
+      参考 <strong>Notion 页面、Linear issue 编辑</strong>。默认显示卡片网格，点卡进编辑器全屏。顶部面包屑下拉切换。
+    </p>
+
+    <div style="font-size:11px; color:#666; margin: 0 0 6px;">▼ 默认列表态（卡片网格）</div>
+    <div class="mock">
+      <div class="mock-sidebar">
+        <div class="mock-sidebar-head">模板打印</div>
+        <div class="mock-sidebar-item active">📋 模板中心</div>
+        <div class="mock-sidebar-item">👤 个人中心</div>
+        <div class="mock-sidebar-item">🔑 API 说明</div>
+        <div class="mock-sidebar-foot">👤 Emergency Admin</div>
+      </div>
+      <div class="mock-content">
+        <div class="mock-editor-toolbar">
+          <div class="mock-editor-toolbar-l"><strong style="font-size:13px">模板中心</strong></div>
+          <div class="mock-editor-toolbar-r"><div class="mock-tbar-btn" style="background:#6c5ce7;color:#fff">+ 新建</div></div>
+        </div>
+        <div class="mock-cards">
+          <div class="mock-card"><div class="mock-card-thumb"></div><div class="mock-card-name">出门证 v2</div><div class="mock-card-time">2 小时前</div></div>
+          <div class="mock-card"><div class="mock-card-thumb"></div><div class="mock-card-name">物流单</div><div class="mock-card-time">昨天</div></div>
+          <div class="mock-card"><div class="mock-card-thumb"></div><div class="mock-card-name">销售单</div><div class="mock-card-time">3 天前</div></div>
+          <div class="mock-card"><div class="mock-card-thumb"></div><div class="mock-card-name">库存单</div><div class="mock-card-time">上周</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:11px; color:#666; margin: 12px 0 6px;">▼ 进入编辑态（点击卡片后）</div>
+    <div class="mock">
+      <div class="mock-sidebar">
+        <div class="mock-sidebar-head">模板打印</div>
+        <div class="mock-sidebar-item active">📋 模板中心</div>
+        <div class="mock-sidebar-item">👤 个人中心</div>
+        <div class="mock-sidebar-foot">👤 EA</div>
+      </div>
+      <div class="mock-content">
+        <div class="mock-editor-toolbar">
+          <div class="mock-editor-toolbar-l">
+            <span>📋 模板中心 →</span>
+            <span class="mock-breadcrumb-dd">出门证 v2 ▾</span>
+            <span style="color:#888">B4 / 121%</span>
+          </div>
+          <div class="mock-editor-toolbar-r">
+            <div class="mock-tbar-btn">预览</div>
+            <div class="mock-tbar-btn">立即打印</div>
+            <div class="mock-tbar-btn">← 返回列表</div>
+          </div>
+        </div>
+        <div class="mock-editor-canvas-wrap">
+          <div class="mock-editor-canvas">
+            <div class="mock-element" style="left:6%; top:6%; width:22%; height:28%">QR</div>
+            <div class="mock-element" style="left:34%; top:6%; width:48%; height:14%">条码</div>
+            <div class="mock-element" style="left:6%; top:50%; width:84%; height:24%">明细表格</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        ✓ 编辑器空间最充足<br>
+        ✓ 列表卡片视觉好，可放缩略图<br>
+        ✓ 模板少时观感最好
+      </div>
+      <div class="cons">
+        ✕ 切换模板需 2 次点击（下拉 + 选择）<br>
+        ✕ 列表 / 编辑两个独立状态切换感
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION C -->
+  <div class="option">
+    <h2>方案 C — 多 tab 编辑（浏览器 / VSCode 风格）</h2>
+    <p class="desc">
+      参考 <strong>Chrome 标签页、VSCode 文件 tab</strong>。每个打开的模板一个 tab，可同时编辑多个、tab 间瞬时切换。
+    </p>
+
+    <div class="mock">
+      <div class="mock-sidebar">
+        <div class="mock-sidebar-head">模板打印</div>
+        <div class="mock-sidebar-item active">📋 模板中心</div>
+        <div class="mock-sidebar-item">👤 个人中心</div>
+        <div class="mock-sidebar-item">🔑 API 说明</div>
+        <div class="mock-sidebar-foot">👤 Emergency Admin</div>
+      </div>
+      <div class="mock-content">
+        <div class="mock-tabbar">
+          <div class="mock-tab">📋 列表</div>
+          <div class="mock-tab active">▣ 出门证 v2<span class="mock-tab-close">✕</span></div>
+          <div class="mock-tab">▣ 销售单<span class="mock-tab-close">✕</span></div>
+          <div class="mock-tab-add">+</div>
+        </div>
+        <div class="mock-editor">
+          <div class="mock-editor-toolbar">
+            <div class="mock-editor-toolbar-l">B4 / 121% / 出门证 v2</div>
+            <div class="mock-editor-toolbar-r">
+              <div class="mock-tbar-btn">预览</div>
+              <div class="mock-tbar-btn">立即打印</div>
+            </div>
+          </div>
+          <div class="mock-editor-canvas-wrap">
+            <div class="mock-editor-canvas">
+              <div class="mock-element" style="left:8%; top:8%; width:22%; height:28%">QR</div>
+              <div class="mock-element" style="left:36%; top:8%; width:46%; height:14%">条码</div>
+              <div class="mock-element" style="left:8%; top:50%; width:80%; height:22%">明细表格</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        ✓ 同时编辑多个模板（对比/复制场景强）<br>
+        ✓ tab 切换瞬时（无重新渲染）<br>
+        ✓ 用户认知熟悉（同浏览器 tab）
+      </div>
+      <div class="cons">
+        ✕ 实现复杂（每个 tab 独立 store / undo 栈）<br>
+        ✕ 标签条占垂直空间<br>
+        ✕ 大多数用户「同时编辑多个」需求弱
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="text-align:center; margin-top:24px; font-size:12px; color:#999">
+模板打印平台 · UX 方案 mockup · 仅静态预览，无功能
+</p>
+
+</body>
+</html>

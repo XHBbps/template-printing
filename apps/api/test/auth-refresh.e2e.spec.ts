@@ -95,8 +95,8 @@ describe('Refresh + logout e2e', () => {
     await request(app.getHttpServer()).post('/auth/refresh').set('Cookie', cookies).expect(401);
   });
 
-  it('POST /auth/logout without CSRF token is rejected', async () => {
+  it('POST /auth/logout without CSRF token still succeeds (idempotent, @Public since iter 23)', async () => {
     const { cookies } = await loginAndGetCookies();
-    await request(app.getHttpServer()).post('/auth/logout').set('Cookie', cookies).expect(403);
+    await request(app.getHttpServer()).post('/auth/logout').set('Cookie', cookies).expect(204);
   });
 });

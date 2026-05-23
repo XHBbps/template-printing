@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>03 · 设计器风格选择 — 4 个方向对比</title>
+<style>
+  /* =========================================================
+     A) 文档外壳：极简白底（沿用 html-effectiveness-cn 的克制感）
+     ========================================================= */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #ffffff; color: #1f2328; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+  .doc { max-width: 1280px; margin: 0 auto; padding: 56px 28px 80px; }
+  .eyebrow { color: #8b949e; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+  h1.doc-title { font-size: 28px; font-weight: 600; margin: 0 0 8px 0; letter-spacing: -0.01em; }
+  .lead { color: #57606a; font-size: 15px; margin: 0 0 36px 0; }
+  .hr { color: #8b949e; margin: 36px 0 24px 0; letter-spacing: 0.4em; user-select: none; }
+
+  /* =========================================================
+     B) 风格切换 tabs
+     ========================================================= */
+  .tabs {
+    display: flex; gap: 8px; flex-wrap: wrap; margin: 28px 0 16px;
+  }
+  .tab {
+    appearance: none; cursor: pointer;
+    padding: 8px 14px;
+    background: #fff; border: 1px solid #d0d7de; border-radius: 8px;
+    color: #1f2328; font: inherit; font-size: 13px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: all 120ms ease;
+  }
+  .tab:hover { border-color: #57606a; }
+  .tab.is-on { background: #1f2328; color: #fff; border-color: #1f2328; }
+  .tab .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); }
+
+  /* =========================================================
+     C) 灵感链接行
+     ========================================================= */
+  .inspiration {
+    background: #fafafa; border: 1px solid #e6e8eb; border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 24px;
+    font-size: 13px;
+  }
+  .inspiration h4 { margin: 0 0 6px 0; font-size: 12px; color: #57606a; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+  .inspiration ul { margin: 0; padding-left: 18px; color: #57606a; }
+  .inspiration li { margin-bottom: 2px; }
+  .inspiration a { color: #0969da; text-decoration: none; }
+  .inspiration a:hover { text-decoration: underline; }
+
+  /* =========================================================
+     D) Designer Stage（mock 出整页 designer，应用风格通过 .stage-* class）
+     ========================================================= */
+  .stage-wrap {
+    border: 1px solid #d0d7de; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(31,35,40,0.04);
+    background: #fff;
+  }
+  .stage {
+    height: 580px;
+    display: grid;
+    grid-template-rows: 48px 1fr;
+    grid-template-columns: 88px 1fr 320px;
+    grid-template-areas:
+      "header header header"
+      "left   middle right";
+  }
+  .stage > .s-header  { grid-area: header; }
+  .stage > .s-left    { grid-area: left;   overflow-y: auto; }
+  .stage > .s-middle  { grid-area: middle; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 32px; }
+  .stage > .s-right   { grid-area: right;  overflow-y: auto; }
+
+  /* paper 模拟 */
+  .paper {
+    position: relative;
+    width: 520px; height: 360px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(31,35,40,0.04);
+  }
+  .elem { position: absolute; padding: 4px 8px; font-size: 12px; }
+  .elem.text     { left: 32px; top: 24px; width: 280px; height: 36px; font-size: 18px; font-weight: 600; }
+  .elem.label    { left: 32px; top: 80px; width: 80px;  height: 24px; color: #57606a; font-size: 12px; }
+  .elem.field    { left: 120px; top: 80px; width: 220px; height: 24px; }
+  .elem.qr       { left: 380px; top: 80px; width: 110px; height: 110px; }
+  .elem .field-text { color: var(--field-color, #0969da); }
+
+  /* selection visual: 默认（Linear）— 后面每个风格 override */
+  .elem.is-sel { /* default see below per style */ }
+
+  /* grip + handles */
+  .grip {
+    position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    background: #fff; border: 1.5px solid var(--accent, #5b5bd6); border-radius: 6px;
+    width: 28px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(31,35,40,0.08);
+  }
+  .grip-dots { display: grid; grid-template-columns: repeat(3, 3px); grid-template-rows: repeat(2, 3px); gap: 2px; }
+  .grip-dots i { background: var(--accent, #5b5bd6); border-radius: 50%; width: 3px; height: 3px; display: block; }
+  .handle {
+    position: absolute; width: 8px; height: 8px;
+    background: #fff; border: 1.5px solid var(--accent, #5b5bd6);
+    border-radius: 50%;
+  }
+  .handle.t-l { top: -5px; left: -5px; }
+  .handle.t-r { top: -5px; right: -5px; }
+  .handle.b-l { bottom: -5px; left: -5px; }
+  .handle.b-r { bottom: -5px; right: -5px; }
+  .size-badge {
+    position: absolute; bottom: -22px; right: -1px;
+    background: var(--accent-ink, #1f2328); color: #fff;
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    font-family: ui-monospace, monospace;
+  }
+
+  /* sidebar items */
+  .lib-group { padding: 8px; }
+  .lib-title { font-size: 10px; color: #8b949e; letter-spacing: 0.06em; text-transform: uppercase; margin: 6px 4px 6px; }
+  .lib-item {
+    width: 100%; padding: 8px 4px; margin-bottom: 4px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: #fff; border: 1px solid #e6e8eb; border-radius: 6px;
+    cursor: pointer; font-size: 11px; color: #57606a;
+    transition: all 120ms ease;
+  }
+  .lib-item:hover { border-color: var(--accent, #5b5bd6); color: var(--accent, #5b5bd6); transform: translateY(-1px); }
+  .lib-glyph { font-size: 14px; }
+
+  /* header */
+  .s-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 14px;
+  }
+  .h-btn { padding: 4px 10px; background: transparent; border: none; color: #1f2328; font: inherit; font-size: 13px; cursor: pointer; border-radius: 5px; }
+  .h-btn:hover { background: #f5f6f7; }
+  .h-btn.primary { background: var(--accent, #5b5bd6); color: #fff; }
+  .h-btn.primary:hover { background: var(--accent-hover, #4848b8); }
+  .h-name { font-weight: 600; padding: 4px 8px; }
+  .h-divider { width: 1px; height: 18px; background: #e6e8eb; margin: 0 4px; }
+  .h-paper-pill { padding: 3px 8px; font-size: 12px; border: 1px solid #d0d7de; border-radius: 4px; color: #57606a; }
+  .h-cell-input { width: 36px; padding: 3px 4px; border: 1px solid #d0d7de; border-radius: 4px; font: inherit; font-size: 12px; text-align: center; }
+  .h-label { color: #8b949e; font-size: 12px; }
+  .h-spacer { flex: 1; }
+
+  /* right panel */
+  .s-right-section { padding: 14px 16px; border-bottom: 1px solid #e6e8eb; }
+  .rp-title { font-size: 11px; font-weight: 600; color: #8b949e; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 10px 0; display: flex; justify-content: space-between; align-items: center; }
+  .rp-add { color: var(--accent, #5b5bd6); cursor: pointer; font-size: 11px; text-transform: none; letter-spacing: 0; }
+  .field-card { padding: 8px 10px; border: 1px solid #e6e8eb; border-radius: 6px; margin-bottom: 6px; font-size: 12px; }
+  .field-card.unused { background: #fff8e1; border-color: #f0d178; }
+  .fc-k { font-family: ui-monospace, monospace; font-weight: 500; font-size: 12px; }
+  .fc-l { color: #57606a; margin-left: 6px; }
+  .fc-meta { display: flex; gap: 6px; font-size: 11px; color: #8b949e; margin-top: 2px; }
+  .pp-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
+  .pp-row .lbl { color: #57606a; }
+  .pp-row .val { color: #1f2328; }
+
+  /* 4-side border control 田字格（已修正：无 ✓） */
+  .border-pad {
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr;
+    grid-template-rows: 28px 1fr 28px;
+    height: 96px;
+    border: 1px dashed #e6e8eb;
+    border-radius: 4px;
+    padding: 4px;
+  }
+  .bp-cell {
+    background: transparent; border: none; cursor: pointer;
+    border-radius: 3px;
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px; color: #57606a;
+  }
+  .bp-cell:hover { background: #f5f6f7; }
+  .bp-cell.is-on {
+    color: var(--accent, #5b5bd6);
+    background: var(--accent-bg, rgba(91,91,214,0.12));
+    font-weight: 600;
+  }
+  .bp-t { grid-area: 1/1/2/4; } .bp-b { grid-area: 3/1/4/4; }
+  .bp-l { grid-area: 2/1/3/2; } .bp-r { grid-area: 2/3/3/4; }
+  .bp-center {
+    grid-area: 2/2/3/3;
+    border: 1px solid #e6e8eb; border-radius: 3px;
+    background: #fafafa;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #8b949e;
+  }
+
+  /* position/size 优化样式（不再裸字母 c/r） */
+  .axis-input {
+    display: inline-flex; align-items: center; gap: 4px;
+    border: 1px solid #d0d7de; border-radius: 5px;
+    padding: 2px 6px; font-size: 12px; background: #fff;
+  }
+  .axis-input .axis-label {
+    background: #f5f6f7; color: #57606a; font-family: ui-monospace, monospace;
+    padding: 0 4px; margin: 0 4px 0 -2px; border-radius: 3px; font-size: 11px;
+  }
+  .axis-input input { border: none; outline: none; width: 32px; text-align: right; font: inherit; font-size: 12px; }
+
+  /* =========================================================
+     E) 各风格 override（all light-themed per user pref）
+     ========================================================= */
+
+  /* --- Linear (indigo glow) --- */
+  .stage-linear {
+    --accent: #5b5bd6;
+    --accent-hover: #4848b8;
+    --accent-bg: rgba(91,91,214,0.10);
+    --accent-ink: #18181b;
+    --field-color: #5b5bd6;
+    background: #fcfcfd;
+    font-family: 'Inter var', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    letter-spacing: -0.01em;
+  }
+  .stage-linear .s-header {
+    background: linear-gradient(180deg, #fff, #fafbfc);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .stage-linear .s-left { background: #fafbfc; border-right: 1px solid rgba(0,0,0,0.06); }
+  .stage-linear .s-middle { background: #f5f6f8; }
+  .stage-linear .s-right { background: #fff; border-left: 1px solid rgba(0,0,0,0.06); }
+  .stage-linear .lib-item { background: #fff; border-color: rgba(0,0,0,0.06); }
+  .stage-linear .paper { box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 8px 32px rgba(91,91,214,0.06); border-radius: 4px; }
+  .stage-linear .elem.is-sel {
+    /* 选中：实线 1.5px 蓝边 + 内嵌光晕，无外飘 */
+    border: 1.5px solid #5b5bd6;
+    border-radius: 4px;
+    box-shadow:
+      0 0 0 1px rgba(91,91,214,0.18),
+      0 0 16px rgba(91,91,214,0.18);
+  }
+  .stage-linear .handle { background: #fff; border: 1.5px solid #5b5bd6; border-radius: 50%; }
+  .stage-linear .h-btn { font-weight: 500; }
+  .stage-linear .h-btn.primary { box-shadow: 0 1px 2px rgba(91,91,214,0.3), inset 0 1px 0 rgba(255,255,255,0.2); }
+
+  /* --- Notion (warm parchment-white, gentle) --- */
+  .stage-notion {
+    --accent: #2eaadc;
+    --accent-hover: #258bb5;
+    --accent-bg: rgba(46,170,220,0.12);
+    --accent-ink: #37352f;
+    --field-color: #2eaadc;
+    background: #fdfdfc;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", system-ui, sans-serif;
+    color: #37352f;
+  }
+  .stage-notion .s-header { background: #fdfdfc; border-bottom: 1px solid #ebebea; }
+  .stage-notion .s-left { background: #fbfaf8; border-right: 1px solid #ebebea; }
+  .stage-notion .s-middle { background: #f7f6f3; }
+  .stage-notion .s-right { background: #fdfdfc; border-left: 1px solid #ebebea; }
+  .stage-notion .lib-item { background: #fff; border-color: #ebebea; border-radius: 4px; }
+  .stage-notion .lib-item:hover { background: #f3f1ee; transform: none; }
+  .stage-notion .paper { border-radius: 3px; box-shadow: 0 1px 3px rgba(15,15,15,0.05), 0 4px 10px rgba(15,15,15,0.04); }
+  .stage-notion .elem.is-sel {
+    border: 1.5px solid #2eaadc;
+    border-radius: 3px;
+    box-shadow: 0 0 0 4px rgba(46,170,220,0.10);
+  }
+  .stage-notion .handle { background: #fff; border: 1.5px solid #2eaadc; border-radius: 50%; }
+  .stage-notion .h-btn:hover { background: #f3f1ee; }
+  .stage-notion .h-btn.primary { background: #2eaadc; }
+  .stage-notion .rp-title { color: #908d83; font-weight: 500; }
+  .stage-notion .lib-title { color: #908d83; }
+
+  /* --- Figma (dense tool, crisp) --- */
+  .stage-figma {
+    --accent: #0d99ff;
+    --accent-hover: #0974c2;
+    --accent-bg: rgba(13,153,255,0.12);
+    --accent-ink: #1e1e1e;
+    --field-color: #0d99ff;
+    background: #f5f5f5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 12px;
+  }
+  .stage-figma .s-header { background: #fff; border-bottom: 1px solid #e6e6e6; }
+  .stage-figma .s-left { background: #f5f5f5; border-right: 1px solid #e6e6e6; }
+  .stage-figma .s-middle { background: #e6e6e6; }
+  .stage-figma .s-right { background: #fff; border-left: 1px solid #e6e6e6; }
+  .stage-figma .lib-item { background: #fff; border-color: #e6e6e6; border-radius: 4px; font-size: 10.5px; padding: 6px 2px; }
+  .stage-figma .lib-glyph { font-size: 13px; }
+  .stage-figma .paper { border-radius: 2px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .stage-figma .elem.is-sel {
+    border: 2px solid #0d99ff;
+    border-radius: 0;
+  }
+  .stage-figma .handle {
+    width: 7px; height: 7px;
+    background: #fff; border: 1.5px solid #0d99ff;
+    border-radius: 0; /* square not round */
+  }
+  .stage-figma .size-badge { background: #0d99ff; border-radius: 2px; }
+  .stage-figma .grip { border-radius: 4px; }
+  .stage-figma .h-btn { font-size: 12px; padding: 3px 8px; }
+  .stage-figma .field-card { border-radius: 4px; font-size: 11.5px; }
+  .stage-figma .pp-row { font-size: 12px; }
+  .stage-figma .rp-title { color: #555; font-weight: 600; }
+
+  /* --- Industrial (paper + 中国红 + 油墨蓝) --- */
+  .stage-industrial {
+    --accent: #c8392c;        /* 中国红 */
+    --accent-hover: #a32c22;
+    --accent-bg: rgba(200,57,44,0.10);
+    --accent-ink: #1c1f2b;
+    --field-color: #2c4a8a;   /* 油墨蓝 */
+    background:
+      radial-gradient(circle at 80% 15%, rgba(200,57,44,0.03), transparent 60%),
+      #faf6ef;                /* parchment */
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    color: #1c1f2b;
+  }
+  .stage-industrial .s-header {
+    background: #f3ecdb;
+    border-bottom: 2px solid #1c1f2b;
+  }
+  .stage-industrial .s-left {
+    background: linear-gradient(180deg, #f3ecdb, #ede4ca);
+    border-right: 1px solid #d4c8a0;
+  }
+  .stage-industrial .s-middle {
+    background:
+      repeating-linear-gradient(45deg, rgba(28,31,43,0.02) 0 1px, transparent 1px 24px),
+      #f0e9d4;
+  }
+  .stage-industrial .s-right {
+    background: #f3ecdb;
+    border-left: 1px solid #d4c8a0;
+  }
+  .stage-industrial .lib-item {
+    background: #fdfaf0;
+    border: 1.5px solid #1c1f2b;
+    color: #1c1f2b;
+    box-shadow: 2px 2px 0 #d4c8a0;
+    border-radius: 0;
+  }
+  .stage-industrial .lib-item:hover {
+    color: #c8392c;
+    border-color: #c8392c;
+    box-shadow: 2px 2px 0 #c8392c;
+    transform: translate(-1px, -1px);
+  }
+  .stage-industrial .paper {
+    box-shadow: 0 0 0 1px #1c1f2b, 4px 4px 0 #1c1f2b;
+    border-radius: 0;
+  }
+  .stage-industrial .paper::after {
+    /* 仿 出门证 蝶形章/水印（轻量） */
+    content: '扬力'; position: absolute; right: 16px; bottom: 12px;
+    font-family: "Noto Serif SC", "STSong", serif;
+    color: rgba(200,57,44,0.12); font-size: 60px; font-weight: 800;
+    transform: rotate(-15deg); pointer-events: none;
+  }
+  .stage-industrial .elem.is-sel {
+    border: 2px dashed #c8392c;
+    border-radius: 0;
+    box-shadow: 0 0 0 1px #fdfaf0, 0 0 0 3px #c8392c;
+  }
+  .stage-industrial .handle {
+    background: #c8392c; border: 1.5px solid #1c1f2b;
+    border-radius: 0;
+  }
+  .stage-industrial .grip {
+    border-color: #c8392c; background: #1c1f2b; border-radius: 0;
+  }
+  .stage-industrial .grip-dots i { background: #fdfaf0; }
+  .stage-industrial .size-badge {
+    background: #1c1f2b; border-radius: 0;
+    font-family: "Noto Serif SC", serif;
+  }
+  .stage-industrial .h-btn { font-weight: 500; }
+  .stage-industrial .h-btn.primary {
+    background: #c8392c; color: #fdfaf0;
+    border-radius: 0; box-shadow: 2px 2px 0 #1c1f2b;
+  }
+  .stage-industrial .h-btn.primary:hover { background: #a32c22; }
+  .stage-industrial .h-paper-pill { border: 1px solid #1c1f2b; border-radius: 0; background: #fdfaf0; }
+  .stage-industrial .h-cell-input { border: 1px solid #1c1f2b; border-radius: 0; background: #fdfaf0; }
+  .stage-industrial .h-name { font-family: "Noto Serif SC", serif; font-weight: 700; letter-spacing: 0.04em; }
+  .stage-industrial .rp-title { color: #1c1f2b; font-family: "Noto Serif SC", serif; font-weight: 600; }
+  .stage-industrial .lib-title { color: #1c1f2b; font-family: "Noto Serif SC", serif; font-weight: 600; }
+  .stage-industrial .field-card { background: #fdfaf0; border: 1px solid #1c1f2b; border-radius: 0; box-shadow: 2px 2px 0 #d4c8a0; }
+  .stage-industrial .border-pad { border: 1px dashed #1c1f2b; border-radius: 0; }
+  .stage-industrial .bp-center { border-radius: 0; background: #ede4ca; border-color: #1c1f2b; }
+  .stage-industrial .bp-cell.is-on { background: rgba(200,57,44,0.18); color: #c8392c; }
+  .stage-industrial .axis-input { border: 1px solid #1c1f2b; border-radius: 0; background: #fdfaf0; }
+  .stage-industrial .axis-input .axis-label { background: #1c1f2b; color: #fdfaf0; font-family: "Noto Serif SC", serif; border-radius: 0; }
+
+  /* =========================================================
+     F) Footer choice
+     ========================================================= */
+  .choose {
+    margin: 32px 0 0; padding: 18px 22px;
+    background: #fafafa; border: 1px solid #e6e8eb; border-radius: 8px;
+  }
+  .choose h2 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .choose p { margin: 0; color: #57606a; font-size: 13px; }
+  .choose code { background: #fff; border: 1px solid #e6e8eb; padding: 1px 6px; border-radius: 4px; color: #0969da; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <div class="eyebrow">Demo · 模板打印平台 · 设计风格选择</div>
+  <h1 class="doc-title">4 个设计方向 — 选一个，我接着用它实现</h1>
+  <p class="lead">每个 tab 切换同样的 designer 界面 mock 给你对比。整体偏浅色系。鼠标悬停元素看选中/hover 反馈细节。</p>
+
+  <div class="tabs" id="tabs">
+    <button class="tab is-on" data-style="linear"><span class="swatch" style="background:#5b5bd6"></span>Linear（精准工具）</button>
+    <button class="tab" data-style="notion"><span class="swatch" style="background:#2eaadc"></span>Notion（柔和纸本）</button>
+    <button class="tab" data-style="figma"><span class="swatch" style="background:#0d99ff"></span>Figma（坚硬密度）</button>
+    <button class="tab" data-style="industrial"><span class="swatch" style="background:#c8392c"></span>Industrial（工业票据）</button>
+  </div>
+
+  <div class="inspiration" id="inspiration">
+    <h4>灵感参考 <span id="inspTitle" style="text-transform:none;letter-spacing:0;color:#1f2328;font-weight:600">— Linear</span></h4>
+    <div id="inspBox-linear">
+      <ul>
+        <li><a href="https://linear.app" target="_blank" rel="noreferrer">linear.app</a> — 主站 / 你能感受到那种"指挥棒级精准"的克制感</li>
+        <li><a href="https://linear.app/method" target="_blank" rel="noreferrer">linear.app/method</a> — 设计哲学的明文版</li>
+        <li><a href="https://dribbble.com/tags/saas-dashboard" target="_blank" rel="noreferrer">Dribbble · saas-dashboard</a> — 同类工具的截图墙</li>
+        <li><a href="https://mobbin.com/browse/web/apps?platforms=web" target="_blank" rel="noreferrer">Mobbin · web tools</a> — 真实工具应用截图（含 Linear / Vercel / 等）</li>
+      </ul>
+    </div>
+    <div id="inspBox-notion" style="display:none">
+      <ul>
+        <li><a href="https://notion.so" target="_blank" rel="noreferrer">notion.so</a> — 主站</li>
+        <li><a href="https://www.notion.so/help" target="_blank" rel="noreferrer">notion.so/help</a> — 文档界面，看 emoji 装饰 + 字体节奏</li>
+        <li><a href="https://dribbble.com/search/notion-style" target="_blank" rel="noreferrer">Dribbble · notion-style</a> — 致敬 / 衍生作品</li>
+        <li><a href="https://www.craft.do" target="_blank" rel="noreferrer">craft.do</a> — 同流派</li>
+      </ul>
+    </div>
+    <div id="inspBox-figma" style="display:none">
+      <ul>
+        <li><a href="https://www.figma.com" target="_blank" rel="noreferrer">figma.com</a> — 主站</li>
+        <li><a href="https://framer.com" target="_blank" rel="noreferrer">framer.com</a> — 同流派 + 营销更视觉</li>
+        <li><a href="https://www.figma.com/community" target="_blank" rel="noreferrer">figma community</a> — 社区作品看大量界面截图</li>
+        <li><a href="https://dribbble.com/tags/design-tool" target="_blank" rel="noreferrer">Dribbble · design-tool</a></li>
+      </ul>
+    </div>
+    <div id="inspBox-industrial" style="display:none">
+      <ul>
+        <li><a href="https://dribbble.com/tags/industrial-ui" target="_blank" rel="noreferrer">Dribbble · industrial-ui</a> — 工业 / 仪表盘 / 工厂 UI</li>
+        <li><a href="https://dribbble.com/tags/blueprint" target="_blank" rel="noreferrer">Dribbble · blueprint</a> — 蓝图 / 图纸 风格</li>
+        <li><a href="https://dribbble.com/tags/stamp" target="_blank" rel="noreferrer">Dribbble · stamp</a> — 印章 / 票据 元素</li>
+        <li><a href="https://www.behance.net/search/projects?search=ticket" target="_blank" rel="noreferrer">Behance · ticket</a> — 票券 / 出门证 / 收据 视觉</li>
+        <li>当地档案馆票据 / 上世纪国营企业凭证 — 实物照片最有原生感（可拍照后扫描风格化）</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============== Designer Stage ============== -->
+  <div class="stage-wrap">
+    <div class="stage stage-linear" id="stage">
+      <!-- Header -->
+      <header class="s-header">
+        <button class="h-btn">← 返回</button>
+        <span class="h-name">扬力出门证 · v3</span>
+        <span class="h-divider"></span>
+        <button class="h-btn" title="撤销">↶</button>
+        <button class="h-btn" title="重做">↷</button>
+        <span class="h-divider"></span>
+        <span class="h-label">cell</span>
+        <input class="h-cell-input" value="4">
+        <span class="h-label">×</span>
+        <input class="h-cell-input" value="4">
+        <span class="h-label">px</span>
+        <span class="h-paper-pill">A4 横向</span>
+        <span class="h-spacer"></span>
+        <button class="h-btn">👁 预览</button>
+        <button class="h-btn primary">保存</button>
+      </header>
+
+      <!-- Left: element library -->
+      <aside class="s-left">
+        <div class="lib-group">
+          <div class="lib-title">基础</div>
+          <div class="lib-item"><span class="lib-glyph">T</span>文字</div>
+          <div class="lib-item"><span class="lib-glyph">{ }</span>字段</div>
+          <div class="lib-item"><span class="lib-glyph">▤</span>图片</div>
+          <div class="lib-item"><span class="lib-glyph">▢</span>矩形</div>
+        </div>
+        <div class="lib-group">
+          <div class="lib-title">表格</div>
+          <div class="lib-item"><span class="lib-glyph">▦</span>明细</div>
+        </div>
+        <div class="lib-group">
+          <div class="lib-title">编码</div>
+          <div class="lib-item"><span class="lib-glyph">▣</span>二维码</div>
+          <div class="lib-item"><span class="lib-glyph">|||</span>条码</div>
+          <div class="lib-item"><span class="lib-glyph">№</span>编号</div>
+        </div>
+        <div class="lib-group">
+          <div class="lib-title">系统</div>
+          <div class="lib-item"><span class="lib-glyph">#</span>页码</div>
+        </div>
+      </aside>
+
+      <!-- Middle: canvas -->
+      <section class="s-middle">
+        <div class="paper">
+          <div class="elem text">扬 力 集 团 · 出 门 证</div>
+          <div class="elem label">提货单位</div>
+          <div class="elem field is-sel">
+            <span class="field-text">{{ 提货单位 }}</span>
+            <div class="grip"><span class="grip-dots"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+            <span class="handle t-l"></span>
+            <span class="handle t-r"></span>
+            <span class="handle b-l"></span>
+            <span class="handle b-r"></span>
+            <span class="size-badge">55×6 格</span>
+          </div>
+          <div class="elem qr" style="background:linear-gradient(135deg,#fafafa,#eef1f4);display:flex;align-items:center;justify-content:center;font-size:11px;color:#8b949e;border:1px dashed #c0c7ff">▣ QR</div>
+        </div>
+      </section>
+
+      <!-- Right: field manager + property panel -->
+      <aside class="s-right">
+        <div class="s-right-section">
+          <div class="rp-title">数据字段 <span class="rp-add">+ 添加</span></div>
+          <div class="field-card">
+            <div><span class="fc-k">tihuoDanwei</span><span class="fc-l">· 提货单位</span></div>
+            <div class="fc-meta"><span>string</span><span>必填</span></div>
+          </div>
+          <div class="field-card unused">
+            <div><span class="fc-k">beizhu</span><span class="fc-l">· 备注</span></div>
+            <div class="fc-meta"><span>string</span><span style="color:#7d5a00">⚠ 未使用</span></div>
+          </div>
+        </div>
+        <div class="s-right-section">
+          <div class="rp-title">属性 <span style="text-transform:none;letter-spacing:0;color:#57606a;font-weight:normal">· 已选 field</span></div>
+          <div class="pp-row">
+            <span class="lbl">绑定</span>
+            <span class="val mono">tihuoDanwei ▾</span>
+          </div>
+          <div class="pp-row">
+            <span class="lbl">位置</span>
+            <span class="val" style="display:inline-flex;gap:4px">
+              <span class="axis-input"><span class="axis-label">列</span><input value="20"></span>
+              <span class="axis-input"><span class="axis-label">行</span><input value="15"></span>
+            </span>
+          </div>
+          <div class="pp-row">
+            <span class="lbl">尺寸</span>
+            <span class="val" style="display:inline-flex;gap:4px">
+              <span class="axis-input"><span class="axis-label">宽</span><input value="55"></span>
+              <span class="axis-input"><span class="axis-label">高</span><input value="6"></span>
+            </span>
+          </div>
+          <div style="margin-top:10px">
+            <div style="font-size:11px;color:#57606a;margin-bottom:6px">边框 <span style="color:#8b949e;font-size:10.5px">点方向切换</span></div>
+            <div class="border-pad">
+              <button class="bp-cell bp-t">上</button>
+              <button class="bp-cell bp-l">左</button>
+              <div class="bp-center">elem</div>
+              <button class="bp-cell bp-r">右</button>
+              <button class="bp-cell bp-b is-on">下</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="choose">
+    <h2>选一个跟我说</h2>
+    <p>说 <code>Linear</code> / <code>Notion</code> / <code>Figma</code> / <code>Industrial</code>，或描述你想要的混搭。我接着用它把 designer 实现 + 修掉那 7 个问题。</p>
+  </div>
+</div>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const stage = document.getElementById('stage');
+  const inspTitle = document.getElementById('inspTitle');
+  const styleLabels = {
+    linear: 'Linear',
+    notion: 'Notion',
+    figma: 'Figma',
+    industrial: 'Industrial',
+  };
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const style = tab.dataset.style;
+      tabs.forEach(t => t.classList.remove('is-on'));
+      tab.classList.add('is-on');
+      stage.classList.remove('stage-linear','stage-notion','stage-figma','stage-industrial');
+      stage.classList.add('stage-' + style);
+      inspTitle.textContent = '— ' + styleLabels[style];
+      ['linear','notion','figma','industrial'].forEach(s => {
+        document.getElementById('inspBox-' + s).style.display = (s === style) ? '' : 'none';
+      });
+    });
+  });
+</script>
+</body>
+</html>

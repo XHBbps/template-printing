@@ -1,0 +1,77 @@
+/* ===========================================
+   Global print rules
+   After iter 20 inline editor refactor, the designer is rendered inside
+   TemplatesView (under AppShell + AppSidebar). The previous designer.css
+   @media print only hides designer-internal chrome — we now also need
+   to hide the global sidebar + the TemplatesView breadcrumb + remove all
+   wrap padding so only the .tp-paper area prints.
+   =========================================== */
+
+@media print {
+  /* Hide global app chrome */
+  .app-sidebar {
+    display: none !important;
+  }
+
+  /* Hide TemplatesView breadcrumb when in editor mode */
+  .tv-breadcrumb {
+    display: none !important;
+  }
+
+  /* Strip wrap padding / max-width so the paper sits flush */
+  .app-shell {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .app-main {
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .tv-wrap,
+  .tv-editor-mode,
+  .tv-editor-host,
+  .tv-list {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* Force body background white */
+  body {
+    background: #fff !important;
+  }
+
+  /* iter 25: canvas wrap layer. host was position:absolute + inset 80/24,
+     canvas-area was width/height: 100%. In print context the absolute inset
+     would clip the visible area and height:100% would collapse to 0 (no parent
+     height). Reset both to natural flow so .tp-paper can render. */
+  .tp-canvas-host {
+    position: static !important;
+    inset: auto !important;
+    height: auto !important;
+    width: auto !important;
+  }
+  .tp-canvas-area {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    display: block !important;
+    overflow: visible !important;
+    background: #fff !important;
+    background-image: none !important;
+  }
+
+  /* iter 25: hide the floating canvas toolbar (undo/redo/pan/zoom) — never
+     wanted in printed output. */
+  .cft-bar {
+    display: none !important;
+  }
+
+  /* Reset page margins (the @page rule injected at print time controls paper size) */
+  @page {
+    margin: 0;
+  }
+}
