@@ -118,7 +118,7 @@ const paperStyle = computed(() => ({
 <style scoped>
 .preview-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 16px;
   max-height: 70vh;
 }
@@ -130,6 +130,7 @@ const paperStyle = computed(() => ({
 .pv-wrap {
   position: relative;
   width: 100%;
+  min-width: 0;
   height: 70vh;
   border-radius: 8px;
   overflow: hidden;
@@ -141,8 +142,8 @@ const paperStyle = computed(() => ({
   background: var(--tp-canvas-bg, #f2f2f5);
 }
 .pv-paper-wrap {
-  display: inline-block;
   margin: 30px;
+  width: max-content;
 }
 .pv-zoom {
   position: absolute;
