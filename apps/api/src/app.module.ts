@@ -20,6 +20,8 @@ import { LarkImModule } from './lark/lark-im.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { PrismaModule } from './prisma/prisma.module.js';
 // eslint-disable-next-line import/no-unresolved
+import { TemplatesModule } from './templates/templates.module.js';
+// eslint-disable-next-line import/no-unresolved
 import { UploadsModule } from './uploads/uploads.module.js';
 
 @Module({
@@ -35,6 +37,7 @@ import { UploadsModule } from './uploads/uploads.module.js';
     AuthModule,
     UploadsModule,
     LarkImModule,
+    TemplatesModule,
   ],
 })
 export class AppModule implements NestModule {

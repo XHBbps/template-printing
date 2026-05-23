@@ -37,9 +37,23 @@ model User {
   updatedAt           DateTime  @updatedAt        @map("updated_at")
 
   refreshTokens       RefreshToken[]
+  templates           Template[]
 
   @@index([role])
   @@map("users")
+}
+
+model Template {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  data        Json     // 整个 Template JSON（包含 canvas / elements / schema）
+  ownerId     String   @map("owner_id")
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  @@index([ownerId, updatedAt(sort: Desc)])
+  @@map("templates")
 }
 
 model RefreshToken {
