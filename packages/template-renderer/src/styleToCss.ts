@@ -23,7 +23,6 @@ export function styleToCss(s: ElementStyle): Record<string, string> {
   if (s.textDecoration && s.textDecoration !== 'none') out.textDecoration = s.textDecoration;
   if (s.backgroundColor) out.backgroundColor = s.backgroundColor;
   if (s.textAlign && s.textAlign !== 'default') out.textAlign = s.textAlign;
-  if (s.zIndex !== undefined) out.zIndex = String(s.zIndex);
   if (s.rotation) out.transform = `rotate(${s.rotation}deg)`;
   if (s.opacity !== undefined) out.opacity = String(s.opacity);
   if (s.textOverflow === 'ellipsis') {

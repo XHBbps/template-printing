@@ -43,6 +43,7 @@ const positionStyle = computed(() => {
     top: `${props.element.anchor.y * PX_PER_MM * z}px`,
     width: `${props.element.anchor.w * PX_PER_MM * z}px`,
     height: `${props.element.anchor.h * PX_PER_MM * z}px`,
+    zIndex: props.element.style.zIndex ?? 0,
   };
 });
 

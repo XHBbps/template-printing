@@ -58,6 +58,7 @@ const elementMap: Record<string, Component> = {
         top: `${el.anchor.y * PX_PER_MM}px`,
         width: `${el.anchor.w * PX_PER_MM}px`,
         height: `${el.anchor.h * PX_PER_MM}px`,
+        zIndex: el.style.zIndex ?? 0,
       }"
     >
       <component
