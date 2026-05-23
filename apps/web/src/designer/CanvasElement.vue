@@ -39,12 +39,15 @@ const useInsideGrip = computed(() => {
 });
 
 const PX_PER_MM = 4;
-const positionStyle = computed(() => ({
-  left: `${props.element.anchor.x * PX_PER_MM}px`,
-  top: `${props.element.anchor.y * PX_PER_MM}px`,
-  width: `${props.element.anchor.w * PX_PER_MM}px`,
-  height: `${props.element.anchor.h * PX_PER_MM}px`,
-}));
+const positionStyle = computed(() => {
+  const z = store.view.zoom;
+  return {
+    left: `${props.element.anchor.x * PX_PER_MM * z}px`,
+    top: `${props.element.anchor.y * PX_PER_MM * z}px`,
+    width: `${props.element.anchor.w * PX_PER_MM * z}px`,
+    height: `${props.element.anchor.h * PX_PER_MM * z}px`,
+  };
+});
 
 const sizeBadge = computed(() => {
   const g = props.element.grid;
