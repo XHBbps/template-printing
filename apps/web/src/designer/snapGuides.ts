@@ -1,8 +1,12 @@
+export const SNAP_THRESHOLD_MM = 1.5;
+export const GUIDE_THRESHOLD_MM = 5;
+
 export interface SnapInput {
   target: { x: number; y: number; w: number; h: number };
   others: Array<{ x: number; y: number; w: number; h: number }>;
   paper: { w: number; h: number };
   threshold: number;
+  guideThreshold: number;
 }
 
 export interface SnapResult {
@@ -57,11 +61,13 @@ export function computeSnap(input: SnapInput): SnapResult {
   }
   if (bestV) {
     snapDx = bestV.delta;
-    for (const tl of t.v) {
-      const newPos = tl + snapDx;
-      for (const cl of c.v) {
-        if (Math.abs(cl - newPos) < 0.001) hitV.push(cl);
-      }
+  }
+  // Independent of bestV: collect all candidate v-lines within guideThreshold
+  // for visual display, even when no snap fires.
+  for (const tl of t.v) {
+    const newPos = tl + snapDx;
+    for (const cl of c.v) {
+      if (Math.abs(cl - newPos) <= input.guideThreshold) hitV.push(cl);
     }
   }
 
@@ -78,11 +84,12 @@ export function computeSnap(input: SnapInput): SnapResult {
   }
   if (bestH) {
     snapDy = bestH.delta;
-    for (const tl of t.h) {
-      const newPos = tl + snapDy;
-      for (const cl of c.h) {
-        if (Math.abs(cl - newPos) < 0.001) hitH.push(cl);
-      }
+  }
+  // Independent of bestH: collect all candidate h-lines within guideThreshold
+  for (const tl of t.h) {
+    const newPos = tl + snapDy;
+    for (const cl of c.h) {
+      if (Math.abs(cl - newPos) <= input.guideThreshold) hitH.push(cl);
     }
   }
 

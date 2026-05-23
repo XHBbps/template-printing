@@ -1,10 +1,9 @@
 import { useDesignerStore } from '../stores/designer';
 
 import { minMmFor } from './elementFactory';
-import { computeSnap } from './snapGuides';
+import { computeSnap, SNAP_THRESHOLD_MM, GUIDE_THRESHOLD_MM } from './snapGuides';
 
 const PX_PER_MM = 4;
-const SNAP_THRESHOLD_MM = 1.5;
 
 type ResizeSide = 'n' | 'e' | 's' | 'w' | 'nw' | 'ne' | 'sw' | 'se';
 type ResizeMode = 'free' | 'qr-lock' | 'barcode';
@@ -57,6 +56,7 @@ export function usePointerDrag(
         others,
         paper: { w: paperW, h: paperH },
         threshold: ev.altKey ? 0 : SNAP_THRESHOLD_MM,
+        guideThreshold: ev.altKey ? 0 : GUIDE_THRESHOLD_MM,
       });
       store.setGuides(snap.guides);
 
