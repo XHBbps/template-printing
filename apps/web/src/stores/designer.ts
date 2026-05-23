@@ -163,6 +163,7 @@ export const useDesignerStore = defineStore('designer', {
     dirty: false,
     isResizing: false,
     view: { zoom: 1 } as { zoom: number },
+    panMode: false,
     // Internal: a DOM size accessor that DesignerCanvas registers so the store
     // can compute fit-to-view without a DOM dependency.
     canvasAreaSize: null as null | (() => { w: number; h: number }),
@@ -381,6 +382,18 @@ export const useDesignerStore = defineStore('designer', {
     setZoom(z: number): void {
       this.view.zoom = Math.max(0.25, Math.min(4, z));
       // No snapshot — view.zoom is not history-tracked or persisted.
+    },
+    togglePanMode(): void {
+      this.panMode = !this.panMode;
+    },
+    setPanMode(v: boolean): void {
+      this.panMode = v;
+    },
+    zoomIn(): void {
+      this.setZoom(this.view.zoom * 1.25);
+    },
+    zoomOut(): void {
+      this.setZoom(this.view.zoom / 1.25);
     },
     fitView(): void {
       if (!this.canvasAreaSize) return;

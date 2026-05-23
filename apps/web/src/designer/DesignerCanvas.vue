@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 
 import { useDesignerStore } from '../stores/designer';
 import CanvasElement from './CanvasElement.vue';
+import CanvasFloatingToolbar from './CanvasFloatingToolbar.vue';
 import { buildElement, type ElementMeta } from './elementFactory';
 import SnapGuides from './SnapGuides.vue';
 
@@ -76,6 +77,43 @@ function onDrop(e: DragEvent): void {
 
 const canvasAreaRef = ref<HTMLElement | null>(null);
 
+const canvasAreaStyle = computed(() => {
+  if (store.panMode) {
+    return { cursor: 'grab' };
+  }
+  return {};
+});
+
+function onCanvasPointerDown(e: PointerEvent): void {
+  if (!store.panMode) return;
+  // Only pan when clicking the canvas itself (not an element handle)
+  const ca: HTMLElement | null = canvasAreaRef.value;
+  if (!ca) return;
+  const target: HTMLElement = ca;
+  e.preventDefault();
+  e.stopPropagation();
+
+  let lastX = e.clientX;
+  let lastY = e.clientY;
+  target.style.cursor = 'grabbing';
+
+  function onMove(ev: PointerEvent): void {
+    const dx = ev.clientX - lastX;
+    const dy = ev.clientY - lastY;
+    target.scrollLeft -= dx;
+    target.scrollTop -= dy;
+    lastX = ev.clientX;
+    lastY = ev.clientY;
+  }
+  function onUp(): void {
+    target.style.cursor = 'grab';
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+  }
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+}
+
 onMounted(() => {
   store.registerCanvasArea(() => {
     const el = canvasAreaRef.value;
@@ -93,7 +131,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="canvasAreaRef" class="tp-canvas-area">
+  <div
+    ref="canvasAreaRef"
+    class="tp-canvas-area"
+    :class="{ 'tp-canvas-area--pan': store.panMode }"
+    :style="canvasAreaStyle"
+    @pointerdown="onCanvasPointerDown"
+  >
     <div
       ref="paperRef"
       class="tp-paper"
@@ -115,5 +159,6 @@ onMounted(() => {
       <CanvasElement v-for="el in store.template.elements" :key="el.id" :element="el" />
       <SnapGuides v-if="store.isResizing" :guides="store.guides" />
     </div>
+    <CanvasFloatingToolbar />
   </div>
 </template>
