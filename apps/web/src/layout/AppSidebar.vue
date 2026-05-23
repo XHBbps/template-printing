@@ -1,8 +1,11 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
 import { FileText, User, Key, Users, LogOut, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+// eslint-disable-next-line import/no-unresolved
+import { ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
 
+import { apiFetch } from '../lib/api';
 import { useAuthStore } from '../stores/auth';
 
 const props = defineProps<{ collapsed: boolean }>();
@@ -22,11 +25,26 @@ function toggle(): void {
 }
 
 async function logout(): Promise<void> {
-  await auth.logout();
-  // Hard navigation (not router.push) so the browser discards its bfcache
-  // snapshot of the authenticated page. Otherwise pressing back after logout
-  // restores the cached /templates with stale Pinia state and the user is
-  // "logged in" again before the async hydrate can correct it.
+  try {
+    await ElMessageBox.confirm('确认要退出登录吗？', '退出登录', {
+      confirmButtonText: '退出',
+      cancelButtonText: '取消',
+      type: 'warning',
+      center: true,
+    });
+  } catch {
+    return; // user cancelled
+  }
+  // Call backend logout to clear cookies + revoke refresh token.
+  // Don't await auth.logout()'s local-state clear — calling apiFetch directly
+  // avoids triggering Vue reactivity (user=null) that briefly re-renders the
+  // sidebar as "未登录" before the redirect kicks in.
+  try {
+    await apiFetch('/auth/logout', { method: 'POST' });
+  } catch {
+    // ignore; we hard-reload anyway
+  }
+  // Hard navigation discards bfcache and resets all Pinia stores via reload.
   window.location.assign('/login');
 }
 </script>
