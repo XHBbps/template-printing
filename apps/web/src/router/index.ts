@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-unresolved
 import { createRouter, createWebHistory } from 'vue-router';
 
 import { useAuthStore } from '../stores/auth';
@@ -8,32 +9,77 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
+      redirect: '/templates',
+    },
+    {
+      path: '/templates',
+      name: 'templates',
       meta: { requiresAuth: true },
-      component: () => import('../views/HomeView.vue'),
+      component: () => import('../views/TemplatesView.vue'),
     },
     {
       path: '/login',
       name: 'login',
-      meta: { requiresAuth: false },
+      meta: { requiresAuth: false, fullscreen: true },
       component: () => import('../views/LoginView.vue'),
+    },
+    {
+      path: '/login/callback',
+      name: 'login-callback',
+      meta: { requiresAuth: false, fullscreen: true },
+      component: () => import('../views/LoginCallbackView.vue'),
     },
     {
       path: '/designer/new',
       name: 'designer-new',
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, fullscreen: true },
       component: () => import('../views/DesignerView.vue'),
     },
     {
       path: '/designer/:id',
       name: 'designer-edit',
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, fullscreen: true },
       component: () => import('../views/DesignerView.vue'),
     },
     {
-      path: '/login/callback',
-      name: 'login-callback',
-      meta: { requiresAuth: false },
-      component: () => import('../views/LoginCallbackView.vue'),
+      path: '/me',
+      name: 'me',
+      meta: { requiresAuth: true },
+      component: () => import('../views/MeView.vue'),
+    },
+    {
+      path: '/api-docs',
+      name: 'api-docs',
+      meta: { requiresAuth: true },
+      component: () => import('../views/ApiDocsView.vue'),
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      meta: { requiresAuth: true, adminOnly: true },
+      component: () => import('../views/admin/UsersAdminView.vue'),
+    },
+    {
+      path: '/401',
+      name: 'unauthorized',
+      meta: { requiresAuth: false, fullscreen: true },
+      component: () => import('../views/errors/UnauthorizedView.vue'),
+    },
+    {
+      path: '/403',
+      name: 'forbidden',
+      meta: { requiresAuth: false, fullscreen: true },
+      component: () => import('../views/errors/ForbiddenView.vue'),
+    },
+    {
+      path: '/404',
+      name: 'not-found',
+      meta: { requiresAuth: false, fullscreen: true },
+      component: () => import('../views/errors/NotFoundView.vue'),
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/404',
     },
   ],
 });
@@ -50,7 +96,10 @@ router.beforeEach(async (to) => {
     return { path: '/login', query: { continue: to.fullPath } };
   }
   if (to.path === '/login' && auth.isAuthenticated) {
-    return { path: '/' };
+    return { path: '/templates' };
+  }
+  if (to.meta.adminOnly && auth.user?.role !== 'admin') {
+    return { path: '/403' };
   }
   return true;
 });
