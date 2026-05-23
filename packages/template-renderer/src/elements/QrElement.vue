@@ -139,4 +139,12 @@ onMounted(() => {
   font-size: 10px;
   color: var(--tp-ink-soft, #555);
 }
+@media print {
+  .qr-svg :deep(svg) {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+}
 </style>
