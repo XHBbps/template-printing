@@ -147,11 +147,31 @@ export function usePointerDrag(
       let dxMm = (ev.clientX - startX) / (PX_PER_MM * store.view.zoom);
       let dyMm = (ev.clientY - startY) / (PX_PER_MM * store.view.zoom);
 
-      // QR 1:1 lock — sync axes
+      // QR 1:1 lock — diagonal projection
+      // Project cursor delta onto the active corner's diagonal direction.
+      // Minimizes distance between element corner and cursor while keeping 1:1.
+      // (Figma's shift-drag aspect-lock algorithm.)
       if (mode === 'qr-lock') {
-        const basis = Math.max(Math.abs(dxMm), Math.abs(dyMm));
-        dxMm = (dxMm >= 0 ? 1 : -1) * basis;
-        dyMm = (dyMm >= 0 ? 1 : -1) * basis;
+        let proj: number;
+        if (side === 'se') proj = (dxMm + dyMm) / 2;
+        else if (side === 'nw') proj = -(dxMm + dyMm) / 2;
+        else if (side === 'ne') proj = (dxMm - dyMm) / 2;
+        else if (side === 'sw') proj = (dyMm - dxMm) / 2;
+        else proj = 0;
+
+        if (side === 'se') {
+          dxMm = proj;
+          dyMm = proj;
+        } else if (side === 'nw') {
+          dxMm = -proj;
+          dyMm = -proj;
+        } else if (side === 'ne') {
+          dxMm = proj;
+          dyMm = -proj;
+        } else if (side === 'sw') {
+          dxMm = -proj;
+          dyMm = proj;
+        }
       }
 
       let { x, y, w, h } = startAnchor;
