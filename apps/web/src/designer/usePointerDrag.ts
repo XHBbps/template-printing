@@ -20,6 +20,39 @@ function autoScrollNearEdge(ev: PointerEvent): void {
   if (dx !== 0 || dy !== 0) ca.scrollBy(dx, dy);
 }
 
+// ---- rAF-throttled pointermove scheduler ----
+// Coalesces high-frequency pointermove events into one update per animation
+// frame, eliminating the "resistance" feel during fast drag.
+let pendingFrame = 0;
+let latestEvent: PointerEvent | null = null;
+let scheduledHandler: ((ev: PointerEvent) => void) | null = null;
+
+function scheduleMove(ev: PointerEvent, handler: (ev: PointerEvent) => void): void {
+  latestEvent = ev;
+  scheduledHandler = handler;
+  if (pendingFrame) return;
+  pendingFrame = requestAnimationFrame(() => {
+    pendingFrame = 0;
+    const e = latestEvent;
+    const h = scheduledHandler;
+    latestEvent = null;
+    scheduledHandler = null;
+    if (e && h) h(e);
+  });
+}
+
+function flushPendingMove(): void {
+  if (pendingFrame) {
+    cancelAnimationFrame(pendingFrame);
+    pendingFrame = 0;
+    const e = latestEvent;
+    const h = scheduledHandler;
+    latestEvent = null;
+    scheduledHandler = null;
+    if (e && h) h(e);
+  }
+}
+
 type ResizeSide = 'n' | 'e' | 's' | 'w' | 'nw' | 'ne' | 'sw' | 'se';
 type ResizeMode = 'free' | 'qr-lock' | 'barcode';
 
@@ -82,14 +115,18 @@ export function usePointerDrag(
     }
 
     function onUp(): void {
-      window.removeEventListener('pointermove', onMove);
+      flushPendingMove();
+      window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onUp);
       store.clearGuides();
       dom!.classList.remove('is-pointer-active');
       store.isResizing = false;
       store.commit();
     }
-    window.addEventListener('pointermove', onMove);
+    function onPointerMove(ev: PointerEvent): void {
+      scheduleMove(ev, onMove);
+    }
+    window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onUp);
   }
 
@@ -181,12 +218,16 @@ export function usePointerDrag(
       autoScrollNearEdge(ev);
     }
     function onUp(): void {
-      window.removeEventListener('pointermove', onMove);
+      flushPendingMove();
+      window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onUp);
       store.isResizing = false;
       store.commit();
     }
-    window.addEventListener('pointermove', onMove);
+    function onPointerMove(ev: PointerEvent): void {
+      scheduleMove(ev, onMove);
+    }
+    window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onUp);
   }
 
