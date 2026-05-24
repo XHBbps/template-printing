@@ -34,32 +34,30 @@ export function buildSelectTemplateCard(args: {
   templates: Array<{ id: string; name: string }>;
 }): object {
   const options = args.templates.map((t) => ({
-    text: { tag: 'plain_text', content: `${t.name} (${t.id.slice(0, 8)}…)` },
+    text: { tag: 'plain_text', content: t.name },
     value: t.id,
   }));
   return {
+    schema: '2.0',
     config: { wide_screen_mode: true },
     header: {
       title: { tag: 'plain_text', content: '🖨️ 模板渲染' },
       template: 'blue',
     },
-    elements: [
-      {
-        tag: 'div',
-        text: { tag: 'lark_md', content: '请选择要渲染的模板：' },
-      },
-      {
-        tag: 'action',
-        actions: [
-          {
-            tag: 'select_static',
-            placeholder: { tag: 'plain_text', content: '点这里选模板…' },
-            value: actionValue({ sessionId: args.sessionId, action: 'template_selected' }),
-            options,
-          },
-        ],
-      },
-    ],
+    body: {
+      elements: [
+        {
+          tag: 'div',
+          text: { tag: 'lark_md', content: '请选择要渲染的模板：' },
+        },
+        {
+          tag: 'select_static',
+          placeholder: { tag: 'plain_text', content: '点这里选模板…' },
+          value: actionValue({ sessionId: args.sessionId, action: 'template_selected' }),
+          options,
+        },
+      ],
+    },
   };
 }
 
@@ -75,64 +73,78 @@ export function buildFieldFormCard(args: {
   const fieldElements = args.fields.flatMap((f) =>
     fieldToCardElement(args.sessionId, f, args.values[f.key]),
   );
+  const hint = {
+    tag: 'div',
+    text: {
+      tag: 'lark_md',
+      content:
+        '<font color="grey">所有字段均可选 — 不填即按模板默认值 / 留空渲染。需要带数据请在下方填写。</font>',
+    },
+  };
+  // 把字段 + submit 按钮包到 form 容器里：
+  // - 各字段输入不会单独触发 callback（用户随便打字 / 切换不会闪卡）
+  // - 点 submit 按钮时飞书把 form 内所有值一次性打包到 action.form_value 送过来
   return {
+    schema: '2.0',
     config: { wide_screen_mode: true },
     header: {
       title: { tag: 'plain_text', content: `📝 「${args.templateName}」填写字段` },
       template: 'blue',
     },
-    elements: [
-      ...(fieldElements.length > 0
-        ? fieldElements
-        : [{ tag: 'div', text: { tag: 'lark_md', content: '_该模板无可填字段，直接渲染即可_' } }]),
-      { tag: 'hr' },
-      {
-        tag: 'action',
-        actions: [
-          {
-            tag: 'button',
-            text: { tag: 'plain_text', content: '🚀 开始渲染' },
-            type: 'primary',
-            value: actionValue({ sessionId: args.sessionId, action: 'submit_render' }),
-          },
-        ],
-      },
-    ],
+    body: {
+      elements: [
+        hint,
+        {
+          tag: 'form',
+          name: 'render_form',
+          elements: [
+            ...(fieldElements.length > 0
+              ? fieldElements
+              : [
+                  {
+                    tag: 'div',
+                    text: { tag: 'lark_md', content: '_该模板无可填字段，直接渲染即可_' },
+                  },
+                ]),
+            { tag: 'hr' },
+            {
+              tag: 'button',
+              text: { tag: 'plain_text', content: '🚀 开始渲染' },
+              type: 'primary',
+              form_action_type: 'submit',
+              // form submit 时飞书会吃掉 value 字段，sessionId 编到 name 里反推
+              name: `submit_render__${args.sessionId}`,
+              value: actionValue({ sessionId: args.sessionId, action: 'submit_render' }),
+            },
+          ],
+        },
+      ],
+    },
   };
 }
 
 function fieldToCardElement(
-  sessionId: string,
+  _sessionId: string,
   field: TemplateFieldMeta,
   currentValue: unknown,
 ): object[] {
   const label = `**${field.label}**${field.required ? ' <font color="red">*</font>' : ''} \`${field.key}\``;
   const labelEl = { tag: 'div', text: { tag: 'lark_md', content: label } };
 
-  const baseValue: CardAction = {
-    sessionId,
-    action: 'field_change',
-    fieldKey: field.key,
-  };
-
+  // 在 form 容器内：字段不带 callback action，靠 `name` 让 submit 时打包到 form_value
   // enum → select_static
   if (field.type === 'enum' && field.options) {
     return [
       labelEl,
       {
-        tag: 'action',
-        actions: [
-          {
-            tag: 'select_static',
-            placeholder: { tag: 'plain_text', content: `选择 ${field.label}` },
-            value: actionValue(baseValue),
-            initial_option: typeof currentValue === 'string' ? currentValue : undefined,
-            options: field.options.map((o) => ({
-              text: { tag: 'plain_text', content: o.label },
-              value: o.value,
-            })),
-          },
-        ],
+        tag: 'select_static',
+        name: field.key,
+        placeholder: { tag: 'plain_text', content: `选择 ${field.label}` },
+        initial_option: typeof currentValue === 'string' ? currentValue : undefined,
+        options: field.options.map((o) => ({
+          text: { tag: 'plain_text', content: o.label },
+          value: o.value,
+        })),
       },
     ];
   }
@@ -142,19 +154,14 @@ function fieldToCardElement(
     return [
       labelEl,
       {
-        tag: 'action',
-        actions: [
-          {
-            tag: 'select_static',
-            placeholder: { tag: 'plain_text', content: '是 / 否' },
-            value: actionValue(baseValue),
-            initial_option:
-              currentValue === true ? 'true' : currentValue === false ? 'false' : undefined,
-            options: [
-              { text: { tag: 'plain_text', content: '是' }, value: 'true' },
-              { text: { tag: 'plain_text', content: '否' }, value: 'false' },
-            ],
-          },
+        tag: 'select_static',
+        name: field.key,
+        placeholder: { tag: 'plain_text', content: '是 / 否' },
+        initial_option:
+          currentValue === true ? 'true' : currentValue === false ? 'false' : undefined,
+        options: [
+          { text: { tag: 'plain_text', content: '是' }, value: 'true' },
+          { text: { tag: 'plain_text', content: '否' }, value: 'false' },
         ],
       },
     ];
@@ -165,15 +172,10 @@ function fieldToCardElement(
     return [
       labelEl,
       {
-        tag: 'action',
-        actions: [
-          {
-            tag: 'date_picker',
-            placeholder: { tag: 'plain_text', content: '选择日期' },
-            value: actionValue(baseValue),
-            initial_date: typeof currentValue === 'string' ? currentValue : undefined,
-          },
-        ],
+        tag: 'date_picker',
+        name: field.key,
+        placeholder: { tag: 'plain_text', content: '选择日期' },
+        initial_date: typeof currentValue === 'string' ? currentValue : undefined,
       },
     ];
   }
@@ -206,16 +208,16 @@ function fieldToCardElement(
     ];
   }
 
-  // string / number → input
+  // string / number → input (普通文本输入，无 send 按钮)
   return [
     labelEl,
     {
       tag: 'input',
+      name: field.key,
       placeholder: {
         tag: 'plain_text',
         content: field.example ? `如：${String(field.example)}` : `请填写 ${field.label}`,
       },
-      value: actionValue(baseValue),
       default_value:
         typeof currentValue === 'string' || typeof currentValue === 'number'
           ? String(currentValue)
@@ -229,20 +231,23 @@ function fieldToCardElement(
 // ----------------------------------------------------------------------------
 export function buildRenderingCard(args: { jobId: string; templateName: string }): object {
   return {
+    schema: '2.0',
     config: { wide_screen_mode: true },
     header: {
       title: { tag: 'plain_text', content: `⏳ 「${args.templateName}」渲染中` },
       template: 'yellow',
     },
-    elements: [
-      {
-        tag: 'div',
-        text: {
-          tag: 'lark_md',
-          content: `任务已入队，渲染完成后会 @ 你并发送 PDF。\n\n\`jobId: ${args.jobId}\``,
+    body: {
+      elements: [
+        {
+          tag: 'div',
+          text: {
+            tag: 'lark_md',
+            content: `任务已入队，渲染完成后会 @ 你并发送 PDF。\n\n\`jobId: ${args.jobId}\``,
+          },
         },
-      },
-    ],
+      ],
+    },
   };
 }
 
@@ -256,37 +261,43 @@ export function buildResultCard(args: {
 }): object {
   if (args.status === 'done') {
     return {
+      schema: '2.0',
       config: { wide_screen_mode: true },
       header: {
         title: { tag: 'plain_text', content: `✅ 「${args.templateName}」已完成` },
         template: 'green',
       },
-      elements: [
-        {
-          tag: 'div',
-          text: {
-            tag: 'lark_md',
-            content: 'PDF 已在本会话中发送，请查收。',
+      body: {
+        elements: [
+          {
+            tag: 'div',
+            text: {
+              tag: 'lark_md',
+              content: 'PDF 已在本会话中发送，请查收。',
+            },
           },
-        },
-      ],
+        ],
+      },
     };
   }
   return {
+    schema: '2.0',
     config: { wide_screen_mode: true },
     header: {
       title: { tag: 'plain_text', content: `❌ 「${args.templateName}」渲染失败` },
       template: 'red',
     },
-    elements: [
-      {
-        tag: 'div',
-        text: {
-          tag: 'lark_md',
-          content: `失败原因：\`${args.errorMsg ?? '未知错误'}\``,
+    body: {
+      elements: [
+        {
+          tag: 'div',
+          text: {
+            tag: 'lark_md',
+            content: `失败原因：\`${args.errorMsg ?? '未知错误'}\``,
+          },
         },
-      },
-    ],
+      ],
+    },
   };
 }
 

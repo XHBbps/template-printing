@@ -9,6 +9,27 @@ import {
   // eslint-disable-next-line import/no-unresolved
 } from '../src/lark/lark-bot-cards.js';
 
+type CardV2 = {
+  schema: string;
+  body: { elements: Array<{ tag: string; [key: string]: unknown }> };
+};
+
+// 把 form 内的 elements 也展开到一个 flat 数组，方便测试搜索
+function flattenElements(card: CardV2): Array<{ tag: string; [key: string]: unknown }> {
+  const out: Array<{ tag: string; [key: string]: unknown }> = [];
+  for (const el of card.body.elements) {
+    const maybeForm = el as unknown as { elements?: unknown };
+    if (el.tag === 'form' && Array.isArray(maybeForm.elements)) {
+      out.push(el);
+      const inner = maybeForm.elements as Array<{ tag: string; [key: string]: unknown }>;
+      for (const x of inner) out.push(x);
+    } else {
+      out.push(el);
+    }
+  }
+  return out;
+}
+
 describe('lark-bot-cards', () => {
   // -------------------- select template card --------------------
 
@@ -20,15 +41,14 @@ describe('lark-bot-cards', () => {
         { id: 'tpl-5678efgh-xxxxxxxxxxxxxxxxxxxxxxxx', name: '入库单' },
       ],
     });
-    const c = card as { elements: Array<{ tag: string; actions?: unknown[] }> };
-    const action = c.elements.find((e) => e.tag === 'action');
-    expect(action).toBeDefined();
-    const select = (
-      action as { actions: Array<{ tag: string; value: unknown; options: unknown[] }> }
-    ).actions[0]!;
-    expect(select.tag).toBe('select_static');
-    expect(select.options).toHaveLength(2);
-    expect(select.value).toEqual({ sessionId: 'sess_1', action: 'template_selected' });
+    const c = card as CardV2;
+    expect(c.schema).toBe('2.0');
+    const select = flattenElements(c).find((e) => e.tag === 'select_static') as
+      | { value: unknown; options: unknown[] }
+      | undefined;
+    expect(select).toBeDefined();
+    expect(select!.options).toHaveLength(2);
+    expect(select!.value).toEqual({ sessionId: 'sess_1', action: 'template_selected' });
   });
 
   // -------------------- field form card --------------------
@@ -51,14 +71,12 @@ describe('lark-bot-cards', () => {
       ],
       values: {},
     });
-    const c = card as { elements: Array<{ tag: string; actions?: unknown[] }> };
-    const actions = c.elements.filter((e) => e.tag === 'action');
-    // 1 action for the field, 1 action for the submit button
-    expect(actions.length).toBeGreaterThanOrEqual(2);
-    const enumAction = (actions[0] as { actions: Array<{ tag: string; options: unknown[] }> })
-      .actions[0]!;
-    expect(enumAction.tag).toBe('select_static');
-    expect(enumAction.options).toHaveLength(2);
+    const c = card as CardV2;
+    const select = flattenElements(c).find((e) => e.tag === 'select_static') as
+      | { options: unknown[] }
+      | undefined;
+    expect(select).toBeDefined();
+    expect(select!.options).toHaveLength(2);
   });
 
   it('buildFieldFormCard renders boolean as select_static [是/否]', () => {
@@ -68,11 +86,13 @@ describe('lark-bot-cards', () => {
       fields: [{ key: 'urgent', label: '紧急', type: 'boolean', required: false }],
       values: {},
     });
-    const c = card as { elements: Array<{ tag: string; actions?: unknown[] }> };
-    const action = c.elements.find((e) => e.tag === 'action');
-    const sel = (action as { actions: Array<{ options: Array<{ value: string }> }> }).actions[0]!;
-    expect(sel.options).toHaveLength(2);
-    expect(sel.options.map((o) => o.value)).toEqual(['true', 'false']);
+    const c = card as CardV2;
+    const select = flattenElements(c).find((e) => e.tag === 'select_static') as
+      | { options: Array<{ value: string }> }
+      | undefined;
+    expect(select).toBeDefined();
+    expect(select!.options).toHaveLength(2);
+    expect(select!.options.map((o) => o.value)).toEqual(['true', 'false']);
   });
 
   it('buildFieldFormCard renders string as input', () => {
@@ -82,8 +102,8 @@ describe('lark-bot-cards', () => {
       fields: [{ key: 'name', label: '姓名', type: 'string', required: true, example: '张三' }],
       values: {},
     });
-    const c = card as { elements: Array<{ tag: string }> };
-    expect(c.elements.some((e) => e.tag === 'input')).toBe(true);
+    const c = card as CardV2;
+    expect(flattenElements(c).some((e) => e.tag === 'input')).toBe(true);
   });
 
   it('buildFieldFormCard renders date as date_picker', () => {
@@ -93,10 +113,8 @@ describe('lark-bot-cards', () => {
       fields: [{ key: 'd', label: '日期', type: 'date', required: false }],
       values: {},
     });
-    const c = card as { elements: Array<{ tag: string; actions?: unknown[] }> };
-    const action = c.elements.find((e) => e.tag === 'action');
-    const sel = (action as { actions: Array<{ tag: string }> }).actions[0]!;
-    expect(sel.tag).toBe('date_picker');
+    const c = card as CardV2;
+    expect(flattenElements(c).some((e) => e.tag === 'date_picker')).toBe(true);
   });
 
   it('buildFieldFormCard image/array show "not supported" note', () => {
@@ -128,6 +146,9 @@ describe('lark-bot-cards', () => {
       fields: [],
       values: {},
     });
+    const c = card as CardV2;
+    const btn = flattenElements(c).find((e) => e.tag === 'button');
+    expect(btn).toBeDefined();
     const json = JSON.stringify(card);
     expect(json).toContain('submit_render');
     expect(json).toContain('开始渲染');
@@ -161,5 +182,22 @@ describe('lark-bot-cards', () => {
     expect(json).toContain('失败');
     expect(json).toContain('render timeout');
     expect(json).toContain('red');
+  });
+
+  // -------------------- v2 structure sanity --------------------
+
+  it('all cards are v2 schema with body wrapper', () => {
+    const cards = [
+      buildSelectTemplateCard({ sessionId: 's', templates: [] }),
+      buildFieldFormCard({ sessionId: 's', templateName: 'T', fields: [], values: {} }),
+      buildRenderingCard({ jobId: 'j', templateName: 'T' }),
+      buildResultCard({ templateName: 'T', status: 'done' }),
+      buildResultCard({ templateName: 'T', status: 'failed', errorMsg: 'e' }),
+    ];
+    for (const c of cards) {
+      const v2 = c as CardV2;
+      expect(v2.schema).toBe('2.0');
+      expect(Array.isArray(v2.body.elements)).toBe(true);
+    }
   });
 });
