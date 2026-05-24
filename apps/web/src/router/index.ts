@@ -45,6 +45,18 @@ const router = createRouter({
       component: () => import('../views/MeView.vue'),
     },
     {
+      path: '/me/api-tokens',
+      name: 'me-api-tokens',
+      meta: { requiresAuth: true },
+      component: () => import('../views/ApiTokensView.vue'),
+    },
+    {
+      path: '/logs',
+      name: 'render-logs',
+      meta: { requiresAuth: true },
+      component: () => import('../views/RenderLogsView.vue'),
+    },
+    {
       path: '/api',
       name: 'api',
       meta: { requiresAuth: true },
