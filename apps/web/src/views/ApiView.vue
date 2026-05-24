@@ -536,7 +536,7 @@ function jumpTo(id: string): void {
                 <td><code>data</code></td>
                 <td>object</td>
                 <td>否</td>
-                <td>
+                <td v-pre>
                   业务字段 map（从飞书自动化变量 <code>{{ 字段.xxx }}</code> 引用）
                 </td>
               </tr>
@@ -574,7 +574,7 @@ function jumpTo(id: string): void {
           </table>
 
           <h3 class="api-h3">请求示例</h3>
-          <pre class="api-code">
+          <pre class="api-code" v-pre>
 {
   "verificationToken": "126dc1303ab9cf90...",
   "templateId": "e0798b17-...",
