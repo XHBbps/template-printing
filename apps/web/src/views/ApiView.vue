@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import { ElMessage } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
-import { Copy, ChevronDown, ChevronRight } from 'lucide-vue-next';
+import { ChevronDown, ChevronRight } from 'lucide-vue-next';
 // eslint-disable-next-line import/no-unresolved
 import { apiFetch } from '../lib/api';
 
@@ -62,15 +62,6 @@ function fieldsOf(id: string): Array<{ key: string; def: FieldDef }> {
     .map(([key, def]) => ({ key, def }));
 }
 
-async function copy(text: string, label = '已复制'): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
-    ElMessage.success(label);
-  } catch {
-    ElMessage.error('复制失败');
-  }
-}
-
 onMounted(async () => {
   try {
     templates.value = await apiFetch<TemplateListItem[]>('/templates');
@@ -84,6 +75,7 @@ const hasTemplates = computed(() => templates.value.length > 0);
 // --- TOC ---
 const sections = [
   { id: 'templates', title: '模板列表' },
+  { id: 'auth', title: '鉴权' },
   { id: 'endpoints', title: '接口列表' },
   { id: 'ep-enqueue', title: 'POST /api/render', indent: true },
   { id: 'ep-get-job', title: 'GET /api/render/:jobId', indent: true },
@@ -93,6 +85,17 @@ const sections = [
 function jumpTo(id: string): void {
   const el = document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// --- endpoint 折叠状态 ---
+const epOpen = ref<Record<string, boolean>>({
+  'ep-enqueue': true, // 默认展开第 1 个
+  'ep-get-job': false,
+  'ep-lark-trigger': false,
+});
+
+function toggleEp(id: string): void {
+  epOpen.value[id] = !epOpen.value[id];
 }
 </script>
 
@@ -140,13 +143,6 @@ function jumpTo(id: string): void {
                   <div class="api-tpl-name">{{ t.name }}</div>
                   <div class="api-tpl-id">
                     <code>{{ t.id }}</code>
-                    <button
-                      class="api-copy-btn"
-                      title="复制模板 ID"
-                      @click.stop="copy(t.id, '已复制模板 ID')"
-                    >
-                      <Copy :size="11" :stroke-width="2" />
-                    </button>
                   </div>
                 </td>
                 <td>
@@ -194,132 +190,174 @@ function jumpTo(id: string): void {
         </table>
       </section>
 
+      <!-- ============ 鉴权（独立 section）============ -->
+      <section id="auth" class="api-section">
+        <h2 class="api-h2">鉴权</h2>
+        <p class="api-section-desc">
+          <code>POST /api/render</code> 与 <code>GET /api/render/:jobId</code> 使用
+          <strong>Bearer API Token</strong>；飞书 webhook 类
+          （<code>/lark/print-trigger</code>）使用 body 中的 <code>verificationToken</code> 由服务端
+          <code>.env</code> 配置共享。
+        </p>
+
+        <h3 class="api-h3">Bearer API Token</h3>
+        <p class="api-section-desc" style="margin: 0 0 8px">每个请求加请求头：</p>
+        <pre class="api-code">Authorization: Bearer tpkn_a1b2c3d4e5f60718a9bcdef0123456789</pre>
+        <ul class="api-auth-bullets">
+          <li>Token 格式：<code>tpkn_</code> 前缀 + 32 hex 字符。前缀方便日志检索 / 误提交检测</li>
+          <li>
+            管理位置：<strong>个人中心 → API 凭证</strong>
+            （创建 / 命名 / 查看最近使用 / 立即吊销） —
+            <em>该 UI 在下一个迭代实装</em>
+          </li>
+          <li>Token 仅创建时显示一次，DB 存 SHA-256 哈希</li>
+          <li>浏览器场景（设计器内置调用）仍兼容 cookie；服务端 guard 优先 Bearer</li>
+        </ul>
+
+        <h3 class="api-h3">Webhook verification token（飞书集成）</h3>
+        <p class="api-section-desc" style="margin: 0">
+          飞书后台事件订阅 / 卡片回调 / 自动化 webhook 在 body 内传一个共享 token， 服务端从
+          <code>.env</code> 读取并校验。不需要用户级 token。
+        </p>
+      </section>
+
       <!-- ============ 接口列表 ============ -->
       <section id="endpoints" class="api-section">
         <h2 class="api-h2">接口列表</h2>
-        <p class="api-section-intro">外部调用方（开发 / 集成方 / 自动化）可使用的 3 个端点。</p>
 
         <!-- POST /api/render -->
-        <article id="ep-enqueue" class="api-endpoint-card">
-          <div class="api-ep-head">
+        <article
+          id="ep-enqueue"
+          class="api-endpoint-card"
+          :class="{ 'api-endpoint-card--open': epOpen['ep-enqueue'] }"
+        >
+          <div
+            class="api-ep-summary"
+            :class="{ 'api-ep-summary--open': epOpen['ep-enqueue'] }"
+            @click="toggleEp('ep-enqueue')"
+          >
             <span class="api-method api-method--post">POST</span>
             <code class="api-ep-path">/api/render</code>
+            <span class="api-ep-short">入队渲染（异步）</span>
+            <component
+              :is="epOpen['ep-enqueue'] ? ChevronDown : ChevronRight"
+              :size="16"
+              :stroke-width="2"
+              class="api-chev"
+            />
           </div>
-          <p class="api-ep-desc">
-            把渲染任务入队，立即返回 jobId（异步）。完成时可通过 callbackUrl 收 webhook，或主动轮询
-            GET 接口。
-          </p>
+          <div v-show="epOpen['ep-enqueue']" class="api-ep-body">
+            <p class="api-ep-desc">
+              把渲染任务入队，立即返回 jobId（异步）。完成时可通过 callbackUrl 收
+              webhook，或主动轮询 GET 接口。鉴权方式见
+              <a href="#auth" @click.prevent="jumpTo('auth')">鉴权章节</a>。
+            </p>
 
-          <h3 class="api-h3">鉴权</h3>
-          <p class="api-auth">
-            需要登录 cookie + CSRF。系统调用（如飞书 webhook 内部转调）可绕过 ownership 检查。
-          </p>
+            <h3 class="api-h3">请求头</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>必需</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Content-Type</code></td>
+                  <td>是</td>
+                  <td><code>application/json</code></td>
+                </tr>
+                <tr>
+                  <td><code>Cookie</code></td>
+                  <td>是</td>
+                  <td>含 <code>tp_access</code> 鉴权 cookie</td>
+                </tr>
+                <tr>
+                  <td><code>X-CSRF-Token</code></td>
+                  <td>是</td>
+                  <td>CSRF token（登录返回 / cookie 中的 tp_csrf）</td>
+                </tr>
+              </tbody>
+            </table>
 
-          <h3 class="api-h3">请求头</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>字段</th>
-                <th>必需</th>
-                <th>说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>Content-Type</code></td>
-                <td>是</td>
-                <td><code>application/json</code></td>
-              </tr>
-              <tr>
-                <td><code>Cookie</code></td>
-                <td>是</td>
-                <td>含 <code>tp_access</code> 鉴权 cookie</td>
-              </tr>
-              <tr>
-                <td><code>X-CSRF-Token</code></td>
-                <td>是</td>
-                <td>CSRF token（登录返回 / cookie 中的 tp_csrf）</td>
-              </tr>
-            </tbody>
-          </table>
+            <h3 class="api-h3">请求体</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>类型</th>
+                  <th>必需</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>templateId</code></td>
+                  <td>string (UUID)</td>
+                  <td>是</td>
+                  <td>模板 ID（在「模板中心」打开模板时 URL 上有）</td>
+                </tr>
+                <tr>
+                  <td><code>data</code></td>
+                  <td>object</td>
+                  <td>否</td>
+                  <td>业务字段 map，key 对应模板 schema.fields 的 key；默认 <code>{}</code></td>
+                </tr>
+                <tr>
+                  <td><code>formats</code></td>
+                  <td>string[]</td>
+                  <td>否</td>
+                  <td>导出格式，默认 <code>["pdf"]</code>，可加 <code>"png"</code></td>
+                </tr>
+                <tr>
+                  <td><code>callbackUrl</code></td>
+                  <td>string (URL)</td>
+                  <td>否</td>
+                  <td>渲染完成后 POST 通知此 URL（可选）</td>
+                </tr>
+              </tbody>
+            </table>
 
-          <h3 class="api-h3">请求体</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>字段</th>
-                <th>类型</th>
-                <th>必需</th>
-                <th>说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>templateId</code></td>
-                <td>string (UUID)</td>
-                <td>是</td>
-                <td>模板 ID（在「模板中心」打开模板时 URL 上有）</td>
-              </tr>
-              <tr>
-                <td><code>data</code></td>
-                <td>object</td>
-                <td>否</td>
-                <td>业务字段 map，key 对应模板 schema.fields 的 key；默认 <code>{}</code></td>
-              </tr>
-              <tr>
-                <td><code>formats</code></td>
-                <td>string[]</td>
-                <td>否</td>
-                <td>导出格式，默认 <code>["pdf"]</code>，可加 <code>"png"</code></td>
-              </tr>
-              <tr>
-                <td><code>callbackUrl</code></td>
-                <td>string (URL)</td>
-                <td>否</td>
-                <td>渲染完成后 POST 通知此 URL（可选）</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <h3 class="api-h3">请求示例</h3>
-          <pre class="api-code">
+            <h3 class="api-h3">请求示例</h3>
+            <pre class="api-code">
 {
   "templateId": "e0798b17-5d90-449a-b881-f5c0dc13d6b3",
   "data": { "group": "扬机", "material_num": "10100" },
   "formats": ["pdf"],
   "callbackUrl": "https://your-server.com/print-callback"
 }</pre
-          >
+            >
 
-          <h3 class="api-h3">响应体（200）</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>字段</th>
-                <th>类型</th>
-                <th>说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>jobId</code></td>
-                <td>string (UUID)</td>
-                <td>渲染任务 ID，后续查询 / callback 中关联</td>
-              </tr>
-              <tr>
-                <td><code>status</code></td>
-                <td>string</td>
-                <td>初始固定为 <code>"pending"</code></td>
-              </tr>
-            </tbody>
-          </table>
-          <pre class="api-code">{ "jobId": "abc-123-...", "status": "pending" }</pre>
+            <h3 class="api-h3">响应体（200）</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>类型</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>jobId</code></td>
+                  <td>string (UUID)</td>
+                  <td>渲染任务 ID，后续查询 / callback 中关联</td>
+                </tr>
+                <tr>
+                  <td><code>status</code></td>
+                  <td>string</td>
+                  <td>初始固定为 <code>"pending"</code></td>
+                </tr>
+              </tbody>
+            </table>
+            <pre class="api-code">{ "jobId": "abc-123-...", "status": "pending" }</pre>
 
-          <h3 class="api-h3">Webhook 回调 payload</h3>
-          <p class="api-tiny">
-            渲染完成（成功 / 失败）后，平台 POST 以下结构到调用方传入的 <code>callbackUrl</code>：
-          </p>
-          <pre class="api-code">
+            <h3 class="api-h3">Webhook 回调 payload</h3>
+            <p class="api-tiny">
+              渲染完成（成功 / 失败）后，平台 POST 以下结构到调用方传入的 <code>callbackUrl</code>：
+            </p>
+            <pre class="api-code">
 {
   "jobId": "abc-123-...",
   "status": "done" | "failed",
@@ -327,117 +365,134 @@ function jumpTo(id: string): void {
   "pngUrl": "/uploads/render/abc-123.png" | null,
   "errorMsg": null | "..."
 }</pre
-          >
+            >
 
-          <h3 class="api-h3">错误码</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>HTTP</th>
-                <th>错误</th>
-                <th>原因</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>400</td>
-                <td>BAD_REQUEST</td>
-                <td>请求体校验失败（templateId / data 等格式问题）</td>
-              </tr>
-              <tr>
-                <td>401</td>
-                <td>UNAUTHORIZED</td>
-                <td>未登录 / cookie 失效 / CSRF token 错</td>
-              </tr>
-              <tr>
-                <td>404</td>
-                <td>template_not_found</td>
-                <td>templateId 不存在或当前用户无权限</td>
-              </tr>
-            </tbody>
-          </table>
+            <h3 class="api-h3">错误码</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>HTTP</th>
+                  <th>错误</th>
+                  <th>原因</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>400</td>
+                  <td>BAD_REQUEST</td>
+                  <td>请求体校验失败（templateId / data 等格式问题）</td>
+                </tr>
+                <tr>
+                  <td>401</td>
+                  <td>UNAUTHORIZED</td>
+                  <td>未登录 / cookie 失效 / CSRF token 错</td>
+                </tr>
+                <tr>
+                  <td>404</td>
+                  <td>template_not_found</td>
+                  <td>templateId 不存在或当前用户无权限</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </article>
 
         <!-- GET /api/render/:jobId -->
-        <article id="ep-get-job" class="api-endpoint-card">
-          <div class="api-ep-head">
+        <article
+          id="ep-get-job"
+          class="api-endpoint-card"
+          :class="{ 'api-endpoint-card--open': epOpen['ep-get-job'] }"
+        >
+          <div
+            class="api-ep-summary"
+            :class="{ 'api-ep-summary--open': epOpen['ep-get-job'] }"
+            @click="toggleEp('ep-get-job')"
+          >
             <span class="api-method api-method--get">GET</span>
             <code class="api-ep-path">/api/render/:jobId</code>
+            <span class="api-ep-short">查询渲染状态</span>
+            <component
+              :is="epOpen['ep-get-job'] ? ChevronDown : ChevronRight"
+              :size="16"
+              :stroke-width="2"
+              class="api-chev"
+            />
           </div>
-          <p class="api-ep-desc">查询渲染任务当前状态。对 webhook 不便接入的调用方提供轮询路径。</p>
+          <div v-show="epOpen['ep-get-job']" class="api-ep-body">
+            <p class="api-ep-desc">
+              查询渲染任务当前状态。对 webhook 不便接入的调用方提供轮询路径。鉴权方式见
+              <a href="#auth" @click.prevent="jumpTo('auth')">鉴权章节</a>。
+            </p>
 
-          <h3 class="api-h3">鉴权</h3>
-          <p class="api-auth">需要登录 cookie。</p>
+            <h3 class="api-h3">路径参数</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>类型</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>jobId</code></td>
+                  <td>string (UUID)</td>
+                  <td>POST 时返回的任务 ID</td>
+                </tr>
+              </tbody>
+            </table>
 
-          <h3 class="api-h3">路径参数</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>字段</th>
-                <th>类型</th>
-                <th>说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>jobId</code></td>
-                <td>string (UUID)</td>
-                <td>POST 时返回的任务 ID</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <h3 class="api-h3">响应体（200）</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>字段</th>
-                <th>类型</th>
-                <th>说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>jobId</code></td>
-                <td>string</td>
-                <td>任务 ID</td>
-              </tr>
-              <tr>
-                <td><code>status</code></td>
-                <td>string</td>
-                <td>
-                  <code>pending</code> / <code>processing</code> / <code>done</code> /
-                  <code>failed</code>
-                </td>
-              </tr>
-              <tr>
-                <td><code>pdfUrl</code></td>
-                <td>string | null</td>
-                <td>完成后才有，相对路径 <code>/uploads/render/...</code></td>
-              </tr>
-              <tr>
-                <td><code>pngUrl</code></td>
-                <td>string | null</td>
-                <td>同上</td>
-              </tr>
-              <tr>
-                <td><code>errorMsg</code></td>
-                <td>string | null</td>
-                <td>失败时含错误描述</td>
-              </tr>
-              <tr>
-                <td><code>createdAt</code></td>
-                <td>ISO 8601</td>
-                <td>入队时间</td>
-              </tr>
-              <tr>
-                <td><code>completedAt</code></td>
-                <td>ISO 8601 | null</td>
-                <td>完成时间</td>
-              </tr>
-            </tbody>
-          </table>
-          <pre class="api-code">
+            <h3 class="api-h3">响应体（200）</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>类型</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>jobId</code></td>
+                  <td>string</td>
+                  <td>任务 ID</td>
+                </tr>
+                <tr>
+                  <td><code>status</code></td>
+                  <td>string</td>
+                  <td>
+                    <code>pending</code> / <code>processing</code> / <code>done</code> /
+                    <code>failed</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>pdfUrl</code></td>
+                  <td>string | null</td>
+                  <td>完成后才有，相对路径 <code>/uploads/render/...</code></td>
+                </tr>
+                <tr>
+                  <td><code>pngUrl</code></td>
+                  <td>string | null</td>
+                  <td>同上</td>
+                </tr>
+                <tr>
+                  <td><code>errorMsg</code></td>
+                  <td>string | null</td>
+                  <td>失败时含错误描述</td>
+                </tr>
+                <tr>
+                  <td><code>createdAt</code></td>
+                  <td>ISO 8601</td>
+                  <td>入队时间</td>
+                </tr>
+                <tr>
+                  <td><code>completedAt</code></td>
+                  <td>ISO 8601 | null</td>
+                  <td>完成时间</td>
+                </tr>
+              </tbody>
+            </table>
+            <pre class="api-code">
 {
   "jobId": "abc-123-...",
   "status": "done",
@@ -447,134 +502,152 @@ function jumpTo(id: string): void {
   "createdAt": "2026-05-24T10:30:00Z",
   "completedAt": "2026-05-24T10:30:02Z"
 }</pre
-          >
+            >
 
-          <h3 class="api-h3">错误码</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>HTTP</th>
-                <th>错误</th>
-                <th>原因</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>401</td>
-                <td>UNAUTHORIZED</td>
-                <td>未登录</td>
-              </tr>
-              <tr>
-                <td>404</td>
-                <td>job_not_found</td>
-                <td>jobId 不存在</td>
-              </tr>
-            </tbody>
-          </table>
+            <h3 class="api-h3">错误码</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>HTTP</th>
+                  <th>错误</th>
+                  <th>原因</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>401</td>
+                  <td>UNAUTHORIZED</td>
+                  <td>未登录</td>
+                </tr>
+                <tr>
+                  <td>404</td>
+                  <td>job_not_found</td>
+                  <td>jobId 不存在</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </article>
 
         <!-- POST /lark/print-trigger -->
-        <article id="ep-lark-trigger" class="api-endpoint-card">
-          <div class="api-ep-head">
+        <article
+          id="ep-lark-trigger"
+          class="api-endpoint-card"
+          :class="{ 'api-endpoint-card--open': epOpen['ep-lark-trigger'] }"
+        >
+          <div
+            class="api-ep-summary"
+            :class="{ 'api-ep-summary--open': epOpen['ep-lark-trigger'] }"
+            @click="toggleEp('ep-lark-trigger')"
+          >
             <span class="api-method api-method--post">POST</span>
             <code class="api-ep-path">/lark/print-trigger</code>
+            <span class="api-ep-short">飞书多维表格按钮 webhook</span>
+            <component
+              :is="epOpen['ep-lark-trigger'] ? ChevronDown : ChevronRight"
+              :size="16"
+              :stroke-width="2"
+              class="api-chev"
+            />
           </div>
-          <p class="api-ep-desc">
-            飞书多维表格按钮自动化的 webhook 入口。业务人员在飞书自动化里配此
-            URL，点按钮触发渲染并自动写回 PDF 附件。详细接入步骤见
-            <code>examples/lark-bitable/README.md</code>。
-          </p>
+          <div v-show="epOpen['ep-lark-trigger']" class="api-ep-body">
+            <p class="api-ep-desc">
+              飞书多维表格按钮自动化的 webhook 入口。业务人员在飞书自动化里配此
+              URL，点按钮触发渲染并自动写回 PDF 附件。详细接入步骤见
+              <code>examples/lark-bitable/README.md</code>。鉴权方式见
+              <a href="#auth" @click.prevent="jumpTo('auth')">鉴权章节</a>。
+            </p>
 
-          <h3 class="api-h3">鉴权</h3>
-          <p class="api-auth">
-            无需登录。通过 body 内 <code>verificationToken</code> 校验调用方（与服务端
-            <code>.env</code> 里的 <code>LARK_BITABLE_VERIFICATION_TOKEN</code> 对齐）。
-          </p>
+            <h3 class="api-h3">鉴权</h3>
+            <p class="api-auth">
+              无需登录。通过 body 内 <code>verificationToken</code> 校验调用方（与服务端
+              <code>.env</code> 里的 <code>LARK_BITABLE_VERIFICATION_TOKEN</code> 对齐）。
+            </p>
 
-          <h3 class="api-h3">请求头</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>字段</th>
-                <th>必需</th>
-                <th>说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>Content-Type</code></td>
-                <td>是</td>
-                <td><code>application/json</code></td>
-              </tr>
-            </tbody>
-          </table>
+            <h3 class="api-h3">请求头</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>必需</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>Content-Type</code></td>
+                  <td>是</td>
+                  <td><code>application/json</code></td>
+                </tr>
+              </tbody>
+            </table>
 
-          <h3 class="api-h3">请求体</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>字段</th>
-                <th>类型</th>
-                <th>必需</th>
-                <th>说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>verificationToken</code></td>
-                <td>string</td>
-                <td>是</td>
-                <td>服务端配置的共享 token</td>
-              </tr>
-              <tr>
-                <td><code>templateId</code></td>
-                <td>string (UUID)</td>
-                <td>是</td>
-                <td>模板 ID</td>
-              </tr>
-              <tr>
-                <td><code>data</code></td>
-                <td>object</td>
-                <td>否</td>
-                <td v-pre>
-                  业务字段 map（从飞书自动化变量 <code>{{ 字段.xxx }}</code> 引用）
-                </td>
-              </tr>
-              <tr>
-                <td><code>lark.appToken</code></td>
-                <td>string</td>
-                <td>是</td>
-                <td>多维表格的 app_token（飞书内建变量）</td>
-              </tr>
-              <tr>
-                <td><code>lark.tableId</code></td>
-                <td>string</td>
-                <td>是</td>
-                <td>表 ID</td>
-              </tr>
-              <tr>
-                <td><code>lark.recordId</code></td>
-                <td>string</td>
-                <td>是</td>
-                <td>当前行 record_id</td>
-              </tr>
-              <tr>
-                <td><code>lark.statusField</code></td>
-                <td>string</td>
-                <td>是</td>
-                <td>多维表格中"打印状态"单选列的列名</td>
-              </tr>
-              <tr>
-                <td><code>lark.attachmentField</code></td>
-                <td>string</td>
-                <td>是</td>
-                <td>多维表格中"PDF 附件"附件列的列名</td>
-              </tr>
-            </tbody>
-          </table>
+            <h3 class="api-h3">请求体</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>类型</th>
+                  <th>必需</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>verificationToken</code></td>
+                  <td>string</td>
+                  <td>是</td>
+                  <td>服务端配置的共享 token</td>
+                </tr>
+                <tr>
+                  <td><code>templateId</code></td>
+                  <td>string (UUID)</td>
+                  <td>是</td>
+                  <td>模板 ID</td>
+                </tr>
+                <tr>
+                  <td><code>data</code></td>
+                  <td>object</td>
+                  <td>否</td>
+                  <td v-pre>
+                    业务字段 map（从飞书自动化变量 <code>{{ 字段.xxx }}</code> 引用）
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>lark.appToken</code></td>
+                  <td>string</td>
+                  <td>是</td>
+                  <td>多维表格的 app_token（飞书内建变量）</td>
+                </tr>
+                <tr>
+                  <td><code>lark.tableId</code></td>
+                  <td>string</td>
+                  <td>是</td>
+                  <td>表 ID</td>
+                </tr>
+                <tr>
+                  <td><code>lark.recordId</code></td>
+                  <td>string</td>
+                  <td>是</td>
+                  <td>当前行 record_id</td>
+                </tr>
+                <tr>
+                  <td><code>lark.statusField</code></td>
+                  <td>string</td>
+                  <td>是</td>
+                  <td>多维表格中"打印状态"单选列的列名</td>
+                </tr>
+                <tr>
+                  <td><code>lark.attachmentField</code></td>
+                  <td>string</td>
+                  <td>是</td>
+                  <td>多维表格中"PDF 附件"附件列的列名</td>
+                </tr>
+              </tbody>
+            </table>
 
-          <h3 class="api-h3">请求示例</h3>
-          <pre class="api-code" v-pre>
+            <h3 class="api-h3">请求示例</h3>
+            <pre class="api-code" v-pre>
 {
   "verificationToken": "126dc1303ab9cf90...",
   "templateId": "e0798b17-...",
@@ -587,69 +660,70 @@ function jumpTo(id: string): void {
     "attachmentField": "PDF 附件"
   }
 }</pre
-          >
+            >
 
-          <h3 class="api-h3">响应体（200）</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>字段</th>
-                <th>类型</th>
-                <th>说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>jobId</code></td>
-                <td>string</td>
-                <td>渲染任务 ID</td>
-              </tr>
-              <tr>
-                <td><code>status</code></td>
-                <td>string</td>
-                <td>初始 <code>"pending"</code></td>
-              </tr>
-            </tbody>
-          </table>
+            <h3 class="api-h3">响应体（200）</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>类型</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>jobId</code></td>
+                  <td>string</td>
+                  <td>渲染任务 ID</td>
+                </tr>
+                <tr>
+                  <td><code>status</code></td>
+                  <td>string</td>
+                  <td>初始 <code>"pending"</code></td>
+                </tr>
+              </tbody>
+            </table>
 
-          <h3 class="api-h3">行为</h3>
-          <ul class="api-behavior-list">
-            <li>立即落 LarkPrintRequest 记录 + 入队渲染</li>
-            <li>异步把多维表格 <code>statusField</code> 改为 <code>处理中</code></li>
-            <li>
-              渲染完成 → 上传 PDF 到飞书云空间 → 写回 <code>attachmentField</code> +
-              <code>statusField = 已完成</code>
-            </li>
-            <li>失败 → <code>statusField = 失败</code></li>
-          </ul>
+            <h3 class="api-h3">行为</h3>
+            <ul class="api-behavior-list">
+              <li>立即落 LarkPrintRequest 记录 + 入队渲染</li>
+              <li>异步把多维表格 <code>statusField</code> 改为 <code>处理中</code></li>
+              <li>
+                渲染完成 → 上传 PDF 到飞书云空间 → 写回 <code>attachmentField</code> +
+                <code>statusField = 已完成</code>
+              </li>
+              <li>失败 → <code>statusField = 失败</code></li>
+            </ul>
 
-          <h3 class="api-h3">错误码</h3>
-          <table class="api-spec-table">
-            <thead>
-              <tr>
-                <th>HTTP</th>
-                <th>错误</th>
-                <th>原因</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>400</td>
-                <td>BAD_REQUEST</td>
-                <td>body 校验失败 / 字段缺失</td>
-              </tr>
-              <tr>
-                <td>401</td>
-                <td>verification_token_mismatch</td>
-                <td>verificationToken 与服务端不一致</td>
-              </tr>
-              <tr>
-                <td>500</td>
-                <td>template_not_found</td>
-                <td>templateId 不存在</td>
-              </tr>
-            </tbody>
-          </table>
+            <h3 class="api-h3">错误码</h3>
+            <table class="api-spec-table">
+              <thead>
+                <tr>
+                  <th>HTTP</th>
+                  <th>错误</th>
+                  <th>原因</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>400</td>
+                  <td>BAD_REQUEST</td>
+                  <td>body 校验失败 / 字段缺失</td>
+                </tr>
+                <tr>
+                  <td>401</td>
+                  <td>verification_token_mismatch</td>
+                  <td>verificationToken 与服务端不一致</td>
+                </tr>
+                <tr>
+                  <td>500</td>
+                  <td>template_not_found</td>
+                  <td>templateId 不存在</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </article>
       </section>
     </div>
@@ -661,9 +735,19 @@ function jumpTo(id: string): void {
   display: grid;
   grid-template-columns: 220px 1fr;
   gap: 24px;
-  padding: 24px 40px 40px;
-  max-width: 1300px;
+  padding: 24px 40px 60px;
+  max-width: 1320px;
   margin: 0 auto;
+  /* 字体切换：去掉 Inter，用系统栈 + 中文 fallback；代码用 JetBrains Mono */
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei',
+    system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--tp-ink, #1f1f23);
+}
+.api-page code,
+.api-page pre {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
 }
 
 /* ============ TOC ============ */
@@ -737,6 +821,40 @@ function jumpTo(id: string): void {
   color: var(--tp-ink-soft, #5e5e66);
   font-size: 13px;
   margin: -8px 0 16px;
+}
+.api-section-desc {
+  color: var(--tp-ink-soft, #5e5e66);
+  font-size: 13.5px;
+  line-height: 1.7;
+  margin: 0 0 12px;
+}
+.api-section-desc code {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 12.5px;
+  background: var(--tp-accent-bg, #f0eeff);
+  color: var(--tp-accent-ink, #4f3fcc);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.api-auth-bullets {
+  font-size: 13px;
+  color: var(--tp-ink-soft, #5e5e66);
+  margin: 8px 0 0;
+  padding-left: 18px;
+  line-height: 1.75;
+}
+.api-auth-bullets code {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 12px;
+  background: var(--tp-accent-bg, #f0eeff);
+  color: var(--tp-accent-ink, #4f3fcc);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.api-auth-bullets em {
+  color: var(--tp-ink-faint, #9c9ca3);
+  font-style: normal;
+  font-size: 12px;
 }
 
 .api-loading,
@@ -879,19 +997,46 @@ details[open] summary {
   color: var(--tp-accent, #6c5ce7);
 }
 
-/* ============ Endpoint card ============ */
+/* ============ Endpoint card（可折叠）============ */
 .api-endpoint-card {
-  padding: 18px 20px;
   border: 1px solid var(--tp-line, #ececef);
   border-radius: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   scroll-margin-top: 16px;
+  overflow: hidden;
+  transition: box-shadow 120ms ease;
 }
-.api-ep-head {
+.api-endpoint-card--open {
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(20, 20, 30, 0.04);
+}
+.api-ep-summary {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 100ms ease;
+}
+.api-ep-summary:hover {
+  background: var(--tp-field-bg, rgba(108, 92, 231, 0.04));
+}
+.api-ep-summary--open {
+  border-bottom: 1px solid var(--tp-line, #ececef);
+}
+.api-ep-short {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--tp-ink-soft, #5e5e66);
+}
+.api-chev {
+  color: var(--tp-ink-faint, #9c9ca3);
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.api-ep-body {
+  padding: 16px 22px 20px;
 }
 .api-method {
   display: inline-block;
