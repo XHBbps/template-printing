@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-23（iter 26 E2E smoke 通过 + RAF 同步 bug 修复）
+**最近更新**：2026-05-24（iter 27 飞书多维表格按钮触发渲染回写附件）
 
 ---
 
@@ -20,9 +20,10 @@
 | Auto-save（debounced PATCH + 状态指示 + beforeunload） | ✅ 已完成 | iter 22 |
 | Admin 角色 / logout 硬跳 / 401 自动 refresh / Header Hero 风格 | ✅ 已完成 | iter 23 |
 | 设计器细节优化（浮动 toolbar / pan mode / snap 简化 / 打印 CSS） | ✅ 已完成 | iter 24 / 25 |
-| **异步渲染服务（队列 + worker + webhook + API 文档）** | ✅ 已完成 | iter 26（最新） |
+| **异步渲染服务（队列 + worker + webhook + API 文档）** | ✅ 已完成 | iter 26 |
+| **飞书多维表格按钮触发渲染回写附件** | ✅ 已完成 | iter 27（最新） |
 | 部署：阿里云 ACR + ECS + GitHub Actions | 🟡 框架就绪 | iter 19，待外部条件（域名 / 备案 / 飞书应用） |
-| 飞书机器人接入示例 | ⏳ 待开始 | 见第 5 节 |
+| 飞书机器人 @ 指令触发渲染 | ⏳ 待开始 | iter 27 留作后续，见第 5 节 |
 | Admin 用户管理后台（CRUD） | 🟡 仅占位页 | `apps/web/src/views/admin/UsersAdminView.vue` 已存在，后端 CRUD 未补 |
 | 渲染任务历史 / 我的渲染任务 | ⏳ 待开始 | 见第 5 节 |
 
@@ -58,6 +59,20 @@
 - **预览 + 打印**：`/templates?open=:id` → 预览模式 → `Ctrl+P`；@media print 隐藏 sidebar / 面包屑 / 浮动 toolbar；纸张溢出修复
 - **Auto-save**：debounced PATCH（800ms）+ 状态指示器（保存中 / 已保存 / 失败重试） + beforeunload 阻止丢失；拖动期跳过避免卡顿
 
+### 2.5 飞书多维表格按钮触发渲染回写附件（iter 27）
+
+- **数据模型**：`lark_print_requests` 表（renderJobId 1:1 → RenderJob / appToken / tableId / recordId / statusField / attachmentField / callbackStatus / errorMsg / 时间戳）
+- **API 端点**：
+  - `POST /lark/print-trigger`（外部 webhook，`Public` + body 中 verificationToken 校验）：入队渲染 + 落 LarkPrintRequest + best-effort 写"处理中"
+  - `POST /lark/render-callback?token=...`（worker 回调，`Public` + URL query token 校验）：完成上传 PDF + 写附件 + 状态"已完成"；失败写"失败"
+- **Lark API 封装**：
+  - `LarkBitableService.updateRecord` — PUT bitable record fields
+  - `LarkBitableService.uploadMaterial` — 自动分片：< 20MB `upload_all`，≥ 20MB `upload_prepare / part(4MB/块) / finish`
+  - 复用 `LarkImService.getTenantAccessToken`（2h 缓存）
+- **架构调整**：`RenderService.enqueue` 接受 `ownerId: string | null`（lark 系统调用跳过 ownership 检查）；`lark-im.module` 合并到 `lark.module`
+- **业务人员接入手册**：`examples/lark-bitable/README.md` 含建表步骤 + 自动化配置 + payload 模板 + 常见问题
+- **凭证**：复用 `LARK_SSO_APP_ID/SECRET`（同 app 多权限），新增 `LARK_BITABLE_VERIFICATION_TOKEN` 仅在本地 .env
+
 ### 2.3 异步渲染服务（iter 26）
 
 - **数据模型**：`render_jobs` 表（id / templateId / data / formats / status / pdfUrl / pngUrl / errorMsg / callbackUrl / callbackStatus / 时间戳）
@@ -89,6 +104,17 @@
 ## 3. 近期变更
 
 > 按时间倒序，最近 ~15 次重大变更。详细 commit 见 `git log --oneline`。
+
+### 2026-05-24
+
+- **iter 27：飞书多维表格按钮触发渲染回写附件**
+  - DB：`lark_print_requests` 表 + Prisma migration `add_lark_print_requests`
+  - Service：`LarkBitableService`（updateRecord + uploadMaterial 含分片，6 单测全过 nock mock 飞书）
+  - Controller：`/lark/print-trigger` + `/lark/render-callback`，双重 verification token 校验
+  - 架构：`enqueue(ownerId | null, ...)` 支持系统调用；`lark-im.module → lark.module` 合并
+  - 文档：`docs/deployment.md` 飞书章节 + `examples/lark-bitable/README.md` 业务接入手册
+  - 凭证：复用 `LARK_SSO_APP_ID/SECRET` + 新增 `LARK_BITABLE_VERIFICATION_TOKEN` + `API_INTERNAL_BASE`
+- **附带修**：jest test 加 `--runInBand` 修预存的 e2e DB 共享并行竞态（多 suite 跑 deleteMany 互相删用户）
 
 ### 2026-05-23
 
@@ -157,7 +183,8 @@
 
 | 方向 | 描述 | 涉及代码区域 |
 |---|---|---|
-| **飞书机器人调用方接入示例** | 完整 demo：从飞书多维表格触发 → 调 `/api/render` → 等 webhook → 上传附件回飞书 | 新建 `examples/` 目录 + ApiDocsView 增补 |
+| ~~飞书多维表格按钮触发渲染回写附件~~ | ✅ iter 27 完成 | `apps/api/src/lark/` + `examples/lark-bitable/` |
+| **飞书机器人 @ 指令触发渲染** | 群里 @ 机器人 "打印 出门证 姓名=张三" → 机器人发回 PDF 卡片 | 复用 LarkBitable infra，加事件订阅端点 + 文本解析 |
 | **Admin 用户管理 CRUD** | 列表 / 新建（本地账号） / 改角色 / 重置密码 / 禁用 | `apps/api/src/users/` 新模块 + `views/admin/UsersAdminView.vue` |
 | **渲染任务历史 / 我的渲染任务** | 用户在 `/me` 看自己发起的渲染任务列表 + 重新下载 | `apps/api/src/render/` 加 list 端点 + 新 view |
 | **渲染失败重试策略** | bullmq job options：`attempts: 3` + 指数退避；错误分类（暂时性 vs 永久性） | `apps/render/src/main.ts` + `render.service.ts` |

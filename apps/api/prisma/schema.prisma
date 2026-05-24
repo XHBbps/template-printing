@@ -75,9 +75,32 @@ model RenderJob {
   startedAt      DateTime? @map("started_at")
   completedAt   DateTime? @map("completed_at")
 
+  larkPrintRequest LarkPrintRequest?
+
   @@index([templateId, createdAt(sort: Desc)])
   @@index([status, createdAt])
   @@map("render_jobs")
+}
+
+model LarkPrintRequest {
+  id              String    @id @default(uuid())
+  renderJobId     String    @unique @map("render_job_id")
+  renderJob       RenderJob @relation(fields: [renderJobId], references: [id], onDelete: Cascade)
+
+  appToken        String    @map("app_token")
+  tableId         String    @map("table_id")
+  recordId        String    @map("record_id")
+  statusField     String    @map("status_field")
+  attachmentField String    @map("attachment_field")
+
+  callbackStatus  String?   @map("callback_status")   // pending / done / failed
+  errorMsg        String?   @map("error_msg")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt        @map("updated_at")
+
+  @@index([renderJobId])
+  @@map("lark_print_requests")
 }
 
 model RefreshToken {

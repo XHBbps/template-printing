@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-unresolved
 import { z } from 'zod';
 
 const EnvSchema = z.object({
@@ -29,6 +30,15 @@ const EnvSchema = z.object({
 
   RENDER_BROWSERS: z.coerce.number().int().positive().default(4),
   RENDER_PAGES_PER_BROWSER: z.coerce.number().int().positive().default(2),
+
+  // Lark Bitable 集成
+  // 在飞书自动化 webhook body 里业务人员填同一值；也用作 /lark/render-callback URL query token
+  LARK_BITABLE_VERIFICATION_TOKEN: z
+    .string()
+    .min(16, 'LARK_BITABLE_VERIFICATION_TOKEN must be at least 16 chars')
+    .optional(),
+  // Render worker 回调 api 时用的 base URL（docker 内部）。生产可指向 https://print.x.com
+  API_INTERNAL_BASE: z.string().url().default('http://api:3000'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

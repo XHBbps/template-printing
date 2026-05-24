@@ -29,11 +29,13 @@ export class RenderService {
     });
   }
 
-  async enqueue(ownerId: string, args: EnqueueArgs): Promise<{ jobId: string; status: string }> {
-    // 校验 template 存在 + ownership
-    const tpl = await this.prisma.template.findFirst({
-      where: { id: args.templateId, ownerId },
-    });
+  async enqueue(
+    ownerId: string | null,
+    args: EnqueueArgs,
+  ): Promise<{ jobId: string; status: string }> {
+    // 校验 template 存在 + ownership（ownerId=null 表示系统调用，跳过 ownership 检查）
+    const where = ownerId ? { id: args.templateId, ownerId } : { id: args.templateId };
+    const tpl = await this.prisma.template.findFirst({ where });
     if (!tpl) throw new NotFoundException('template_not_found');
 
     const formats = args.formats?.length ? args.formats : (['pdf', 'png'] as const);
