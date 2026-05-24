@@ -77,6 +77,51 @@ vi .env.prod   # 填入实际值（密钥、域名等）
 - **回滚到上个 tag**：`./scripts/deploy/rollback.sh <prev-tag>`
 - **完全重启 stack**：`docker compose -f docker-compose.prod.yml down && docker compose -f docker-compose.prod.yml up -d`
 
+## 飞书多维表格自动化对接
+
+> 把"业务人员在多维表格点按钮 → 自动渲染 PDF → 写回附件"流程接到本平台。
+
+### 飞书开放平台
+
+- 自建应用启用以下权限（除 SSO 已有的之外）：
+  - `bitable:app` — 读写多维表格
+  - `drive:drive` — 上传文件到云空间
+- 同一个 app 同时承担 SSO + bitable + drive 三套权限，无需新建 app
+
+### 环境变量
+
+`.env.prod` 新增：
+
+```
+# 业务人员在飞书自动化 webhook body 里也填同一值（双方对齐）
+# 也用作 /lark/render-callback URL query 的 token
+# 生成：openssl rand -hex 16
+LARK_BITABLE_VERIFICATION_TOKEN=<openssl rand -hex 16 的真实值>
+
+# 渲染 worker 回调 api 时用的 base URL（容器内部）
+# 生产建议指向公网 HTTPS：https://print.<your-company>.com
+API_INTERNAL_BASE=http://api:3000
+```
+
+### 业务人员接入
+
+在飞书多维表格按钮自动化里：
+
+- 触发器：点击按钮
+- 操作："调用 webhook" → URL `https://<your-domain>/lark/print-trigger`
+- Body 含 `verificationToken`（同 `LARK_BITABLE_VERIFICATION_TOKEN`）+ `templateId` + `data` + `lark.{appToken, tableId, recordId, statusField, attachmentField}`
+
+完整 body 模板与配置截图见 `examples/lark-bitable/README.md`。
+
+### 验证
+
+```bash
+curl -X POST https://<your-domain>/lark/print-trigger \
+  -H "Content-Type: application/json" \
+  -d '{"verificationToken":"<token>","templateId":"<tpl>","data":{},"lark":{"appToken":"...","tableId":"...","recordId":"...","statusField":"打印状态","attachmentField":"PDF 附件"}}'
+# 应返回 {"jobId": "xxx", "status": "pending"}，几秒后多维表格行的状态字段变 "已完成" 且附件出现
+```
+
 ## 不在 iter 19 范围内（待后续 iter）
 
 - 监控告警（Prometheus / Grafana）
