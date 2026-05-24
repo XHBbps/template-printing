@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { ElDropdown, ElDropdownItem, ElDropdownMenu, ElMessage, ElMessageBox } from 'element-plus';
+import { ElDropdown, ElDropdownItem, ElDropdownMenu, ElMessageBox } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import { ArrowLeft, FileText, Grid3x3, RotateCw, Eye, Save, Printer, Plus } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
@@ -121,31 +121,12 @@ function openCustomDialog(): void {
 
 const previewOpen = ref(false);
 
-// tick so "X 秒前" text refreshes every 5s
-const tickNow = ref(Date.now());
-let tickTimer: ReturnType<typeof setInterval> | null = null;
-onMounted(() => {
-  tickTimer = setInterval(() => {
-    tickNow.value = Date.now();
-  }, 5000);
-});
-onBeforeUnmount(() => {
-  if (tickTimer) clearInterval(tickTimer);
-});
-
 const saveStatusText = computed(() => {
-  void tickNow.value; // dep — triggers re-eval every 5s for "X 秒前" text
   if (!store.templateId) return '';
   if (store.saveStatus === 'saving') return '保存中…';
-  if (store.saveStatus === 'pending') return '改动未保存';
-  if (store.saveStatus === 'error') return `⚠ 保存失败 · 点击重试`;
-  if (store.saveStatus === 'saved' && store.lastSavedAt) {
-    const sec = Math.floor((Date.now() - store.lastSavedAt) / 1000);
-    if (sec < 5) return '✓ 已保存';
-    if (sec < 60) return `✓ 已保存 · ${sec}s 前`;
-    const min = Math.floor(sec / 60);
-    return `✓ 已保存 · ${min}m 前`;
-  }
+  if (store.saveStatus === 'pending') return '未保存';
+  if (store.saveStatus === 'error') return '⚠ 保存失败 · 点击重试';
+  if (store.saveStatus === 'saved') return '✓ 已保存';
   return '';
 });
 
@@ -228,7 +209,8 @@ function retrySave(): void {
     </button>
     <button
       class="tt-btn tt-primary"
-      @click="ElMessage.info('保存到后端在 Plan 3 实现，草稿已存本地')"
+      :disabled="store.saveStatus === 'saving'"
+      @click="store.saveToBackend"
     >
       <Save :size="16" :stroke-width="2" />
       保存

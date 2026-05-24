@@ -27,13 +27,12 @@ onMounted(() => {
     if (window.__renderInput) {
       template.value = window.__renderInput.template;
       data.value = window.__renderInput.data;
-      // Flush Vue reactive updates, then wait 50ms for a paint, then signal.
-      // Don't use requestAnimationFrame — headless pages can deprioritise RAF
-      // when offscreen, leaving the puppeteer worker waiting forever.
       void nextTick().then(() => {
         setTimeout(() => {
           ready.value = true;
           window.__renderReady = true;
+          // eslint-disable-next-line no-console
+          console.log('[ph] ready'); // diagnostic — kept so worker stdout sees the signal
         }, 50);
       });
     } else {

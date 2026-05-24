@@ -56,12 +56,10 @@ export class LarkBitableService {
       },
       body: JSON.stringify({ fields: args.fields }),
     });
-    if (!res.ok) {
-      throw new Error(`bitable updateRecord http ${res.status}`);
-    }
-    const body = (await res.json()) as LarkResp<unknown>;
-    if (body.code !== 0) {
-      throw new Error(`bitable updateRecord code=${body.code}: ${body.msg}`);
+    const body = (await res.json().catch(() => null)) as LarkResp<unknown> | null;
+    if (!res.ok || (body && body.code !== 0)) {
+      const detail = body ? `code=${body.code} msg=${body.msg}` : `http ${res.status}`;
+      throw new Error(`bitable updateRecord ${detail}`);
     }
   }
 
@@ -105,10 +103,12 @@ export class LarkBitableService {
       headers: { Authorization: `Bearer ${token}` },
       body: form,
     });
-    if (!res.ok) throw new Error(`drive upload_all http ${res.status}`);
-    const body = (await res.json()) as LarkResp<{ file_token: string }>;
-    if (body.code !== 0) throw new Error(`drive upload_all code=${body.code}: ${body.msg}`);
-    if (!body.data?.file_token) throw new Error('drive upload_all missing file_token');
+    const body = (await res.json().catch(() => null)) as LarkResp<{ file_token: string }> | null;
+    if (!res.ok || (body && body.code !== 0)) {
+      const detail = body ? `code=${body.code} msg=${body.msg}` : `http ${res.status}`;
+      throw new Error(`drive upload_all ${detail}`);
+    }
+    if (!body?.data?.file_token) throw new Error('drive upload_all missing file_token');
     return body.data.file_token;
   }
 
