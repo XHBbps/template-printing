@@ -16,7 +16,7 @@
 
   /* ---------- COLOR · neutral scale (cool, never warm) ---------- */
   --paper-white:       #FFFFFF;   /* "Paper White" — primary canvas */
-  --mist:              #F4F2EF;   /* "Mist" — surface fill, page bg */
+  --mist:              #F2F4F7;   /* "Mist" — surface fill, page bg */
   --stone:             #DCD8D2;   /* "Stone" — dividers, subtle fills */
   --iron:              #8A8A8C;   /* "Iron" — secondary text, captions */
   --ink:               #1C1C1C;   /* "Ink" — strongest text, never pure black */
