@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-24（iter 29 渲染日志 + API Token 管理）
+**最近更新**：2026-05-25（iter 30A 扬力品牌基础 + Sidebar）
 
 ---
 
@@ -23,7 +23,11 @@
 | **异步渲染服务（队列 + worker + webhook + API 文档）** | ✅ 已完成 | iter 26 |
 | **飞书多维表格按钮触发渲染回写附件** | ✅ 已完成 | iter 27 |
 | **飞书机器人卡片交互渲染 + API 页面模板列表** | ✅ 已完成 | iter 28 |
-| **渲染日志 + API Token 管理（Bearer）** | ✅ 已完成 | iter 29（最新） |
+| **渲染日志 + API Token 管理（Bearer）** | ✅ 已完成 | iter 29 |
+| **扬力品牌 UI 改造 · 30A 基础 + Sidebar** | ✅ 已完成 | iter 30A（最新） |
+| 扬力品牌 UI 改造 · 30B 数据/管理页 | ⏳ 计划中 | RenderLogs + ApiTokens + ApiView |
+| 扬力品牌 UI 改造 · 30C 账号 + 模板中心 | ⏳ 计划中 | MeView + TemplatesView |
+| 扬力品牌 UI 改造 · 30D 设计器 | ⏳ 计划中 | DesignerView 4 列重排 + 22 子组件 |
 | 部署：阿里云 ACR + ECS + GitHub Actions | 🟡 框架就绪 | iter 19，待外部条件（域名 / 备案 / 飞书应用） |
 | Admin 用户管理后台（CRUD） | 🟡 仅占位页 | `apps/web/src/views/admin/UsersAdminView.vue` 已存在，后端 CRUD 未补 |
 | 渲染任务历史 / 我的渲染任务 | ⏳ 待开始 | 见第 5 节 |
@@ -115,6 +119,24 @@
 - 新 guard `ApiAuthGuard`：双栈回退（Bearer `tpkn_xxx` → JWT cookie + CSRF），应用到 `/api/render`
 - 新视图 `/me/api-tokens` + sidebar「API 凭证」：列表 / 创建 dialog / 一次性明文展示 / 吊销
 - 浏览器场景仍兼容 cookie（设计器调 /api/render 不受影响）
+
+### 2.9 扬力品牌 UI 改造 · 30A 基础 + Sidebar（iter 30A）
+
+- 引入品牌办公室交付的设计 token：`apps/web/src/styles/yangli/colors_and_type.css` + `app-shell.css`
+  - 颜色：`--yangli-red #D32D27` / `--ink #1C1C1C` / `--yangli-graphite #595759` / `--mist #F4F2EF`
+    / `--stone #DCD8D2` / `--iron #8A8A8C` / `--paper-white`
+  - 字体：Geist (Latin) + Noto Sans SC (Han, drop-in for HarmonyOS Sans SC) + JetBrains Mono
+  - 圆角：`--radius-1 2px` / `--radius-2 4px` / `--radius-3 8px` / `--radius-pill 999px`
+  - 阴影：默认 `--shadow-0 none`（扁平品牌）
+- 主版 LOGO PNG → `apps/web/public/yangli-logo-master.png`
+- `designer.css` 顶部 `--tp-*` 命名空间整体映射到 yangli vars — 全应用一次性从紫→红 / 大圆角→方正 / 软阴影→扁平，所有现有视图无需逐一改 token
+- `AppSidebar.vue` 按 `app-shell.css` 规范重做：
+  - 顶部 brand-lockup：LOGO 18px 高 + 1px 竖线 + `var(--font-han)` "模板打印" 标题
+  - active 状态：左侧 2px `--yangli-red` 边条 + 红字 + 红图标（去除紫色填充背景）
+  - 用户区：方形 28px `--ink` 底白字 monogram + 用户名 + ghost 退出按钮（去除部门 / 角色行）
+  - 分组小标题："Workspace · 工作区" / "Account · 账号" / "Integration · 集成" / "Admin · 管理"
+  - 所有图标 Lucide stroke-width 1.5
+- 5 视图（TemplatesView / RenderLogsView / ApiTokensView / ApiView / MeView）布局未动，但视觉已全面去紫化；目标稿像素对齐留到 30B / 30C / 30D
 
 ### 2.3 异步渲染服务（iter 26）
 
