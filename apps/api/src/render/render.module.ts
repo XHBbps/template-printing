@@ -9,5 +9,6 @@ import { RenderService } from './render.service.js';
 @Module({
   controllers: [RenderController],
   providers: [RenderService],
+  exports: [RenderService],
 })
 export class RenderModule {}
