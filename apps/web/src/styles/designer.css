@@ -1,31 +1,38 @@
 /* =========================================================
-   Designer — 浮卡布局 + 紫色 accent + 大圆角 + 软阴影
-   匹配 docs/demos/04-designer-redesign.html
+   Designer 兼容层 — `--tp-*` 命名空间映射到扬力品牌 token
+   原值（紫 + 18px 圆角 + 软阴影）已被 yangli vars 取代。
+   依赖 styles/yangli/colors_and_type.css（main.ts 全局引入）。
+   后续 iter 30D 设计器重写时改为直接消费 --yangli-* / --ink。
    ========================================================= */
 
 :root {
-  --tp-bg:           #ECECEF;
-  --tp-panel:        #FFFFFF;
-  --tp-canvas-bg:    #F2F2F5;
-  --tp-ink:          #1F1F23;
-  --tp-ink-soft:     #5E5E66;
-  --tp-ink-faint:    #9C9CA3;
-  --tp-line:         #ECECEF;
-  --tp-line-strong:  #E0E0E4;
-  --tp-accent:       #6C5CE7;
-  --tp-accent-bg:    #F0EEFF;
-  --tp-accent-ink:   #4F3FCC;
-  --tp-accent-shadow:0 4px 16px rgba(108,92,231,0.20);
-  --tp-warn-bg:      #FFF7E0;
-  --tp-warn-line:    #F0CC68;
-  --tp-warn-ink:     #8A6500;
-  --tp-radius-panel: 18px;
+  /* 颜色：所有 --tp-* 走 yangli 中性 + 红 accent */
+  --tp-bg:           var(--mist);
+  --tp-panel:        var(--paper-white);
+  --tp-canvas-bg:    var(--mist);
+  --tp-ink:          var(--ink);
+  --tp-ink-soft:     var(--yangli-graphite);
+  --tp-ink-faint:    var(--iron);
+  --tp-line:         var(--stone);
+  --tp-line-strong:  var(--yangli-graphite);
+  --tp-accent:       var(--yangli-red);
+  --tp-accent-bg:    rgba(211, 45, 39, 0.08);   /* yangli-red @ 8% */
+  --tp-accent-ink:   var(--yangli-red);
+  --tp-accent-shadow:none;
+  --tp-warn-bg:      rgba(198, 138, 0, 0.14);
+  --tp-warn-line:    #C68A00;
+  --tp-warn-ink:     #8B6500;
+  --tp-field-bg:     rgba(211, 45, 39, 0.04);   /* yangli-red @ 4% */
+
+  /* 圆角：方正（4px），去除胶囊感（仅状态徽章保留 999px） */
+  --tp-radius-panel: var(--radius-2);
   --tp-radius-pill:  999px;
-  --tp-radius-btn:   10px;
-  --tp-radius-item:  8px;
-  --tp-shadow-panel: 0 1px 0 rgba(20,20,30,0.04), 0 4px 12px rgba(20,20,30,0.04), 0 16px 32px rgba(20,20,30,0.06);
-  --tp-shadow-pill:  0 1px 0 rgba(20,20,30,0.06), 0 4px 16px rgba(20,20,30,0.08);
-  --tp-field-bg:     rgba(108,92,231,0.06);
+  --tp-radius-btn:   var(--radius-2);
+  --tp-radius-item:  var(--radius-2);
+
+  /* 阴影：扁平 — 一律 none，分隔靠 1px stone */
+  --tp-shadow-panel: none;
+  --tp-shadow-pill:  none;
 }
 
 /* =========================================================

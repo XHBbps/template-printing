@@ -203,11 +203,8 @@ function formatTime(iso: string): string {
   font-size: 26px;
   font-weight: 700;
   margin: 0;
-  background: linear-gradient(135deg, #1f1f23, #6c5ce7);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: 0.5px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
 .tv-new-btn {
   position: relative;
