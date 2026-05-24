@@ -150,8 +150,10 @@ export class LarkBitableController {
         const filePath = path.join(STORAGE_ROOT, relative);
         const pdfBuf = await fs.readFile(filePath);
 
+        // 飞书 drive medias upload_all 对 bitable_file 的 parent_node 要求是
+        // **多维表格 base 的 app_token**（不是 tableId）。spec 早期写错了。
         const fileToken = await this.bitable.uploadMaterial({
-          parentNode: req.tableId,
+          parentNode: req.appToken,
           fileName: `${req.recordId}.pdf`,
           fileBuffer: pdfBuf,
         });
