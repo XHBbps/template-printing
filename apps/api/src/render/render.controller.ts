@@ -4,7 +4,9 @@ import {
   Get,
   Param,
   Post,
+  Query,
   BadRequestException,
+  UseGuards,
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
 
@@ -13,6 +15,10 @@ import { z } from 'zod';
 
 // eslint-disable-next-line import/no-unresolved
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+// eslint-disable-next-line import/no-unresolved
+import { Public } from '../auth/decorators/public.decorator.js';
+// eslint-disable-next-line import/no-unresolved
+import { ApiAuthGuard } from '../auth/guards/api-auth.guard.js';
 // eslint-disable-next-line import/no-unresolved
 import type { JwtClaims } from '../auth/jwt/jwt.service.js';
 
@@ -26,7 +32,11 @@ const EnqueueDto = z.object({
   callbackUrl: z.string().url().optional(),
 });
 
+// @Public() 跳过全局 JwtAuthGuard + CsrfGuard；ApiAuthGuard 接管鉴权
+// （支持 Bearer API token 与 JWT cookie 两路径，详见 api-auth.guard.ts）
 @Controller('render')
+@Public()
+@UseGuards(ApiAuthGuard)
 export class RenderController {
   constructor(private readonly svc: RenderService) {}
 
@@ -38,6 +48,26 @@ export class RenderController {
     const parsed = EnqueueDto.safeParse(rawBody);
     if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
     return this.svc.enqueue(me.sub, parsed.data);
+  }
+
+  @Get('jobs')
+  async listJobs(
+    @CurrentUser() me: JwtClaims,
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '20',
+    @Query('status') status?: string,
+    @Query('source') source?: string,
+    @Query('templateName') templateName?: string,
+  ): Promise<ReturnType<RenderService['listJobs']>> {
+    const s = source === 'bot' || source === 'bitable' || source === 'api' ? source : undefined;
+    return this.svc.listJobs({
+      user: { sub: me.sub, role: me.role },
+      page: Number(page),
+      pageSize: Number(pageSize),
+      status,
+      source: s,
+      templateName,
+    });
   }
 
   @Get(':jobId')

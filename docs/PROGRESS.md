@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-24（iter 28 飞书机器人卡片交互 + API 页面模板列表）
+**最近更新**：2026-05-24（iter 29 渲染日志 + API Token 管理）
 
 ---
 
@@ -22,7 +22,8 @@
 | 设计器细节优化（浮动 toolbar / pan mode / snap 简化 / 打印 CSS） | ✅ 已完成 | iter 24 / 25 |
 | **异步渲染服务（队列 + worker + webhook + API 文档）** | ✅ 已完成 | iter 26 |
 | **飞书多维表格按钮触发渲染回写附件** | ✅ 已完成 | iter 27 |
-| **飞书机器人卡片交互渲染 + API 页面模板列表** | ✅ 已完成 | iter 28（最新） |
+| **飞书机器人卡片交互渲染 + API 页面模板列表** | ✅ 已完成 | iter 28 |
+| **渲染日志 + API Token 管理（Bearer）** | ✅ 已完成 | iter 29（最新） |
 | 部署：阿里云 ACR + ECS + GitHub Actions | 🟡 框架就绪 | iter 19，待外部条件（域名 / 备案 / 飞书应用） |
 | Admin 用户管理后台（CRUD） | 🟡 仅占位页 | `apps/web/src/views/admin/UsersAdminView.vue` 已存在，后端 CRUD 未补 |
 | 渲染任务历史 / 我的渲染任务 | ⏳ 待开始 | 见第 5 节 |
@@ -95,6 +96,25 @@
 - 顶部"通用调用文档"默认收起（curl / JS / Python）
 - 中部模板列表表格：模板名 + ID（带复制图标）+ 通用入参 + 自定义字段（lazy fetch schema.fields）
 - 行展开看完整 schema JSON
+
+### 2.7 渲染日志（iter 29）
+
+- 新路由 `/logs` + sidebar 入口「渲染日志」
+- 后端 `GET /api/render/jobs`：findMany include template + larkBotSession + larkPrintRequest，
+  后处理推断 source = `bot` / `bitable` / `api`
+- 权限：admin / emergency_admin 看全部；普通用户按 `template.ownerId` 过滤
+- 过滤：状态 / 来源 / 模板名（ILIKE 模糊）；分页 20/页（最大 100）
+- 详情 dialog：Job ID 含复制 / 元信息 grid / 完整 data JSON / PDF/PNG 下载 / 错误信息
+- 状态徽标着色 (done 绿 / failed 红 / processing 黄)；来源徽标 (bot 蓝 / bitable 橙 / api 紫)
+
+### 2.8 API Token 管理（iter 29）
+
+- 新表 `api_tokens`：userId / name / tokenHash (SHA-256 unique) / prefix (`tpkn_` + 8 字符) /
+  lastUsedAt / revokedAt / createdAt
+- 新端点：`GET / POST / DELETE /users/me/api-tokens(/:id)` — 管理端点仅 JWT cookie 鉴权
+- 新 guard `ApiAuthGuard`：双栈回退（Bearer `tpkn_xxx` → JWT cookie + CSRF），应用到 `/api/render`
+- 新视图 `/me/api-tokens` + sidebar「API 凭证」：列表 / 创建 dialog / 一次性明文展示 / 吊销
+- 浏览器场景仍兼容 cookie（设计器调 /api/render 不受影响）
 
 ### 2.3 异步渲染服务（iter 26）
 

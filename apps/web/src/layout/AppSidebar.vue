@@ -1,6 +1,16 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { FileText, User, Key, Users, LogOut, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import {
+  FileText,
+  User,
+  Key,
+  KeyRound,
+  History,
+  Users,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-vue-next';
 // eslint-disable-next-line import/no-unresolved
 import { ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
@@ -64,9 +74,17 @@ async function logout(): Promise<void> {
         <FileText :size="16" :stroke-width="2" />
         <span v-if="!collapsed">模板中心</span>
       </RouterLink>
+      <RouterLink to="/logs" class="sb-item" active-class="sb-item--active">
+        <History :size="16" :stroke-width="2" />
+        <span v-if="!collapsed">渲染日志</span>
+      </RouterLink>
       <RouterLink to="/me" class="sb-item" active-class="sb-item--active">
         <User :size="16" :stroke-width="2" />
         <span v-if="!collapsed">个人中心</span>
+      </RouterLink>
+      <RouterLink to="/me/api-tokens" class="sb-item" active-class="sb-item--active">
+        <KeyRound :size="16" :stroke-width="2" />
+        <span v-if="!collapsed">API 凭证</span>
       </RouterLink>
       <RouterLink to="/api" class="sb-item" active-class="sb-item--active">
         <Key :size="16" :stroke-width="2" />
