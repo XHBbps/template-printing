@@ -39,6 +39,15 @@ const EnvSchema = z.object({
     .optional(),
   // Render worker 回调 api 时用的 base URL（docker 内部）。生产可指向 https://print.x.com
   API_INTERNAL_BASE: z.string().url().default('http://api:3000'),
+
+  // Lark 机器人卡片交互（iter 28）
+  // 飞书后台事件订阅 + 卡片回调共享 verification token
+  LARK_BOT_VERIFICATION_TOKEN: z
+    .string()
+    .min(16, 'LARK_BOT_VERIFICATION_TOKEN must be at least 16 chars')
+    .optional(),
+  // 群里识别 @ 机器人时需要它（飞书后台 应用功能 → 机器人 → 概览 拿到 open_id 填入）
+  LARK_BOT_OPEN_ID: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

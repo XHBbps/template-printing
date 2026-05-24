@@ -11,6 +11,10 @@ import { LarkBitableController } from './lark-bitable.controller.js';
 // eslint-disable-next-line import/no-unresolved
 import { LarkBitableService } from './lark-bitable.service.js';
 // eslint-disable-next-line import/no-unresolved
+import { LarkBotController } from './lark-bot.controller.js';
+// eslint-disable-next-line import/no-unresolved
+import { LarkBotService } from './lark-bot.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { LarkImService } from './lark-im.service.js';
 
 const env = validateEnv();
@@ -18,7 +22,7 @@ const env = validateEnv();
 @Global()
 @Module({
   imports: [RenderModule],
-  controllers: [LarkBitableController],
+  controllers: [LarkBitableController, LarkBotController],
   providers: [
     {
       provide: LarkImService,
@@ -35,7 +39,13 @@ const env = validateEnv();
         new LarkBitableService(im, { openBase: env.LARK_API_BASE }),
       inject: [LarkImService],
     },
+    {
+      provide: LarkBotService,
+      useFactory: (im: LarkImService): LarkBotService =>
+        new LarkBotService(im, { openBase: env.LARK_API_BASE }),
+      inject: [LarkImService],
+    },
   ],
-  exports: [LarkImService, LarkBitableService],
+  exports: [LarkImService, LarkBitableService, LarkBotService],
 })
 export class LarkModule {}

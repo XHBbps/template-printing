@@ -103,6 +103,36 @@ model LarkPrintRequest {
   @@map("lark_print_requests")
 }
 
+model LarkBotSession {
+  id              String   @id @default(uuid())
+
+  // 飞书会话上下文
+  chatId          String   @map("chat_id")
+  chatType        String   @map("chat_type")           // 'group' | 'p2p'
+  triggerOpenId   String   @map("trigger_open_id")     // 触发者 user open_id
+
+  // 卡片消息（用于 PATCH 更新）
+  cardMessageId   String?  @map("card_message_id")
+
+  // 会话状态机：select_template / fill_fields / rendering / done / failed
+  state           String   @default("select_template")
+
+  // 选定的模板与表单数据
+  templateId      String?  @map("template_id")
+  formData        Json?    @map("form_data")
+
+  // 关联渲染任务
+  renderJobId     String?  @unique @map("render_job_id")
+  errorMsg        String?  @map("error_msg")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt        @map("updated_at")
+
+  @@index([chatId, triggerOpenId, state])
+  @@index([renderJobId])
+  @@map("lark_bot_sessions")
+}
+
 model RefreshToken {
   id          String    @id @default(uuid())
   userId      String    @map("user_id")

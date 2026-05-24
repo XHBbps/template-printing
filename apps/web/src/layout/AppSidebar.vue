@@ -68,9 +68,9 @@ async function logout(): Promise<void> {
         <User :size="16" :stroke-width="2" />
         <span v-if="!collapsed">个人中心</span>
       </RouterLink>
-      <RouterLink to="/api-docs" class="sb-item" active-class="sb-item--active">
+      <RouterLink to="/api" class="sb-item" active-class="sb-item--active">
         <Key :size="16" :stroke-width="2" />
-        <span v-if="!collapsed">API 说明</span>
+        <span v-if="!collapsed">API</span>
       </RouterLink>
       <RouterLink v-if="isAdmin()" to="/admin/users" class="sb-item" active-class="sb-item--active">
         <Users :size="16" :stroke-width="2" />
