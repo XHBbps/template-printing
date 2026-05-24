@@ -85,37 +85,27 @@ async function logout(): Promise<void> {
         <span class="ico"><History :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">渲染日志</span>
       </RouterLink>
-    </nav>
-
-    <div v-if="!collapsed" class="sidebar-section-label">Account · 账号</div>
-    <nav class="nav">
       <RouterLink to="/me" active-class="active">
         <span class="ico"><User :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">个人中心</span>
-      </RouterLink>
-      <RouterLink to="/me/api-tokens" active-class="active">
-        <span class="ico"><KeyRound :size="16" :stroke-width="1.5" /></span>
-        <span v-if="!collapsed">API 凭证</span>
       </RouterLink>
     </nav>
 
     <div v-if="!collapsed" class="sidebar-section-label">Integration · 集成</div>
     <nav class="nav">
+      <RouterLink to="/me/api-tokens" active-class="active">
+        <span class="ico"><KeyRound :size="16" :stroke-width="1.5" /></span>
+        <span v-if="!collapsed">API 凭证</span>
+      </RouterLink>
       <RouterLink to="/api" active-class="active">
         <span class="ico"><Key :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">API</span>
       </RouterLink>
+      <RouterLink v-if="isAdmin()" to="/admin/users" active-class="active">
+        <span class="ico"><Users :size="16" :stroke-width="1.5" /></span>
+        <span v-if="!collapsed">用户管理</span>
+      </RouterLink>
     </nav>
-
-    <template v-if="isAdmin()">
-      <div v-if="!collapsed" class="sidebar-section-label">Admin · 管理</div>
-      <nav class="nav">
-        <RouterLink to="/admin/users" active-class="active">
-          <span class="ico"><Users :size="16" :stroke-width="1.5" /></span>
-          <span v-if="!collapsed">用户管理</span>
-        </RouterLink>
-      </nav>
-    </template>
 
     <div class="sidebar-foot">
       <div class="avatar">{{ initial() }}</div>
