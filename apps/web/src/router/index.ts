@@ -45,10 +45,15 @@ const router = createRouter({
       component: () => import('../views/MeView.vue'),
     },
     {
-      path: '/api-docs',
-      name: 'api-docs',
+      path: '/api',
+      name: 'api',
       meta: { requiresAuth: true },
-      component: () => import('../views/ApiDocsView.vue'),
+      component: () => import('../views/ApiView.vue'),
+    },
+    // 历史 URL 兼容：/api-docs → /api
+    {
+      path: '/api-docs',
+      redirect: '/api',
     },
     {
       path: '/print-headless/:id',
