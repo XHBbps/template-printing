@@ -53,7 +53,7 @@ onBeforeUnmount(() => window.removeEventListener('pageshow', onPageShow));
 .app-main {
   flex: 1;
   overflow: auto;
-  background: #f4f4f7;
+  background: var(--mist);
 }
 .app-main--full {
   background: transparent;
