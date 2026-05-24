@@ -55,6 +55,7 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
             v-for="item in itemsByGroup[g]"
             :key="item.label"
             class="lib-btn"
+            :class="{ 'lib-btn--wide': item.type === 'table' }"
             draggable="true"
             :title="`点击或拖入：${item.label}`"
             @click="clickAdd(item)"
@@ -116,5 +117,9 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
 .lib-btn:active {
   cursor: grabbing;
   transform: none;
+}
+/* 明细独占两列（数据组主组件） */
+.lib-btn--wide {
+  grid-column: 1 / -1;
 }
 </style>

@@ -229,9 +229,9 @@ function retrySave(): void {
 .tt-btn {
   height: 32px;
   padding: 0 14px;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
-  border-radius: var(--tp-radius-pill);
+  border-radius: var(--radius-2);
   font-size: 12.5px;
   color: var(--tp-ink-soft);
   cursor: pointer;
@@ -240,11 +240,13 @@ function retrySave(): void {
   gap: 6px;
   white-space: nowrap;
   font-family: inherit;
-  transition: all 120ms ease;
+  transition:
+    background var(--dur-fast) var(--ease-default),
+    color var(--dur-fast) var(--ease-default),
+    border-color var(--dur-fast) var(--ease-default);
 }
 .tt-btn:hover:not(:disabled) {
-  background: var(--tp-field-bg);
-  color: var(--tp-accent);
+  color: var(--ink);
 }
 .tt-btn:disabled {
   opacity: 0.4;
@@ -256,24 +258,33 @@ function retrySave(): void {
   justify-content: center;
   font-size: 15px;
 }
+/* 保存按钮：secondary —— 透明底 + ink 字 + graphite 描边，hover 反白填充 */
 .tt-primary {
-  background: var(--tp-accent-bg);
-  color: var(--tp-accent-ink);
-  font-weight: 600;
+  background: var(--paper-white);
+  color: var(--ink);
+  border-color: var(--yangli-graphite);
+  font-weight: 500;
 }
 .tt-primary:hover:not(:disabled) {
-  background: var(--tp-accent);
-  color: #fff;
+  background: var(--ink);
+  color: var(--paper-white);
+  border-color: var(--ink);
 }
+/* 立即打印：唯一红色填充 CTA */
 .tt-accent {
-  background: var(--tp-accent);
-  color: #fff;
-  font-weight: 600;
-  box-shadow: var(--tp-accent-shadow);
+  background: var(--yangli-red);
+  color: var(--paper-white);
+  border-color: var(--yangli-red);
+  font-weight: 500;
 }
 .tt-accent:hover:not(:disabled) {
-  background: #5847d4;
-  color: #fff;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.tt-accent:active:not(:disabled) {
+  background: var(--accent-press);
+  border-color: var(--accent-press);
+  transform: translateY(1px);
 }
 .tt-divider {
   width: 1px;

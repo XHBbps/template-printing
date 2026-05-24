@@ -120,22 +120,27 @@
   font-weight: normal;
 }
 .tp-sub-add {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-2);
   background: transparent;
-  border: none;
+  border: 1px solid var(--yangli-graphite);
   cursor: pointer;
-  color: var(--tp-ink-faint);
+  color: var(--ink);
   font-size: 14px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition:
+    background var(--dur-fast) var(--ease-default),
+    color var(--dur-fast) var(--ease-default),
+    border-color var(--dur-fast) var(--ease-default);
 }
 .tp-sub-add:hover {
-  color: var(--tp-accent);
-  background: var(--tp-field-bg);
+  background: var(--ink);
+  color: var(--paper-white);
+  border-color: var(--ink);
 }
 
 /* 上下两段布局 — 上半 max-height，下半 flex:1 */
