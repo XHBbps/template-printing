@@ -1,5 +1,8 @@
+// eslint-disable-next-line import/no-unresolved
 import { Module, type Provider } from '@nestjs/common';
+// eslint-disable-next-line import/no-unresolved
 import { APP_GUARD } from '@nestjs/core';
+// eslint-disable-next-line import/no-unresolved
 import { PrismaClient } from '@prisma/client';
 
 // eslint-disable-next-line import/no-unresolved
@@ -7,6 +10,10 @@ import { validateEnv } from '../common/env.js';
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
 
+// eslint-disable-next-line import/no-unresolved
+import { ApiTokenController } from './api-token/api-token.controller.js';
+// eslint-disable-next-line import/no-unresolved
+import { ApiTokenService } from './api-token/api-token.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { EmergencyAdminBootstrap } from './bootstrap/emergency-admin.bootstrap.js';
 // eslint-disable-next-line import/no-unresolved
@@ -79,6 +86,7 @@ const providers: Provider[] = [
   { provide: 'COOKIE_ENV', useValue: cookieEnv },
   // Provide PrismaClient as a class token too (since some constructors use PrismaClient typing directly)
   { provide: PrismaClient, useExisting: PrismaService },
+  ApiTokenService,
   {
     provide: EmergencyAdminBootstrap,
     useFactory: (prisma: PrismaService): EmergencyAdminBootstrap =>
@@ -96,7 +104,7 @@ const providers: Provider[] = [
 
 @Module({
   providers,
-  controllers: [LarkController, LocalController, AuthController, MeController],
-  exports: [JwtAuthService, RefreshTokenService],
+  controllers: [LarkController, LocalController, AuthController, MeController, ApiTokenController],
+  exports: [JwtAuthService, RefreshTokenService, ApiTokenService],
 })
 export class AuthModule {}
