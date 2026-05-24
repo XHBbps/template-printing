@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   BadRequestException,
+  UseGuards,
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
 
@@ -13,6 +14,10 @@ import { z } from 'zod';
 
 // eslint-disable-next-line import/no-unresolved
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+// eslint-disable-next-line import/no-unresolved
+import { Public } from '../auth/decorators/public.decorator.js';
+// eslint-disable-next-line import/no-unresolved
+import { ApiAuthGuard } from '../auth/guards/api-auth.guard.js';
 // eslint-disable-next-line import/no-unresolved
 import type { JwtClaims } from '../auth/jwt/jwt.service.js';
 
@@ -26,7 +31,11 @@ const EnqueueDto = z.object({
   callbackUrl: z.string().url().optional(),
 });
 
+// @Public() 跳过全局 JwtAuthGuard + CsrfGuard；ApiAuthGuard 接管鉴权
+// （支持 Bearer API token 与 JWT cookie 两路径，详见 api-auth.guard.ts）
 @Controller('render')
+@Public()
+@UseGuards(ApiAuthGuard)
 export class RenderController {
   constructor(private readonly svc: RenderService) {}
 

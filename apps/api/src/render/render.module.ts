@@ -2,13 +2,19 @@
 import { Module } from '@nestjs/common';
 
 // eslint-disable-next-line import/no-unresolved
+import { AuthModule } from '../auth/auth.module.js';
+// eslint-disable-next-line import/no-unresolved
+import { ApiAuthGuard } from '../auth/guards/api-auth.guard.js';
+
+// eslint-disable-next-line import/no-unresolved
 import { RenderController } from './render.controller.js';
 // eslint-disable-next-line import/no-unresolved
 import { RenderService } from './render.service.js';
 
 @Module({
+  imports: [AuthModule], // 拿 ApiTokenService + JwtAuthService 给 ApiAuthGuard
   controllers: [RenderController],
-  providers: [RenderService],
+  providers: [RenderService, ApiAuthGuard],
   exports: [RenderService],
 })
 export class RenderModule {}
