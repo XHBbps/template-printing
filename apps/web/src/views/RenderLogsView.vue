@@ -1,17 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 // eslint-disable-next-line import/no-unresolved
-import {
-  ElButton,
-  ElDialog,
-  ElInput,
-  ElMessage,
-  ElPagination,
-  ElSelect,
-  ElOption,
-} from 'element-plus';
+import { ElDialog, ElMessage, ElPagination } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
-import { History, RefreshCw, Download, FileText, Copy } from 'lucide-vue-next';
+import { History, RefreshCw, Download, Copy } from 'lucide-vue-next';
 // eslint-disable-next-line import/no-unresolved
 import { apiFetch } from '../lib/api';
 
@@ -46,10 +38,10 @@ const detailJob = ref<RenderJob | null>(null);
 
 const STATUS_OPTIONS = [
   { value: '', label: '全部' },
-  { value: 'pending', label: 'pending' },
-  { value: 'processing', label: 'processing' },
-  { value: 'done', label: 'done' },
-  { value: 'failed', label: 'failed' },
+  { value: 'pending', label: '等待中' },
+  { value: 'processing', label: '处理中' },
+  { value: 'done', label: '已完成' },
+  { value: 'failed', label: '失败' },
 ];
 const SOURCE_OPTIONS = [
   { value: '', label: '全部' },
@@ -83,7 +75,14 @@ async function refresh(): Promise<void> {
   }
 }
 
-// 用 debounce 搜模板名
+function resetFilters(): void {
+  statusFilter.value = '';
+  sourceFilter.value = '';
+  templateNameFilter.value = '';
+  page.value = 1;
+  void refresh();
+}
+
 let searchTimer: number | null = null;
 watch(templateNameFilter, () => {
   if (searchTimer) window.clearTimeout(searchTimer);
@@ -112,39 +111,23 @@ async function copyText(text: string, label = '已复制'): Promise<void> {
   }
 }
 
-function statusColor(s: string): string {
-  if (s === 'done') return '#26a45c';
-  if (s === 'failed') return '#d94f4f';
-  if (s === 'processing') return '#e5a72c';
-  return '#9c9ca3';
-}
-function statusBg(s: string): string {
-  if (s === 'done') return '#e7f7ed';
-  if (s === 'failed') return '#fdebec';
-  if (s === 'processing') return '#fff7e0';
-  return '#f3f3f5';
+function statusPill(s: string): string {
+  if (s === 'done') return 'ok';
+  if (s === 'failed') return 'danger';
+  if (s === 'processing') return 'warn';
+  return 'idle';
 }
 function statusLabel(s: string): string {
-  if (s === 'done') return '✅ 已完成';
-  if (s === 'failed') return '❌ 失败';
-  if (s === 'processing') return '⏳ 处理中';
-  if (s === 'pending') return '⌛ 等待中';
+  if (s === 'done') return '完成';
+  if (s === 'failed') return '失败';
+  if (s === 'processing') return '处理中';
+  if (s === 'pending') return '等待中';
   return s;
 }
 function sourceLabel(s: string): string {
   if (s === 'bot') return '飞书机器人';
   if (s === 'bitable') return '飞书多维表格';
-  return 'API 直调';
-}
-function sourceColor(s: string): string {
-  if (s === 'bot') return '#3370ff';
-  if (s === 'bitable') return '#C68A00';
-  return '#595759';
-}
-function sourceBg(s: string): string {
-  if (s === 'bot') return 'rgba(51, 112, 255, 0.10)';
-  if (s === 'bitable') return 'rgba(198, 138, 0, 0.14)';
-  return 'rgba(89, 87, 89, 0.12)';
+  return 'API';
 }
 function formatAbs(iso: string | null): string {
   if (!iso) return '—';
@@ -168,112 +151,146 @@ const dataJsonPretty = computed(() => {
   }
 });
 
+const countLabel = computed(() => {
+  if (loading.value && items.value.length === 0) return 'LOADING';
+  if (total.value === 0) return '0 OF 0';
+  const from = (page.value - 1) * pageSize.value + 1;
+  const to = Math.min(page.value * pageSize.value, total.value);
+  return `${from}–${to} OF ${total.value}`;
+});
+
 onMounted(refresh);
 </script>
 
 <template>
-  <div class="page-wrap">
-    <header class="page-header">
-      <h1 class="page-title">
-        <History :size="22" :stroke-width="2" />
-        <span>渲染日志</span>
-      </h1>
-      <ElButton @click="refresh">
-        <RefreshCw :size="14" :stroke-width="2" style="margin-right: 4px" />
+  <div class="view-root">
+    <!-- ============ Page bar ============ -->
+    <header class="page-bar">
+      <div class="page-title">
+        <span class="ico"><History :size="20" :stroke-width="1.5" /></span>
+        渲染日志
+      </div>
+      <div class="page-sub">RENDER · JOB HISTORY</div>
+      <div class="page-bar-spacer"></div>
+      <button class="btn btn-secondary sm" type="button" @click="refresh">
+        <span class="ico"><RefreshCw :size="14" :stroke-width="1.5" /></span>
         刷新
-      </ElButton>
+      </button>
     </header>
 
-    <!-- 过滤器 -->
-    <section class="filters">
-      <div class="filter-item">
-        <label>状态</label>
-        <ElSelect v-model="statusFilter" placeholder="全部" style="width: 140px">
-          <ElOption v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value" :label="o.label" />
-        </ElSelect>
-      </div>
-      <div class="filter-item">
-        <label>来源</label>
-        <ElSelect v-model="sourceFilter" placeholder="全部" style="width: 160px">
-          <ElOption v-for="o in SOURCE_OPTIONS" :key="o.value" :value="o.value" :label="o.label" />
-        </ElSelect>
-      </div>
-      <div class="filter-item">
-        <label>模板</label>
-        <ElInput v-model="templateNameFilter" placeholder="按模板名搜索…" style="width: 220px" />
-      </div>
-    </section>
+    <!-- ============ Body ============ -->
+    <div class="page-body">
+      <div class="max">
+        <!-- 过滤区 -->
+        <div class="filters">
+          <label class="field">
+            <span class="lbl">状态 <span class="han">· Status</span></span>
+            <select v-model="statusFilter">
+              <option v-for="o in STATUS_OPTIONS" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="lbl">来源 <span class="han">· Source</span></span>
+            <select v-model="sourceFilter">
+              <option v-for="o in SOURCE_OPTIONS" :key="o.value" :value="o.value">
+                {{ o.label }}
+              </option>
+            </select>
+          </label>
+          <label class="field wide">
+            <span class="lbl">模板 <span class="han">· Template</span></span>
+            <input v-model="templateNameFilter" type="text" placeholder="按模板名搜索..." />
+          </label>
+          <div class="actions">
+            <button class="btn btn-secondary sm" type="button" @click="resetFilters">重置</button>
+            <button class="btn btn-primary sm" type="button" @click="refresh">查询</button>
+          </div>
+        </div>
 
-    <!-- 列表 -->
-    <section class="section">
-      <div v-if="loading && items.length === 0" class="empty">加载中…</div>
-      <div v-else-if="!loading && items.length === 0" class="empty">无匹配的渲染任务。</div>
-      <table v-else class="logs-table">
-        <thead>
-          <tr>
-            <th>模板</th>
-            <th>状态</th>
-            <th>来源</th>
-            <th>触发时间</th>
-            <th>用时</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="job in items" :key="job.id">
-            <td>
-              <div class="tpl-name">{{ job.templateName }}</div>
-              <div class="tpl-id" :title="job.id">{{ job.id.slice(0, 8) }}…</div>
-            </td>
-            <td>
-              <span
-                class="badge"
-                :style="{ color: statusColor(job.status), background: statusBg(job.status) }"
-              >
-                {{ statusLabel(job.status) }}
-              </span>
-            </td>
-            <td>
-              <span
-                class="badge"
-                :style="{ color: sourceColor(job.source), background: sourceBg(job.source) }"
-              >
-                {{ sourceLabel(job.source) }}
-              </span>
-            </td>
-            <td>{{ formatAbs(job.createdAt) }}</td>
-            <td>{{ formatDuration(job.durationMs) }}</td>
-            <td>
-              <ElButton link size="small" @click="openDetail(job)">
-                <FileText :size="14" :stroke-width="2" />
-                详情
-              </ElButton>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+        <!-- 结果区 -->
+        <div class="results">
+          <div class="results-head">
+            <h2>任务列表</h2>
+            <span class="count">{{ countLabel }}</span>
+            <span class="rule"></span>
+          </div>
 
-    <div v-if="total > pageSize" class="pagination">
-      <ElPagination
-        v-model:current-page="page"
-        :page-size="pageSize"
-        :total="total"
-        background
-        layout="prev, pager, next, total"
-      />
+          <!-- 空态 -->
+          <div v-if="!loading && items.length === 0" class="card">
+            <div class="empty-state">
+              <div class="eyebrow">No matching jobs · 暂无任务</div>
+              <div class="msg">无匹配的渲染任务。<br />调整筛选条件或在模板中心发起一次渲染。</div>
+              <div class="hint">RENDER · QUEUED · COMPLETED · FAILED</div>
+            </div>
+          </div>
+
+          <!-- 列表 -->
+          <div v-else class="card">
+            <div class="card-body flush">
+              <table class="log">
+                <thead>
+                  <tr>
+                    <th>JOB ID</th>
+                    <th>模板</th>
+                    <th>状态</th>
+                    <th>来源</th>
+                    <th>触发时间</th>
+                    <th>用时</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="job in items" :key="job.id">
+                    <td class="mono id" :title="job.id">{{ job.id.slice(0, 8) }}…</td>
+                    <td>{{ job.templateName }}</td>
+                    <td>
+                      <span class="pill" :class="statusPill(job.status)">
+                        {{ statusLabel(job.status) }}
+                      </span>
+                    </td>
+                    <td>{{ sourceLabel(job.source) }}</td>
+                    <td class="mono">{{ formatAbs(job.createdAt) }}</td>
+                    <td class="mono">{{ formatDuration(job.durationMs) }}</td>
+                    <td>
+                      <div class="row-actions">
+                        <a href="#" @click.prevent="openDetail(job)">详情</a>
+                        <a v-if="job.pdfUrl" :href="job.pdfUrl" target="_blank" rel="noopener">
+                          下载 PDF
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 分页 -->
+          <div v-if="total > pageSize" class="pagination">
+            <ElPagination
+              v-model:current-page="page"
+              :page-size="pageSize"
+              :total="total"
+              background
+              layout="prev, pager, next, total"
+            />
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- 详情 dialog -->
+    <!-- ============ 详情 dialog ============ -->
     <ElDialog v-model="detailOpen" title="渲染任务详情" width="640px">
       <div v-if="detailJob" class="detail-grid">
         <div class="grid-row">
           <span class="grid-key">Job ID</span>
           <span class="grid-val">
             <code>{{ detailJob.id }}</code>
-            <ElButton link size="small" @click="copyText(detailJob.id, '已复制 Job ID')">
-              <Copy :size="12" :stroke-width="2" />
-            </ElButton>
+            <button class="copy-btn" type="button" @click="copyText(detailJob.id, '已复制 Job ID')">
+              <Copy :size="12" :stroke-width="1.5" />
+            </button>
           </span>
         </div>
         <div class="grid-row">
@@ -286,268 +303,311 @@ onMounted(refresh);
         <div class="grid-row">
           <span class="grid-key">状态</span>
           <span class="grid-val">
-            <span
-              class="badge"
-              :style="{
-                color: statusColor(detailJob.status),
-                background: statusBg(detailJob.status),
-              }"
-            >
+            <span class="pill" :class="statusPill(detailJob.status)">
               {{ statusLabel(detailJob.status) }}
             </span>
           </span>
         </div>
         <div class="grid-row">
           <span class="grid-key">来源</span>
-          <span class="grid-val">
-            <span
-              class="badge"
-              :style="{
-                color: sourceColor(detailJob.source),
-                background: sourceBg(detailJob.source),
-              }"
-            >
-              {{ sourceLabel(detailJob.source) }}
-            </span>
-          </span>
+          <span class="grid-val">{{ sourceLabel(detailJob.source) }}</span>
         </div>
         <div class="grid-row">
           <span class="grid-key">触发时间</span>
-          <span class="grid-val">{{ formatAbs(detailJob.createdAt) }}</span>
+          <span class="grid-val mono">{{ formatAbs(detailJob.createdAt) }}</span>
         </div>
         <div class="grid-row">
           <span class="grid-key">完成时间</span>
-          <span class="grid-val"
-            >{{ formatAbs(detailJob.completedAt) }}（用时
-            {{ formatDuration(detailJob.durationMs) }}）</span
-          >
+          <span class="grid-val mono">
+            {{ formatAbs(detailJob.completedAt) }}（用时
+            {{ formatDuration(detailJob.durationMs) }}）
+          </span>
         </div>
         <div v-if="detailJob.callbackUrl" class="grid-row">
           <span class="grid-key">Callback</span>
-          <span class="grid-val"
-            ><code class="muted">{{ detailJob.callbackUrl }}</code></span
-          >
+          <span class="grid-val">
+            <code class="muted">{{ detailJob.callbackUrl }}</code>
+          </span>
         </div>
 
         <div class="grid-section">请求数据 (data)</div>
-        <pre class="code">{{ dataJsonPretty }}</pre>
+        <pre class="code-block">{{ dataJsonPretty }}</pre>
 
-        <div v-if="detailJob.pdfUrl || detailJob.pngUrl" class="grid-section">输出</div>
-        <div v-if="detailJob.pdfUrl || detailJob.pngUrl" class="downloads">
-          <a
-            v-if="detailJob.pdfUrl"
-            :href="detailJob.pdfUrl"
-            target="_blank"
-            class="download-btn"
-            rel="noopener"
-          >
-            <Download :size="14" :stroke-width="2" />
-            下载 PDF
-          </a>
-          <a
-            v-if="detailJob.pngUrl"
-            :href="detailJob.pngUrl"
-            target="_blank"
-            class="download-btn"
-            rel="noopener"
-          >
-            <Download :size="14" :stroke-width="2" />
-            下载 PNG
-          </a>
-        </div>
+        <template v-if="detailJob.pdfUrl || detailJob.pngUrl">
+          <div class="grid-section">输出</div>
+          <div class="downloads">
+            <a
+              v-if="detailJob.pdfUrl"
+              :href="detailJob.pdfUrl"
+              target="_blank"
+              class="download-btn"
+              rel="noopener"
+            >
+              <Download :size="14" :stroke-width="1.5" />
+              下载 PDF
+            </a>
+            <a
+              v-if="detailJob.pngUrl"
+              :href="detailJob.pngUrl"
+              target="_blank"
+              class="download-btn"
+              rel="noopener"
+            >
+              <Download :size="14" :stroke-width="1.5" />
+              下载 PNG
+            </a>
+          </div>
+        </template>
 
-        <div v-if="detailJob.errorMsg" class="grid-section error">错误信息</div>
-        <pre v-if="detailJob.errorMsg" class="code code-error">{{ detailJob.errorMsg }}</pre>
+        <template v-if="detailJob.errorMsg">
+          <div class="grid-section error">错误信息</div>
+          <pre class="code-block code-error">{{ detailJob.errorMsg }}</pre>
+        </template>
       </div>
     </ElDialog>
   </div>
 </template>
 
 <style scoped>
-.page-wrap {
-  padding: 24px 40px 60px;
-  max-width: 1200px;
-  margin: 0 auto;
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei',
-    system-ui, sans-serif;
-}
-.page-header {
+.view-root {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 22px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.filters {
-  display: flex;
-  gap: 18px;
-  align-items: center;
-  padding: 12px 16px;
-  background: #fff;
-  border: 1px solid var(--tp-line, #ececef);
-  border-radius: 10px;
-  margin-bottom: 14px;
-}
-.filter-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.filter-item label {
-  font-size: 13px;
-  color: var(--tp-ink-soft, #5e5e66);
-}
-
-.section {
-  background: #fff;
-  border: 1px solid var(--tp-line, #ececef);
-  border-radius: 12px;
+  flex-direction: column;
+  height: 100%;
   overflow: hidden;
 }
-.empty {
-  padding: 60px;
-  text-align: center;
-  color: var(--tp-ink-faint, #9c9ca3);
+
+/* 过滤区 — 卡片化 */
+.filters {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--paper-white);
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-2);
 }
-.logs-table {
+.filters .field {
+  min-width: 200px;
+}
+.filters .field.wide {
+  flex: 1;
+}
+.filters .actions {
+  display: flex;
+  gap: 10px;
+  align-self: end;
+}
+
+/* 结果头 */
+.results {
+  margin-top: 24px;
+}
+.results-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.results-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  font-family: var(--font-han);
+}
+.results-head .count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.results-head .rule {
+  flex: 1;
+  height: 1px;
+  background: var(--stone);
+}
+
+/* Log table */
+table.log {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
 }
-.logs-table thead {
-  background: #f6f6fa;
-}
-.logs-table th {
+table.log th {
   text-align: left;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--tp-ink-soft, #5e5e66);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tr-caption);
+  color: var(--fg-3);
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--stone);
+  background: var(--mist);
 }
-.logs-table td {
-  padding: 12px 14px;
-  border-top: 1px solid var(--tp-line, #ececef);
+table.log td {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--stone);
+  font-family: var(--font-han);
+  font-size: 13px;
+  color: var(--fg-1);
+  vertical-align: middle;
 }
-.tpl-name {
-  font-weight: 500;
+table.log tr:last-child td {
+  border-bottom: 0;
 }
-.tpl-id {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11px;
-  color: var(--tp-ink-faint, #9c9ca3);
+table.log tr:hover td {
+  background: var(--mist);
 }
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 11.5px;
-  font-weight: 500;
+table.log .mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+}
+table.log .id {
+  color: var(--fg-3);
+}
+
+.row-actions {
+  display: flex;
+  gap: 12px;
+}
+.row-actions a {
+  font-family: var(--font-han);
+  font-size: 12.5px;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 1px;
+  cursor: pointer;
+}
+.row-actions a:hover {
+  color: var(--yangli-red);
+  border-bottom-color: var(--yangli-red);
 }
 
 .pagination {
-  margin-top: 14px;
+  margin-top: 20px;
   display: flex;
   justify-content: center;
 }
 
-/* detail dialog */
+/* Detail dialog */
 .detail-grid {
-  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 .grid-row {
   display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 10px;
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--tp-line, #ececef);
+  grid-template-columns: 100px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--stone);
 }
 .grid-row:last-of-type {
-  border-bottom: none;
+  border-bottom: 0;
 }
 .grid-key {
-  color: var(--tp-ink-soft, #5e5e66);
-  font-size: 12px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-caption);
+  color: var(--fg-3);
+  align-self: center;
 }
 .grid-val {
-  color: var(--tp-ink, #1f1f23);
+  font-family: var(--font-han);
+  font-size: 13px;
+  color: var(--ink);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
+.grid-val.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
 .grid-val code {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11.5px;
-  background: var(--tp-accent-bg, #f0eeff);
-  color: var(--tp-accent-ink, #4f3fcc);
-  padding: 1px 5px;
-  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--mist);
+  border: 1px solid var(--stone);
+  padding: 2px 6px;
+  border-radius: var(--radius-1);
 }
 .grid-val code.muted {
-  background: transparent;
-  color: var(--tp-ink-faint, #9c9ca3);
+  color: var(--fg-3);
 }
+.copy-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--fg-3);
+  padding: 2px;
+  display: inline-flex;
+}
+.copy-btn:hover {
+  color: var(--yangli-red);
+}
+
 .grid-section {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--tp-accent-ink, #4f3fcc);
-  margin: 12px 0 6px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tr-caption);
+  color: var(--fg-3);
+  margin: 16px 0 8px;
 }
 .grid-section.error {
-  color: #d94f4f;
+  color: var(--yangli-red);
 }
-.code {
-  background: #1f1f23;
-  color: #e0e0e6;
+
+.code-block {
+  margin: 0 0 4px;
   padding: 12px 14px;
-  border-radius: 6px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12.5px;
-  line-height: 1.7;
-  max-height: 240px;
-  overflow: auto;
-  margin: 0;
-}
-.code-error {
-  background: #fff8e7;
-  color: #8a6500;
-  border-left: 3px solid #f0c14b;
-  border-radius: 4px;
-  font-family: inherit;
+  background: var(--ink);
+  color: var(--paper-white);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  border-radius: var(--radius-2);
+  overflow-x: auto;
+  max-height: 200px;
   white-space: pre-wrap;
+  word-break: break-all;
 }
+.code-block.code-error {
+  background: rgba(211, 45, 39, 0.08);
+  color: var(--yangli-red);
+  border: 1px solid rgba(211, 45, 39, 0.25);
+}
+
 .downloads {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 .download-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 12px;
-  background: var(--tp-accent, #6c5ce7);
-  color: #fff;
-  border-radius: 6px;
-  font-size: 12.5px;
+  gap: 6px;
+  padding: 8px 14px;
+  font-family: var(--font-han);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--paper-white);
+  border: 1px solid var(--yangli-graphite);
+  border-radius: var(--radius-2);
   text-decoration: none;
-  transition: background 100ms ease;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-default);
 }
 .download-btn:hover {
-  background: var(--tp-accent-ink, #4f3fcc);
-}
-.muted {
-  color: var(--tp-ink-faint, #9c9ca3);
+  background: var(--ink);
+  color: var(--paper-white);
 }
 </style>
