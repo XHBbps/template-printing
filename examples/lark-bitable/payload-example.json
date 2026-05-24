@@ -1,0 +1,17 @@
+{
+  "verificationToken": "<管理员告知，与服务器 .env 的 LARK_BITABLE_VERIFICATION_TOKEN 完全一致>",
+  "templateId": "<模板 UUID，从模板打印平台地址栏的 ?open=xxx 里复制>",
+  "data": {
+    "name": "{{字段.姓名}}",
+    "reason": "{{字段.来访原因}}",
+    "date": "{{字段.来访日期}}",
+    "visitor": "{{字段.被访人}}"
+  },
+  "lark": {
+    "appToken": "{{多维表格.app_token}}",
+    "tableId": "{{多维表格.table_id}}",
+    "recordId": "{{当前记录.record_id}}",
+    "statusField": "打印状态",
+    "attachmentField": "PDF 附件"
+  }
+}
