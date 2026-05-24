@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-24（iter 27 飞书多维表格按钮触发渲染回写附件）
+**最近更新**：2026-05-24（iter 28 飞书机器人卡片交互 + API 页面模板列表）
 
 ---
 
@@ -21,9 +21,9 @@
 | Admin 角色 / logout 硬跳 / 401 自动 refresh / Header Hero 风格 | ✅ 已完成 | iter 23 |
 | 设计器细节优化（浮动 toolbar / pan mode / snap 简化 / 打印 CSS） | ✅ 已完成 | iter 24 / 25 |
 | **异步渲染服务（队列 + worker + webhook + API 文档）** | ✅ 已完成 | iter 26 |
-| **飞书多维表格按钮触发渲染回写附件** | ✅ 已完成 | iter 27（最新） |
+| **飞书多维表格按钮触发渲染回写附件** | ✅ 已完成 | iter 27 |
+| **飞书机器人卡片交互渲染 + API 页面模板列表** | ✅ 已完成 | iter 28（最新） |
 | 部署：阿里云 ACR + ECS + GitHub Actions | 🟡 框架就绪 | iter 19，待外部条件（域名 / 备案 / 飞书应用） |
-| 飞书机器人 @ 指令触发渲染 | ⏳ 待开始 | iter 27 留作后续，见第 5 节 |
 | Admin 用户管理后台（CRUD） | 🟡 仅占位页 | `apps/web/src/views/admin/UsersAdminView.vue` 已存在，后端 CRUD 未补 |
 | 渲染任务历史 / 我的渲染任务 | ⏳ 待开始 | 见第 5 节 |
 
@@ -73,6 +73,29 @@
 - **业务人员接入手册**：`examples/lark-bitable/README.md` 含建表步骤 + 自动化配置 + payload 模板 + 常见问题
 - **凭证**：复用 `LARK_SSO_APP_ID/SECRET`（同 app 多权限），新增 `LARK_BITABLE_VERIFICATION_TOKEN` 仅在本地 .env
 
+### 2.6 飞书机器人卡片交互渲染（iter 28）
+
+- **数据模型**：`lark_bot_sessions` 表（chatId / chatType / triggerOpenId / cardMessageId / state / templateId / formData / renderJobId / errorMsg / 时间戳）
+- **API 端点（全部 `@Public()`）**：
+  - `POST /lark/bot/event`：飞书事件订阅入口，含 URL challenge + verification token + `im.message.receive_v1` 解析 + 群 @ 检测 + 私聊触发 + re-@ 去重
+  - `POST /lark/bot/card-action`：卡片交互回调，状态机分派（template_selected → fill_fields；field_change → 累积 formData；submit_render → 必填校验 + 调 render.enqueue）
+  - `POST /lark/bot/render-callback?token=...`：worker 完成后上传 PDF 到飞书 IM + 发文件消息 + @ 触发者 + PATCH 卡片完成态
+- **服务封装** `LarkBotService`：
+  - `sendCard` / `updateCard` / `uploadIMFile` / `sendTextWithMention` / `sendFileMessage`
+- **卡片构造** `LarkBotCards`（纯函数 + 11 单测）：
+  - `buildSelectTemplateCard`（选模板下拉）
+  - `buildFieldFormCard`（按 schema.fields 动态生成 input/select/datepicker）
+  - `buildRenderingCard`（渲染中）
+  - `buildResultCard`（完成 / 失败）
+- **业务接入手册**：`examples/lark-bot/README.md`（飞书后台 6 步配置 + 使用 + 常见问题）
+
+### 2.5 API 页面模板列表（iter 28）
+
+- 路由 `/api-docs` → `/api`，sidebar "API 说明" → "API"（旧 URL 自动 redirect）
+- 顶部"通用调用文档"默认收起（curl / JS / Python）
+- 中部模板列表表格：模板名 + ID（带复制图标）+ 通用入参 + 自定义字段（lazy fetch schema.fields）
+- 行展开看完整 schema JSON
+
 ### 2.3 异步渲染服务（iter 26）
 
 - **数据模型**：`render_jobs` 表（id / templateId / data / formats / status / pdfUrl / pngUrl / errorMsg / callbackUrl / callbackStatus / 时间戳）
@@ -107,6 +130,14 @@
 
 ### 2026-05-24
 
+- **iter 28：飞书机器人卡片交互 + API 页面模板列表**
+  - DB：`lark_bot_sessions` 表 + Prisma migration `add_lark_bot_sessions`
+  - `LarkBotService`：sendCard / updateCard / uploadIMFile / sendTextWithMention / sendFileMessage（7 单测）
+  - `LarkBotCards`：4 类卡片纯函数构造（11 单测）
+  - `LarkBotController`：3 端点完整链路（event / card-action / render-callback）
+  - re-@ 静默忽略减刷屏 + 减服务器负担
+  - `/api-docs` → `/api`，模板列表纯展示（无 JSON 生成器）
+  - `examples/lark-bot/README.md` 业务接入手册
 - **iter 27：飞书多维表格按钮触发渲染回写附件**
   - DB：`lark_print_requests` 表 + Prisma migration `add_lark_print_requests`
   - Service：`LarkBitableService`（updateRecord + uploadMaterial 含分片，6 单测全过 nock mock 飞书）
@@ -184,7 +215,7 @@
 | 方向 | 描述 | 涉及代码区域 |
 |---|---|---|
 | ~~飞书多维表格按钮触发渲染回写附件~~ | ✅ iter 27 完成 | `apps/api/src/lark/` + `examples/lark-bitable/` |
-| **飞书机器人 @ 指令触发渲染** | 群里 @ 机器人 "打印 出门证 姓名=张三" → 机器人发回 PDF 卡片 | 复用 LarkBitable infra，加事件订阅端点 + 文本解析 |
+| ~~飞书机器人卡片交互渲染~~ | ✅ iter 28 完成 | `apps/api/src/lark/lark-bot.*` + `examples/lark-bot/` |
 | **Admin 用户管理 CRUD** | 列表 / 新建（本地账号） / 改角色 / 重置密码 / 禁用 | `apps/api/src/users/` 新模块 + `views/admin/UsersAdminView.vue` |
 | **渲染任务历史 / 我的渲染任务** | 用户在 `/me` 看自己发起的渲染任务列表 + 重新下载 | `apps/api/src/render/` 加 list 端点 + 新 view |
 | **渲染失败重试策略** | bullmq job options：`attempts: 3` + 指数退避；错误分类（暂时性 vs 永久性） | `apps/render/src/main.ts` + `render.service.ts` |
