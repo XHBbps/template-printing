@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   BadRequestException,
   UseGuards,
   // eslint-disable-next-line import/no-unresolved
@@ -47,6 +48,26 @@ export class RenderController {
     const parsed = EnqueueDto.safeParse(rawBody);
     if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
     return this.svc.enqueue(me.sub, parsed.data);
+  }
+
+  @Get('jobs')
+  async listJobs(
+    @CurrentUser() me: JwtClaims,
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '20',
+    @Query('status') status?: string,
+    @Query('source') source?: string,
+    @Query('templateName') templateName?: string,
+  ): Promise<ReturnType<RenderService['listJobs']>> {
+    const s = source === 'bot' || source === 'bitable' || source === 'api' ? source : undefined;
+    return this.svc.listJobs({
+      user: { sub: me.sub, role: me.role },
+      page: Number(page),
+      pageSize: Number(pageSize),
+      status,
+      source: s,
+      templateName,
+    });
   }
 
   @Get(':jobId')
