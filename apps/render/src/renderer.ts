@@ -29,13 +29,14 @@ export async function renderJobOnPage(
   const heightPx = Math.round(args.paperMm.h * 4);
   await page.setViewport({ width: widthPx, height: heightPx, deviceScaleFactor: 2 });
 
-  // Surface browser-side errors / warnings to worker stdout for diagnostics.
-  // (debug / log / info muted to avoid Vite HMR noise.)
+  // Surface browser-side errors / warnings + diagnostic `[ph] ...` logs
+  // from PrintHeadlessView to worker stdout. Other Vite HMR noise muted.
   const onConsole = (msg: { type: () => string; text: () => string }): void => {
     const type = msg.type();
-    if (type === 'error' || type === 'warning') {
+    const text = msg.text();
+    if (type === 'error' || type === 'warning' || text.startsWith('[ph]')) {
       // eslint-disable-next-line no-console
-      console.log(`[render][page.${type}] ${msg.text()}`);
+      console.log(`[render][page.${type}] ${text}`);
     }
   };
   const onPageError = (err: Error): void => {
@@ -45,53 +46,61 @@ export async function renderJobOnPage(
   page.on('console', onConsole);
   page.on('pageerror', onPageError);
 
-  // 2. Navigate to /print-headless route
-  await page.goto(`${WEB_BASE}/print-headless/${args.jobId}`, { waitUntil: 'networkidle0' });
-
-  // 3. Inject template + data into the page
-  await page.evaluate(
-    (template, data) => {
-      (window as unknown as { __renderInput: object }).__renderInput = { template, data };
-    },
-    args.template,
-    args.data,
-  );
-
-  // 4. Wait for the page to signal ready (Vue rendered)
-  await page.waitForFunction(
-    () => (window as unknown as { __renderReady?: boolean }).__renderReady === true,
-    { timeout: 30_000 },
-  );
-
-  // 5. Generate outputs
-  const outDir = path.join(STORAGE_ROOT, 'uploads', 'render');
-  await fs.mkdir(outDir, { recursive: true });
-
   let pdfPath: string | null = null;
   let pngPath: string | null = null;
 
-  if (args.formats.includes('pdf')) {
-    pdfPath = path.join(outDir, `${args.jobId}.pdf`);
-    await page.pdf({
-      path: pdfPath,
-      width: `${args.paperMm.w}mm`,
-      height: `${args.paperMm.h}mm`,
-      printBackground: true,
-      margin: { top: 0, right: 0, bottom: 0, left: 0 },
-    });
-  }
+  try {
+    // 2. Navigate to /print-headless route — also resets window state from
+    //    any previous render on this reused page.
+    await page.goto(`${WEB_BASE}/print-headless/${args.jobId}`, { waitUntil: 'networkidle0' });
 
-  if (args.formats.includes('png')) {
-    pngPath = path.join(outDir, `${args.jobId}.png`);
-    await page.screenshot({
-      path: pngPath,
-      type: 'png',
-      clip: { x: 0, y: 0, width: widthPx, height: heightPx },
-    });
-  }
+    // 3. Inject template + data into the page
+    await page.evaluate(
+      (template, data) => {
+        (window as unknown as { __renderInput: object }).__renderInput = { template, data };
+      },
+      args.template,
+      args.data,
+    );
 
-  page.off('console', onConsole);
-  page.off('pageerror', onPageError);
+    // 4. Wait for the page to signal ready (Vue rendered).
+    // polling: 100 — explicit ms polling. Default 'raf' (requestAnimationFrame)
+    // is throttled in headless / non-visible pages so it can miss __renderReady
+    // even after it's set; see iter 26 / iter 27 debugging.
+    await page.waitForFunction(
+      () => (window as unknown as { __renderReady?: boolean }).__renderReady === true,
+      { timeout: 30_000, polling: 100 },
+    );
+
+    // 5. Generate outputs
+    const outDir = path.join(STORAGE_ROOT, 'uploads', 'render');
+    await fs.mkdir(outDir, { recursive: true });
+
+    if (args.formats.includes('pdf')) {
+      pdfPath = path.join(outDir, `${args.jobId}.pdf`);
+      await page.pdf({
+        path: pdfPath,
+        width: `${args.paperMm.w}mm`,
+        height: `${args.paperMm.h}mm`,
+        printBackground: true,
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      });
+    }
+
+    if (args.formats.includes('png')) {
+      pngPath = path.join(outDir, `${args.jobId}.png`);
+      await page.screenshot({
+        path: pngPath,
+        type: 'png',
+        clip: { x: 0, y: 0, width: widthPx, height: heightPx },
+      });
+    }
+  } finally {
+    // Always detach listeners — otherwise they accumulate on the pooled page
+    // and cross-job console events get logged multiple times.
+    page.off('console', onConsole);
+    page.off('pageerror', onPageError);
+  }
 
   return {
     pdfPath,
