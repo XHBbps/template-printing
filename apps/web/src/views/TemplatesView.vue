@@ -27,6 +27,11 @@ const currentTemplateName = computed(() => {
 
 // Wrap mode transitions with View Transitions API where available.
 async function transitionTo(target: 'list' | 'editor', id?: string): Promise<void> {
+  // When returning to list, refetch first so the cards show the latest names /
+  // updatedAt etc. (designer auto-save updates DB but the list cache is stale).
+  if (target === 'list') {
+    await templates.fetchList();
+  }
   const doSwitch = async (): Promise<void> => {
     if (target === 'editor' && id) currentId.value = id;
     mode.value = target;
