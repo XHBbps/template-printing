@@ -137,14 +137,14 @@ function sourceLabel(s: string): string {
   return 'API 直调';
 }
 function sourceColor(s: string): string {
-  if (s === 'bot') return '#4f9eff';
-  if (s === 'bitable') return '#e5912c';
-  return '#6c5ce7';
+  if (s === 'bot') return '#3370ff';
+  if (s === 'bitable') return '#C68A00';
+  return '#595759';
 }
 function sourceBg(s: string): string {
-  if (s === 'bot') return '#e8f3ff';
-  if (s === 'bitable') return '#fff3e0';
-  return '#f0eeff';
+  if (s === 'bot') return 'rgba(51, 112, 255, 0.10)';
+  if (s === 'bitable') return 'rgba(198, 138, 0, 0.14)';
+  return 'rgba(89, 87, 89, 0.12)';
 }
 function formatAbs(iso: string | null): string {
   if (!iso) return '—';

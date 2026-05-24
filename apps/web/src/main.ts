@@ -1,6 +1,8 @@
 // eslint-disable-next-line import/no-unresolved
 import 'element-plus/dist/index.css';
 import './styles/theme.css';
+import './styles/yangli/colors_and_type.css';
+import './styles/yangli/app-shell.css';
 import './styles/transitions.css';
 import './styles/print.css';
 

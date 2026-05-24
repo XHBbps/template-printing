@@ -29,6 +29,8 @@ const isAdmin = (): boolean => {
   return role === 'admin' || role === 'emergency_admin';
 };
 
+const initial = (): string => (auth.user?.name ?? '?').charAt(0).toUpperCase();
+
 function toggle(): void {
   emit('update:collapsed', !props.collapsed);
   localStorage.setItem('tp_sidebar_collapsed', props.collapsed ? 'false' : 'true');
@@ -43,198 +45,125 @@ async function logout(): Promise<void> {
       center: true,
     });
   } catch {
-    return; // user cancelled
+    return;
   }
-  // Call backend logout to clear cookies + revoke refresh token.
-  // Don't await auth.logout()'s local-state clear — calling apiFetch directly
-  // avoids triggering Vue reactivity (user=null) that briefly re-renders the
-  // sidebar as "未登录" before the redirect kicks in.
   try {
     await apiFetch('/auth/logout', { method: 'POST' });
   } catch {
-    // ignore; we hard-reload anyway
+    // ignore; hard-navigate anyway
   }
-  // Hard navigation discards bfcache and resets all Pinia stores via reload.
   window.location.assign('/login');
 }
 </script>
 
 <template>
-  <aside class="app-sidebar" :class="{ 'app-sidebar--collapsed': collapsed }">
-    <div class="sb-head">
-      <span v-if="!collapsed" class="sb-logo">模板打印</span>
-      <button class="sb-toggle" type="button" :title="collapsed ? '展开' : '折叠'" @click="toggle">
-        <ChevronRight v-if="collapsed" :size="18" :stroke-width="2.5" />
-        <ChevronLeft v-else :size="18" :stroke-width="2.5" />
+  <aside class="sidebar yangli-sidebar" :class="{ 'is-collapsed': collapsed }">
+    <div class="sidebar-head">
+      <div v-if="!collapsed" class="brand-lockup">
+        <img src="/yangli-logo-master.png" alt="YANGLI" />
+        <span class="pipe"></span>
+        <span class="app-name">模板打印</span>
+      </div>
+      <button
+        class="collapse-btn"
+        type="button"
+        :title="collapsed ? '展开' : '折叠'"
+        @click="toggle"
+      >
+        <ChevronRight v-if="collapsed" :size="16" :stroke-width="1.5" />
+        <ChevronLeft v-else :size="16" :stroke-width="1.5" />
       </button>
     </div>
 
-    <nav class="sb-nav">
-      <RouterLink to="/templates" class="sb-item" active-class="sb-item--active">
-        <FileText :size="16" :stroke-width="2" />
+    <div v-if="!collapsed" class="sidebar-section-label">Workspace · 工作区</div>
+    <nav class="nav">
+      <RouterLink to="/templates" active-class="active">
+        <span class="ico"><FileText :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">模板中心</span>
       </RouterLink>
-      <RouterLink to="/logs" class="sb-item" active-class="sb-item--active">
-        <History :size="16" :stroke-width="2" />
+      <RouterLink to="/logs" active-class="active">
+        <span class="ico"><History :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">渲染日志</span>
-      </RouterLink>
-      <RouterLink to="/me" class="sb-item" active-class="sb-item--active">
-        <User :size="16" :stroke-width="2" />
-        <span v-if="!collapsed">个人中心</span>
-      </RouterLink>
-      <RouterLink to="/me/api-tokens" class="sb-item" active-class="sb-item--active">
-        <KeyRound :size="16" :stroke-width="2" />
-        <span v-if="!collapsed">API 凭证</span>
-      </RouterLink>
-      <RouterLink to="/api" class="sb-item" active-class="sb-item--active">
-        <Key :size="16" :stroke-width="2" />
-        <span v-if="!collapsed">API</span>
-      </RouterLink>
-      <RouterLink v-if="isAdmin()" to="/admin/users" class="sb-item" active-class="sb-item--active">
-        <Users :size="16" :stroke-width="2" />
-        <span v-if="!collapsed">用户管理</span>
       </RouterLink>
     </nav>
 
-    <div class="sb-foot">
-      <div v-if="!collapsed" class="sb-user-row">
-        <div class="sb-avatar">{{ (auth.user?.name ?? '?').charAt(0).toUpperCase() }}</div>
-        <div class="sb-user-name">{{ auth.user?.name ?? '未登录' }}</div>
-        <button class="sb-logout-icon" title="退出登录" @click="logout">
-          <LogOut :size="14" :stroke-width="2" />
-        </button>
+    <div v-if="!collapsed" class="sidebar-section-label">Account · 账号</div>
+    <nav class="nav">
+      <RouterLink to="/me" active-class="active">
+        <span class="ico"><User :size="16" :stroke-width="1.5" /></span>
+        <span v-if="!collapsed">个人中心</span>
+      </RouterLink>
+      <RouterLink to="/me/api-tokens" active-class="active">
+        <span class="ico"><KeyRound :size="16" :stroke-width="1.5" /></span>
+        <span v-if="!collapsed">API 凭证</span>
+      </RouterLink>
+    </nav>
+
+    <div v-if="!collapsed" class="sidebar-section-label">Integration · 集成</div>
+    <nav class="nav">
+      <RouterLink to="/api" active-class="active">
+        <span class="ico"><Key :size="16" :stroke-width="1.5" /></span>
+        <span v-if="!collapsed">API</span>
+      </RouterLink>
+    </nav>
+
+    <template v-if="isAdmin()">
+      <div v-if="!collapsed" class="sidebar-section-label">Admin · 管理</div>
+      <nav class="nav">
+        <RouterLink to="/admin/users" active-class="active">
+          <span class="ico"><Users :size="16" :stroke-width="1.5" /></span>
+          <span v-if="!collapsed">用户管理</span>
+        </RouterLink>
+      </nav>
+    </template>
+
+    <div class="sidebar-foot">
+      <div class="avatar">{{ initial() }}</div>
+      <div v-if="!collapsed" class="user-meta">
+        <div class="name">{{ auth.user?.name ?? '未登录' }}</div>
       </div>
-      <div v-else class="sb-user-row sb-user-row--collapsed">
-        <div class="sb-avatar">{{ (auth.user?.name ?? '?').charAt(0).toUpperCase() }}</div>
-      </div>
+      <button v-if="!collapsed" class="logout-btn" type="button" title="退出登录" @click="logout">
+        <LogOut :size="14" :stroke-width="1.5" />
+      </button>
     </div>
   </aside>
 </template>
 
 <style scoped>
-.app-sidebar {
-  display: flex;
-  flex-direction: column;
-  width: 220px;
+/* 复用 styles/yangli/app-shell.css 的 .sidebar / .sidebar-head / .nav / .sidebar-foot 等基础规则。
+   本组件只补：固定宽度、过渡动画、折叠态布局调整。 */
+
+.sidebar {
+  width: 240px;
   height: 100vh;
-  background: #fff;
-  border-right: 1px solid var(--tp-line, #ececef);
-  box-shadow: 0 4px 16px rgba(20, 20, 30, 0.04);
-  transition: width 200ms ease;
   flex-shrink: 0;
+  transition: width var(--dur-base) var(--ease-default);
 }
-.app-sidebar--collapsed {
+.sidebar.is-collapsed {
   width: 56px;
 }
-.sb-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+
+/* 折叠态：去掉文字区域，仅保留 icon / 头像 */
+.sidebar.is-collapsed .sidebar-head {
+  padding: 20px 12px 18px;
+  justify-content: center;
+}
+.sidebar.is-collapsed .nav {
+  padding: 0;
+}
+.sidebar.is-collapsed .nav a {
+  justify-content: center;
+  padding-left: 0;
+  margin-left: 0;
+  border-left: none;
+  padding-right: 0;
+}
+.sidebar.is-collapsed .nav a.active {
+  /* 折叠态用底部 ribbon 替代左边条 */
+  background: rgba(211, 45, 39, 0.08);
+}
+.sidebar.is-collapsed .sidebar-foot {
   padding: 14px 12px;
-  border-bottom: 1px solid var(--tp-line, #ececef);
-}
-.sb-logo {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--tp-accent-ink, #4f3fcc);
-}
-.sb-toggle {
-  border: none;
-  background: transparent;
-  color: var(--tp-ink-soft, #5e5e66);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
   justify-content: center;
-}
-.sb-toggle:hover {
-  background: var(--tp-field-bg, rgba(108, 92, 231, 0.06));
-  color: var(--tp-accent, #6c5ce7);
-}
-.sb-nav {
-  flex: 1;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow-y: auto;
-}
-.sb-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--tp-ink, #1f1f23);
-  text-decoration: none;
-  transition: all 120ms ease;
-}
-.sb-item:hover {
-  background: var(--tp-field-bg, rgba(108, 92, 231, 0.06));
-}
-.sb-item--active {
-  background: var(--tp-accent-bg, #f0eeff);
-  color: var(--tp-accent-ink, #4f3fcc);
-  font-weight: 500;
-}
-.app-sidebar--collapsed .sb-item {
-  justify-content: center;
-  padding: 8px;
-}
-.sb-foot {
-  padding: 10px 8px;
-  border-top: 1px solid var(--tp-line, #ececef);
-}
-.sb-user-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 2px;
-}
-.sb-user-row--collapsed {
-  justify-content: center;
-}
-.sb-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--tp-accent, #6c5ce7);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-.sb-user-name {
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-  color: var(--tp-ink, #1f1f23);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sb-logout-icon {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--tp-ink-faint, #9c9ca3);
-  cursor: pointer;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 120ms ease;
-}
-.sb-logout-icon:hover {
-  background: #fee5e5;
-  color: #d94f4f;
 }
 </style>
