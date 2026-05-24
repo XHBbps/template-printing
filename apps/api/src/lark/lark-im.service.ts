@@ -21,7 +21,10 @@ export class LarkImService {
 
   constructor(private readonly cfg: LarkImConfig) {}
 
-  private async getTenantAccessToken(): Promise<string> {
+  /**
+   * Public so sibling services (LarkBitableService) can reuse the token + cache.
+   */
+  async getTenantAccessToken(): Promise<string> {
     if (this.tokenCache && this.tokenCache.expiresAt > Date.now() + 60_000) {
       return this.tokenCache.token;
     }
