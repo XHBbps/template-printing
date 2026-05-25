@@ -55,6 +55,7 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
             v-for="item in itemsByGroup[g]"
             :key="item.label"
             class="lib-btn"
+            :class="{ 'lib-btn--wide': item.type === 'table' }"
             draggable="true"
             :title="`点击或拖入：${item.label}`"
             @click="clickAdd(item)"
@@ -95,7 +96,7 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
 .lib-btn {
   padding: 10px 4px;
   background: var(--tp-panel);
-  border: 1px solid var(--tp-line-strong);
+  border: 1px solid var(--stone);
   border-radius: var(--tp-radius-item, 8px);
   cursor: grab;
   display: flex;
@@ -104,17 +105,21 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
   gap: 4px;
   color: var(--tp-ink-soft);
   font-size: 11px;
-  transition: all 120ms ease;
+  transition:
+    border-color var(--dur-fast) var(--ease-default),
+    color var(--dur-fast) var(--ease-default);
   user-select: none;
 }
 .lib-btn:hover {
-  border-color: var(--tp-accent);
-  color: var(--tp-accent);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.12);
+  border-color: var(--yangli-graphite);
+  color: var(--ink);
 }
 .lib-btn:active {
   cursor: grabbing;
   transform: none;
+}
+/* 明细独占两列（数据组主组件） */
+.lib-btn--wide {
+  grid-column: 1 / -1;
 }
 </style>

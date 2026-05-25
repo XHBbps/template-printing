@@ -23,9 +23,9 @@ export const LIBRARY_ITEMS: ElementMeta[] = [
   { type: 'system', group: '文字', label: '系统', defaultMm: { w: 45, h: 8 } },
   { type: 'rect', group: '图形', label: '矩形', defaultMm: { w: 40, h: 20 } },
   { type: 'image', group: '图形', label: '图片', defaultMm: { w: 40, h: 40 } },
-  { type: 'table', group: '数据', label: '明细', defaultMm: { w: 150, h: 60 } },
   { type: 'qr', group: '数据', label: '二维码', defaultMm: { w: 25, h: 25 } },
   { type: 'barcode', group: '数据', label: '条码', defaultMm: { w: 60, h: 16 } },
+  { type: 'table', group: '数据', label: '明细', defaultMm: { w: 150, h: 60 } },
 ];
 
 export const MIN_MM: Record<string, { w: number; h: number }> = {

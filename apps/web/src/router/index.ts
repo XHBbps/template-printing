@@ -44,11 +44,10 @@ const router = createRouter({
       meta: { requiresAuth: true },
       component: () => import('../views/MeView.vue'),
     },
+    // iter 30B: ApiTokens 合并入 /api 文档（方案 A），保留路由作为重定向防外链断裂
     {
       path: '/me/api-tokens',
-      name: 'me-api-tokens',
-      meta: { requiresAuth: true },
-      component: () => import('../views/ApiTokensView.vue'),
+      redirect: '/api?to=tokens',
     },
     {
       path: '/logs',

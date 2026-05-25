@@ -1,17 +1,15 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { ElDropdown, ElDropdownItem, ElDropdownMenu, ElMessageBox } from 'element-plus';
+import { ElDropdown, ElDropdownItem, ElDropdownMenu } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
-import { ArrowLeft, FileText, Grid3x3, RotateCw, Eye, Save, Printer, Plus } from 'lucide-vue-next';
+import { FileText, Grid3x3, RotateCw, Eye, Save, Printer, Plus } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 
 import { useDesignerStore } from '../stores/designer';
 import CustomPaperDialog from './CustomPaperDialog.vue';
 import PreviewView from '../views/PreviewView.vue';
 
 const store = useDesignerStore();
-const router = useRouter();
 
 const paperOptions = ['A3', 'A4', 'A5', 'B4', 'B5'] as const;
 
@@ -54,22 +52,6 @@ function chooseCell(w: number, h: number): void {
   });
 }
 
-async function exitToHome(): Promise<void> {
-  if (store.dirty) {
-    try {
-      await ElMessageBox.confirm('当前模板有未保存改动，确定离开吗？(草稿保留在本地)', '离开', {
-        confirmButtonText: '离开',
-        cancelButtonText: '继续编辑',
-        type: 'warning',
-        center: true,
-      });
-    } catch {
-      return;
-    }
-  }
-  void router.push('/');
-}
-
 let savedZoom = 1;
 function onBeforePrint(): void {
   savedZoom = store.view.zoom;
@@ -89,10 +71,6 @@ onBeforeUnmount(() => {
 
 async function doPrint(): Promise<void> {
   const prevZoom = store.view.zoom;
-
-  // Inject @page rule so browser uses the template's paper size,
-  // not the printer's default (usually A4). Prevents content scaling /
-  // overflow / extra blank pages when template paper != A4.
   const PX_PER_MM = 4;
   const paperMm = {
     w: store.paperPx.w / PX_PER_MM,
@@ -125,15 +103,15 @@ const saveStatusText = computed(() => {
   if (!store.templateId) return '';
   if (store.saveStatus === 'saving') return '保存中…';
   if (store.saveStatus === 'pending') return '未保存';
-  if (store.saveStatus === 'error') return '⚠ 保存失败 · 点击重试';
-  if (store.saveStatus === 'saved') return '✓ 已保存';
+  if (store.saveStatus === 'error') return '保存失败 · 点击重试';
+  if (store.saveStatus === 'saved') return '已保存';
   return '';
 });
 
-const saveStatusColor = computed(() => {
-  if (store.saveStatus === 'error') return '#d94f4f';
-  if (store.saveStatus === 'saving' || store.saveStatus === 'pending') return '#888';
-  return '#5a9b6a';
+const saveStateClass = computed(() => {
+  if (store.saveStatus === 'error') return 'is-error';
+  if (store.saveStatus === 'saving' || store.saveStatus === 'pending') return 'is-warn';
+  return 'is-ok';
 });
 
 function retrySave(): void {
@@ -142,16 +120,11 @@ function retrySave(): void {
 </script>
 
 <template>
-  <header class="tp-top-toolbar">
-    <button class="tt-btn tt-icon" title="返回" @click="exitToHome">
-      <ArrowLeft :size="16" :stroke-width="2" />
-    </button>
-    <span class="tt-divider" />
-
+  <div class="tp-top-toolbar">
     <ElDropdown trigger="click">
-      <button class="tt-btn">
-        <FileText :size="16" :stroke-width="2" />
-        {{ paperLabel }}
+      <button class="tt-chip" type="button">
+        <FileText :size="14" :stroke-width="1.5" />
+        <span>{{ paperLabel }}</span>
       </button>
       <template #dropdown>
         <ElDropdownMenu>
@@ -159,7 +132,7 @@ function retrySave(): void {
             {{ paperLabelMap[p] }}
           </ElDropdownItem>
           <ElDropdownItem divided @click="openCustomDialog">
-            <Plus :size="14" :stroke-width="2" style="margin-right: 6px" />
+            <Plus :size="14" :stroke-width="1.5" style="margin-right: 6px" />
             自定义…
           </ElDropdownItem>
         </ElDropdownMenu>
@@ -167,9 +140,9 @@ function retrySave(): void {
     </ElDropdown>
 
     <ElDropdown trigger="click">
-      <button class="tt-btn">
-        <Grid3x3 :size="16" :stroke-width="2" />
-        {{ cellLabel }}
+      <button class="tt-chip" type="button">
+        <Grid3x3 :size="14" :stroke-width="1.5" />
+        <span class="num">{{ cellLabel }}</span>
       </button>
       <template #dropdown>
         <ElDropdownMenu>
@@ -179,112 +152,199 @@ function retrySave(): void {
             @click="chooseCell(opt.w, opt.h)"
           >
             {{ opt.w }} px
-            <span style="color: #999; margin-left: 6px">({{ opt.cols }}×{{ opt.rows }} 格)</span>
+            <span style="color: var(--fg-3); margin-left: 6px">
+              ({{ opt.cols }}×{{ opt.rows }} 格)
+            </span>
           </ElDropdownItem>
         </ElDropdownMenu>
       </template>
     </ElDropdown>
 
-    <button class="tt-btn" title="旋转 90°" @click="store.rotate()">
-      <RotateCw :size="16" :stroke-width="2" />
+    <button class="tt-chip tt-chip--icon" type="button" title="旋转 90°" @click="store.rotate()">
+      <RotateCw :size="14" :stroke-width="1.5" />
     </button>
-
-    <span class="tt-spacer" />
 
     <span
       v-if="saveStatusText"
-      class="tt-save-status"
-      :style="{
-        color: saveStatusColor,
-        cursor: store.saveStatus === 'error' ? 'pointer' : 'default',
-      }"
+      class="tt-save-state"
+      :class="saveStateClass"
+      :style="{ cursor: store.saveStatus === 'error' ? 'pointer' : 'default' }"
       @click="retrySave"
     >
-      {{ saveStatusText }}
+      <span class="dot"></span>
+      <span class="lbl">{{ saveStatusText }}</span>
     </span>
 
-    <button class="tt-btn" @click="previewOpen = true">
-      <Eye :size="16" :stroke-width="2" />
+    <button class="tt-ghost" type="button" @click="previewOpen = true">
+      <Eye :size="14" :stroke-width="1.5" />
       预览
     </button>
     <button
-      class="tt-btn tt-primary"
+      class="tt-btn-secondary"
+      type="button"
       :disabled="store.saveStatus === 'saving'"
       @click="store.saveToBackend"
     >
-      <Save :size="16" :stroke-width="2" />
+      <Save :size="14" :stroke-width="1.5" />
       保存
     </button>
-    <button class="tt-btn tt-accent" @click="doPrint">
-      <Printer :size="16" :stroke-width="2" />
+    <button class="tt-btn-primary" type="button" @click="doPrint">
+      <Printer :size="14" :stroke-width="1.5" />
       立即打印
     </button>
 
     <CustomPaperDialog v-model="customDialogOpen" @confirm="onCustomPaperConfirm" />
-  </header>
+  </div>
   <PreviewView v-model="previewOpen" />
 </template>
 
 <style scoped>
-.tt-btn {
-  height: 32px;
-  padding: 0 14px;
-  border: none;
-  background: transparent;
-  border-radius: var(--tp-radius-pill);
-  font-size: 12.5px;
-  color: var(--tp-ink-soft);
-  cursor: pointer;
+/* ============ Chips（A4 / 4 px / ⟳） ============ */
+.tt-chip {
+  height: 36px;
+  padding: 0 12px;
+  background: var(--paper-white);
+  color: var(--ink);
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-2);
+  font-family: var(--font-sans);
+  font-size: 13px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  cursor: pointer;
   white-space: nowrap;
-  font-family: inherit;
-  transition: all 120ms ease;
+  transition: border-color var(--dur-fast) var(--ease-default);
 }
-.tt-btn:hover:not(:disabled) {
-  background: var(--tp-field-bg);
-  color: var(--tp-accent);
+.tt-chip:hover:not(:disabled) {
+  border-color: var(--yangli-graphite);
 }
-.tt-btn:disabled {
+.tt-chip:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.tt-icon {
-  width: 32px;
+.tt-chip > svg {
+  color: var(--fg-2);
+  flex-shrink: 0;
+}
+.tt-chip .num {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.tt-chip--icon {
+  width: 36px;
   padding: 0;
   justify-content: center;
-  font-size: 15px;
 }
-.tt-primary {
-  background: var(--tp-accent-bg);
-  color: var(--tp-accent-ink);
-  font-weight: 600;
-}
-.tt-primary:hover:not(:disabled) {
-  background: var(--tp-accent);
-  color: #fff;
-}
-.tt-accent {
-  background: var(--tp-accent);
-  color: #fff;
-  font-weight: 600;
-  box-shadow: var(--tp-accent-shadow);
-}
-.tt-accent:hover:not(:disabled) {
-  background: #5847d4;
-  color: #fff;
-}
-.tt-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--tp-line-strong);
-  margin: 0 8px;
-}
-.tt-save-status {
+
+/* ============ Save state（• dot + 文字） ============ */
+.tt-save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  margin-left: 12px; /* 与左侧 chip 簇分组 */
+  font-family: var(--font-han);
   font-size: 12px;
-  margin: 0 12px;
-  white-space: nowrap;
+  color: var(--fg-3);
   user-select: none;
+  white-space: nowrap;
+}
+.tt-save-state .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.tt-save-state.is-ok .dot {
+  background: #0f8c5a;
+}
+.tt-save-state.is-warn .dot {
+  background: #c68a00;
+}
+.tt-save-state.is-error .dot {
+  background: var(--yangli-red);
+}
+.tt-save-state.is-error {
+  color: var(--yangli-red);
+}
+
+/* ============ 预览 ghost ============ */
+.tt-ghost {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--fg-2);
+  border-radius: var(--radius-2);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-default);
+}
+.tt-ghost:hover {
+  color: var(--yangli-red);
+}
+
+/* ============ 保存 secondary ============ */
+.tt-btn-secondary {
+  height: 36px;
+  padding: 0 14px;
+  background: var(--paper-white);
+  color: var(--ink);
+  border: 1px solid var(--yangli-graphite);
+  border-radius: var(--radius-2);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-default),
+    color var(--dur-fast) var(--ease-default),
+    border-color var(--dur-fast) var(--ease-default);
+}
+.tt-btn-secondary:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper-white);
+  border-color: var(--ink);
+}
+.tt-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============ 立即打印 primary（唯一红色填充 CTA） ============ */
+.tt-btn-primary {
+  height: 36px;
+  padding: 0 14px;
+  background: var(--yangli-red);
+  color: var(--paper-white);
+  border: 1px solid var(--yangli-red);
+  border-radius: var(--radius-2);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-default),
+    border-color var(--dur-fast) var(--ease-default);
+}
+.tt-btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.tt-btn-primary:active {
+  background: var(--accent-press);
+  border-color: var(--accent-press);
+  transform: translateY(1px);
 }
 </style>

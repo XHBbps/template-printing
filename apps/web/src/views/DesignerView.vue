@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import '../styles/designer.css';
 
-import { onBeforeUnmount, onMounted, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import CanvasElementsList from '../designer/CanvasElementsList.vue';
 import DesignerCanvas from '../designer/DesignerCanvas.vue';
-import DesignerHeader from '../designer/DesignerHeader.vue';
 import ElementLibrary from '../designer/ElementLibrary.vue';
 import FieldManager from '../designer/FieldManager.vue';
 import PropertyPanel from '../designer/PropertyPanel.vue';
@@ -22,6 +21,20 @@ const props = defineProps<{
 
 const route = useRoute();
 const store = useDesignerStore();
+
+const saveCaption = computed<{ cap: string; han: string }>(() => {
+  switch (store.saveStatus) {
+    case 'saving':
+      return { cap: 'SAVING', han: '保存中…' };
+    case 'pending':
+      return { cap: 'UNSAVED', han: '未保存' };
+    case 'error':
+      return { cap: 'SAVE FAILED', han: '保存失败' };
+    case 'saved':
+    default:
+      return { cap: 'DRAFT SAVED', han: '草稿已保存' };
+  }
+});
 
 // Resolve the effective template ID: prop takes precedence; fall back to route param.
 function getEffectiveId(): string | undefined {
@@ -159,16 +172,21 @@ watch(
       <div class="tp-panel-head">
         <div class="tp-head-text">
           <TemplateNameEditor />
-          <div class="tp-head-sub">v{{ store.template.meta.version }} · 草稿已保存</div>
+          <div class="tp-head-sub">
+            <span>V{{ store.template.meta.version }}</span>
+            <span class="sep">·</span>
+            <span>{{ saveCaption.cap }}</span>
+            <span class="sep">·</span>
+            <span class="han">{{ saveCaption.han }}</span>
+          </div>
         </div>
       </div>
       <ElementLibrary />
       <CanvasElementsList />
     </aside>
 
-    <!-- CENTER: floating toolbar + canvas -->
+    <!-- CENTER: canvas（toolbar 已上提到 TemplatesView 顶部 breadcrumb） -->
     <section class="designer-center">
-      <DesignerHeader />
       <DesignerCanvas />
     </section>
 

@@ -74,28 +74,53 @@
 
 /* 顶部 panel header（项目名 / 标题） */
 .tp-panel-head {
-  padding: 14px;
-  border-bottom: 1px solid var(--tp-line);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--stone);
   flex-shrink: 0;
+  min-width: 0;
 }
 .tp-head-text { min-width: 0; flex: 1; }
 .tp-head-title {
-  font-weight: 700;
+  font-family: var(--font-han);
   font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .tp-head-sub {
-  font-size: 11px;
-  color: var(--tp-ink-faint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+/* 6×6 红方块作为微小品牌点（按 target-mockup .elements .head .sub::before） */
+.tp-head-sub::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--yangli-red);
+  flex-shrink: 0;
+}
+.tp-head-sub .sep {
+  color: var(--stone);
+}
+.tp-head-sub .han {
+  font-family: var(--font-han);
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg-3);
 }
 
 /* 二级 section header (添加新元素 / 画布元素 / 数据字段 / 属性) */
@@ -120,22 +145,27 @@
   font-weight: normal;
 }
 .tp-sub-add {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-2);
   background: transparent;
-  border: none;
+  border: 1px solid var(--yangli-graphite);
   cursor: pointer;
-  color: var(--tp-ink-faint);
+  color: var(--ink);
   font-size: 14px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition:
+    background var(--dur-fast) var(--ease-default),
+    color var(--dur-fast) var(--ease-default),
+    border-color var(--dur-fast) var(--ease-default);
 }
 .tp-sub-add:hover {
-  color: var(--tp-accent);
-  background: var(--tp-field-bg);
+  background: var(--ink);
+  color: var(--paper-white);
+  border-color: var(--ink);
 }
 
 /* 上下两段布局 — 上半 max-height，下半 flex:1 */
@@ -167,31 +197,18 @@
   min-width: 0;
 }
 
-/* 顶部浮动 toolbar (pill) */
+/* 工具栏 — 直接 inline 放进顶部 breadcrumb（不再浮动） */
 .tp-top-toolbar {
-  position: absolute;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--tp-panel);
-  border-radius: var(--tp-radius-pill);
-  box-shadow: var(--tp-shadow-pill);
-  padding: 6px 10px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  z-index: 10;
-  min-width: 720px;
-  max-width: calc(100% - 80px);
+  gap: 8px;
   white-space: nowrap;
 }
-.tp-top-toolbar .tt-spacer { flex: 1; }
 
-/* Host = positioning context for floating toolbar; sits in designer-center
-   at fixed inset, doesn't scroll itself. The scroll happens inside .tp-canvas-area. */
+/* Canvas host —— 原本给浮动 toolbar 留的 80px 顶部空间已不需要 */
 .tp-canvas-host {
   position: absolute;
-  inset: 80px 24px 24px 24px;
+  inset: 14px 24px 24px 24px;
 }
 /* 画布区域 — 浅紫点状栅格 */
 .tp-canvas-area {

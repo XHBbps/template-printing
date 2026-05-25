@@ -31,11 +31,14 @@ body {
   flex-direction: column;
 }
 .sidebar-head {
-  padding: 20px 20px 18px;
+  height: 64px;            /* 与 .page-bar 同高，左右两侧顶栏视觉对齐 */
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--stone);
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 .brand-lockup {
   display: flex; align-items: center; gap: 10px;
@@ -132,6 +135,8 @@ body {
   background: var(--paper-white);
   border-bottom: 1px solid var(--stone);
   display: flex; align-items: center;
+  height: 64px;          /* 与 sidebar-head 同高 — 统一视觉锚线 */
+  flex-shrink: 0;
   padding: 0 32px;
   gap: 16px;
 }
@@ -165,7 +170,7 @@ body {
   padding: 32px 32px 64px;
 }
 .page-body .max {
-  max-width: 1120px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -248,15 +253,18 @@ body {
   margin-top: 2px;
 }
 
-/* Status pill (rare licensed pill use) */
+/* Status pill — 全局统一格式：mono 11 / height 22 / radius 999 / padding 0 10
+   只通过颜色变体（ok/idle/warn/danger/outline）区分状态 */
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
   height: 22px; padding: 0 10px;
   border-radius: 999px;
-  font-family: var(--font-sans);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 .pill.ok { background: rgba(15,140,90,0.12); color: #0F8C5A; }
 .pill.idle { background: var(--stone); color: var(--ink); }
@@ -320,4 +328,63 @@ select {
   background-position: right 10px center;
   background-size: 14px;
   padding-right: 32px;
+}
+
+/* ============ Element Plus dialog / overlay brand overrides ============ */
+/* 谨慎覆盖：只调样式（颜色/字体/边框/分隔线），保留 EP 自身的 padding 与布局，
+   防止 v-model / 关闭按钮 / 透传 slot 等内部机制失效。 */
+.el-overlay {
+  background-color: rgba(28, 28, 28, 0.55);
+}
+.el-dialog {
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-2) !important;
+  box-shadow: var(--shadow-1) !important;
+}
+.el-dialog__header {
+  border-bottom: 1px solid var(--stone);
+  margin-right: 0 !important;
+}
+.el-dialog__title {
+  font-family: var(--font-han) !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}
+.el-dialog__headerbtn .el-dialog__close {
+  color: var(--fg-3) !important;
+}
+.el-dialog__headerbtn:hover .el-dialog__close {
+  color: var(--yangli-red) !important;
+}
+.el-dialog__body {
+  color: var(--ink);
+  font-family: var(--font-han);
+}
+.el-dialog__footer {
+  border-top: 1px solid var(--stone);
+}
+
+/* ElMessageBox 同样品牌化（primary 蓝→红） */
+.el-message-box {
+  border-radius: var(--radius-2) !important;
+  border: 1px solid var(--stone) !important;
+  box-shadow: var(--shadow-1) !important;
+}
+.el-message-box__title {
+  font-family: var(--font-han) !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}
+.el-message-box__btns .el-button {
+  border-radius: var(--radius-2) !important;
+}
+.el-message-box__btns .el-button--primary {
+  background: var(--yangli-red) !important;
+  border-color: var(--yangli-red) !important;
+  color: var(--paper-white) !important;
+}
+.el-message-box__btns .el-button--primary:hover {
+  background: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
 }

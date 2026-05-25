@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-25（iter 30A 扬力品牌基础 + Sidebar）
+**最近更新**：2026-05-25（iter 30B 数据/管理页扬力化）
 
 ---
 
@@ -24,8 +24,8 @@
 | **飞书多维表格按钮触发渲染回写附件** | ✅ 已完成 | iter 27 |
 | **飞书机器人卡片交互渲染 + API 页面模板列表** | ✅ 已完成 | iter 28 |
 | **渲染日志 + API Token 管理（Bearer）** | ✅ 已完成 | iter 29 |
-| **扬力品牌 UI 改造 · 30A 基础 + Sidebar** | ✅ 已完成 | iter 30A（最新） |
-| 扬力品牌 UI 改造 · 30B 数据/管理页 | ⏳ 计划中 | RenderLogs + ApiTokens + ApiView |
+| **扬力品牌 UI 改造 · 30A 基础 + Sidebar** | ✅ 已完成 | iter 30A |
+| **扬力品牌 UI 改造 · 30B 数据/管理页** | ✅ 已完成 | iter 30B（最新） |
 | 扬力品牌 UI 改造 · 30C 账号 + 模板中心 | ⏳ 计划中 | MeView + TemplatesView |
 | 扬力品牌 UI 改造 · 30D 设计器 | ⏳ 计划中 | DesignerView 4 列重排 + 22 子组件 |
 | 部署：阿里云 ACR + ECS + GitHub Actions | 🟡 框架就绪 | iter 19，待外部条件（域名 / 备案 / 飞书应用） |
@@ -119,6 +119,35 @@
 - 新 guard `ApiAuthGuard`：双栈回退（Bearer `tpkn_xxx` → JWT cookie + CSRF），应用到 `/api/render`
 - 新视图 `/me/api-tokens` + sidebar「API 凭证」：列表 / 创建 dialog / 一次性明文展示 / 吊销
 - 浏览器场景仍兼容 cookie（设计器调 /api/render 不受影响）
+
+### 2.10 扬力品牌 UI 改造 · 30B 数据/管理页（iter 30B）
+
+按 `handoff/target-*.html` 像素对齐重写 3 个 view 的模板 + 样式（保留所有 script 逻辑）：
+
+- **`RenderLogsView.vue`**（`/logs`）：
+  - 顶部 `.page-bar`（icon + title + mono caption `RENDER · JOB HISTORY` + 刷新按钮）
+  - 过滤区卡片：3 个 `.field`（状态 / 来源 / 模板搜索）+ 重置 / 查询按钮
+  - 结果头：h2 + mono count `N–M OF TOTAL` + 1px 横线 rule
+  - `.log` table：11px UPPERCASE 表头 / 14px 行 / hover bg mist / mono Job ID & 时间 / `.pill` 状态徽标（ok / warn / danger / idle）
+  - 详情 dialog 重写为 grid 结构 + 黑底白字 code-block
+- **`ApiTokensView.vue`**（`/me/api-tokens`）：
+  - `.page-bar` 含红色「创建 Token」CTA
+  - `.intro` 段（max-width 760）
+  - `.tokens` table：name 加粗 / prefix mono / `.pill` 状态 / 红色下划线「立即吊销」
+  - 创建 dialog + 一次性明文 dialog 改用 yangli 字体 + 暗底明文显示
+- **`ApiView.vue`**（`/api`）：
+  - `.api-layout` 2 列 grid（240 TOC + 1fr docs）
+  - TOC：sticky / IntersectionObserver scroll-spy / active 红边条 + 红字
+  - h1 36px + mono h-cap `REST · BEARER TOKEN · 飞书 WEBHOOK`
+  - section（mb 56）+ h2 + `.han` 注解 + 红色 `li::marker`
+  - `.callout` 卡：顶 2px 红 rule + UPPERCASE 红 cap + title + desc（鉴权章节用）
+  - `.endpoint` card：head bg mist + 方法 pill（POST 绿 / GET 石墨）+ mono path + chev + 折叠 body
+  - `.spec` table：4 列（字段 / 类型 / 必需 / 说明）+ mono code 列
+  - `.code` pre：ink 底 + paper 字
+  - `.tpl-row` grid：name + ID / 右侧字段展开链接
+- 全局：`AppShell.app-main` 背景 `#f4f4f7` → `var(--mist)`
+
+3 个 view 不再使用 `var(--tp-*, #紫色fallback)` 死代码形式，全部直接消费 yangli vars。
 
 ### 2.9 扬力品牌 UI 改造 · 30A 基础 + Sidebar（iter 30A）
 

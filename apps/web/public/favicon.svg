@@ -1,21 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <!-- 紫色圆角背景 -->
-  <rect x="2" y="2" width="60" height="60" rx="14" fill="#6c5ce7"/>
-
-  <!-- 打印机主体 -->
-  <rect x="14" y="22" width="36" height="22" rx="3" fill="#ffffff"/>
-
-  <!-- 顶部纸（输入） -->
-  <rect x="20" y="12" width="24" height="14" rx="1.5" fill="#ffffff" opacity="0.95"/>
-  <line x1="24" y1="17" x2="40" y2="17" stroke="#6c5ce7" stroke-width="1.2"/>
-  <line x1="24" y1="20" x2="36" y2="20" stroke="#6c5ce7" stroke-width="1.2"/>
-
-  <!-- 出纸口（蓝绿渐变纸张） -->
-  <rect x="20" y="38" width="24" height="16" rx="1.5" fill="#ffffff"/>
-  <line x1="24" y1="43" x2="40" y2="43" stroke="#a29bfe" stroke-width="1.4"/>
-  <line x1="24" y1="46.5" x2="36" y2="46.5" stroke="#a29bfe" stroke-width="1.4"/>
-  <line x1="24" y1="50" x2="38" y2="50" stroke="#a29bfe" stroke-width="1.4"/>
-
-  <!-- 状态灯 -->
-  <circle cx="44" cy="32" r="2" fill="#26de81"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- YANGLI 品牌方正方块（无圆角，工业感） -->
+  <rect width="32" height="32" fill="#D32D27"/>
+  <!-- 白色文档面（模板隐喻） -->
+  <rect x="6" y="6" width="20" height="20" fill="#FFFFFF"/>
+  <!-- 模板内容横线 -->
+  <rect x="10" y="11" width="12" height="1.5" fill="#1C1C1C"/>
+  <rect x="10" y="15" width="12" height="1.5" fill="#1C1C1C"/>
+  <rect x="10" y="19" width="8" height="1.5" fill="#1C1C1C"/>
 </svg>
