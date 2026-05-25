@@ -132,6 +132,8 @@ body {
   background: var(--paper-white);
   border-bottom: 1px solid var(--stone);
   display: flex; align-items: center;
+  height: 64px;          /* 与 sidebar-head 同高 — 统一视觉锚线 */
+  flex-shrink: 0;
   padding: 0 32px;
   gap: 16px;
 }

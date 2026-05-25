@@ -865,7 +865,9 @@ const countLabel = computed(() => {
   height: 100%;
 }
 .tv-breadcrumb {
-  padding: 12px 24px;
+  height: 64px;
+  flex-shrink: 0;
+  padding: 0 32px;
   background: var(--paper-white);
   border-bottom: 1px solid var(--stone);
   display: flex;
