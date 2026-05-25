@@ -5,6 +5,7 @@ import { ShieldAlert, RefreshCw, Copy } from 'lucide-vue-next';
 /* eslint-enable import/no-unresolved */
 import { ref, onMounted, watch, computed } from 'vue';
 
+import BrandDatePicker from '../../components/BrandDatePicker.vue';
 import { apiFetch } from '../../lib/api';
 
 interface AuditEntry {
@@ -142,12 +143,20 @@ const ACTION_LABEL: Record<string, string> = {
 function actionLabel(a: string): string {
   return ACTION_LABEL[a] ?? a;
 }
-// 动作类别对应一个色调（绿创建 / 蓝改 / 红删除 / 灰中性）
-function actionPill(a: string): string {
+// 动作徽章三档配色：
+//   ok    绿 — 登录 / 创建 / 入队（成功类）
+//   warn  琥珀 — 登出 / 撤销 / 删除 / 解绑（注销 · 移除类）
+//   tpl   灰 — 模板修改 / 改密 / 一般操作
+function actionPill(a: string): 'ok' | 'warn' | 'tpl' {
   if (a.endsWith('.create') || a.endsWith('.enqueue') || a === 'user.login.local') return 'ok';
-  if (a.endsWith('.delete') || a.endsWith('.revoke') || a.endsWith('.unbind')) return 'danger';
-  if (a.endsWith('.update') || a.endsWith('.change') || a === 'user.logout') return 'idle';
-  return 'outline';
+  if (
+    a.endsWith('.delete') ||
+    a.endsWith('.revoke') ||
+    a.endsWith('.unbind') ||
+    a === 'user.logout'
+  )
+    return 'warn';
+  return 'tpl';
 }
 
 const detailsJsonPretty = computed(() => {
@@ -213,11 +222,11 @@ onMounted(() => {
           </label>
           <label class="field">
             <span class="lbl">起 <span class="han">· From</span></span>
-            <input v-model="fromFilter" type="datetime-local" />
+            <BrandDatePicker v-model="fromFilter" />
           </label>
           <label class="field">
             <span class="lbl">止 <span class="han">· To</span></span>
-            <input v-model="toFilter" type="datetime-local" />
+            <BrandDatePicker v-model="toFilter" />
           </label>
           <label class="field wide">
             <span class="lbl">操作者 ID <span class="han">· Actor ID</span></span>
@@ -231,9 +240,11 @@ onMounted(() => {
 
         <!-- 结果区 -->
         <div class="results">
-          <div class="results-head">
-            <h2>事件列表</h2>
-            <span class="count">{{ countLabel }}</span>
+          <div class="sec-head">
+            <span class="num">01</span>
+            <span class="red-square"></span>
+            <span class="label">事件列表</span>
+            <span class="meta">{{ countLabel }} · EVENTS</span>
             <span class="rule"></span>
           </div>
 
@@ -256,32 +267,23 @@ onMounted(() => {
                     <th>操作者</th>
                     <th>资源</th>
                     <th>IP</th>
-                    <th class="th-right">操作</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="e in items" :key="e.id">
                     <td class="mono">{{ formatAbs(e.createdAt) }}</td>
                     <td>
-                      <span class="pill" :class="actionPill(e.action)">
-                        {{ actionLabel(e.action) }}
+                      <span class="action-pill" :class="actionPill(e.action)">
+                        <span class="dot"></span>{{ actionLabel(e.action) }}
                       </span>
                     </td>
                     <td>
-                      <div class="actor">
-                        <span class="actor-name">{{ e.actorName ?? '— · 系统' }}</span>
-                        <code v-if="e.actorId" class="actor-id" :title="e.actorId">
-                          {{ e.actorId.slice(0, 8) }}…
-                        </code>
-                      </div>
+                      <span v-if="e.actorName" class="name-cell">{{ e.actorName }}</span>
+                      <span v-else class="name-cell sys">— · 系统</span>
                     </td>
                     <td>
-                      <div v-if="e.resourceType" class="resource">
-                        <span class="rt mono">{{ e.resourceType }}</span>
-                        <code v-if="e.resourceId" class="rid" :title="e.resourceId">
-                          {{ e.resourceId.slice(0, 8) }}…
-                        </code>
-                      </div>
+                      <span v-if="e.resourceType" class="name-cell">{{ e.resourceType }}</span>
                       <span v-else class="empty-dash">—</span>
                     </td>
                     <td class="mono ip">{{ e.ip ?? '—' }}</td>
@@ -331,8 +333,8 @@ onMounted(() => {
         <div class="grid-row">
           <span class="grid-key">动作</span>
           <span class="grid-val">
-            <span class="pill" :class="actionPill(detailEntry.action)">
-              {{ actionLabel(detailEntry.action) }}
+            <span class="action-pill" :class="actionPill(detailEntry.action)">
+              <span class="dot"></span>{{ actionLabel(detailEntry.action) }}
             </span>
             <code class="muted">{{ detailEntry.action }}</code>
           </span>
@@ -380,6 +382,20 @@ onMounted(() => {
   overflow: hidden;
 }
 
+/* Page-bar 签名：左对齐 2px × 96px 红实线（与模板中心 v2 一致） */
+.page-bar {
+  position: relative;
+}
+.page-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 96px;
+  background: var(--yangli-red);
+}
+
 /* 过滤区 — 卡片化 */
 .filters {
   display: flex;
@@ -405,32 +421,46 @@ onMounted(() => {
 
 /* 结果头 */
 .results {
-  margin-top: 24px;
+  margin-top: 4px;
 }
-.results-head {
+/* Section 头：[mono 01] [红方块] [han 标题] [mono meta] [延展线] */
+.sec-head {
   display: flex;
   align-items: baseline;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  padding: 22px 0 14px;
 }
-.results-head h2 {
-  margin: 0;
-  font-size: 16px;
+.sec-head .num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--yangli-red);
+  letter-spacing: 0.1em;
+}
+.sec-head .red-square {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--yangli-red);
+  align-self: center;
+}
+.sec-head .label {
+  font-family: var(--font-han);
+  font-size: 14px;
   font-weight: 600;
   color: var(--ink);
-  font-family: var(--font-han);
 }
-.results-head .count {
+.sec-head .meta {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fg-3);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.results-head .rule {
+.sec-head .rule {
   flex: 1;
   height: 1px;
   background: var(--stone);
+  align-self: center;
 }
 
 /* Log table */
@@ -479,46 +509,43 @@ table.log .ip {
   color: var(--fg-3);
 }
 
-/* Actor & resource cells */
-.actor {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.actor-name {
-  font-family: var(--font-han);
+/* 操作者 / 资源 — 仅显示名称（UUID 仅在详情 dialog 展开） */
+table.log .name-cell {
   color: var(--ink);
 }
-.actor-id {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
+table.log .name-cell.sys {
   color: var(--fg-3);
-  background: var(--mist);
-  border: 1px solid var(--stone);
-  padding: 1px 6px;
-  border-radius: var(--radius-1);
-}
-.resource {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.resource .rt {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--ink);
-}
-.resource .rid {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--fg-3);
-  background: var(--mist);
-  border: 1px solid var(--stone);
-  padding: 1px 6px;
-  border-radius: var(--radius-1);
 }
 .empty-dash {
   color: var(--fg-3);
+}
+
+/* 动作徽章三档：默认绿(ok) / warn 琥珀 / tpl 灰，前置 5px 同色圆点 */
+.action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(15, 140, 90, 0.1);
+  color: #0f8c5a;
+  font-family: var(--font-han);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.action-pill .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.action-pill.warn {
+  background: rgba(198, 138, 0, 0.12);
+  color: #8b6500;
+}
+.action-pill.tpl {
+  background: rgba(28, 28, 28, 0.06);
+  color: var(--ink);
 }
 
 /* row action link reused from RenderLogsView */
@@ -635,11 +662,5 @@ table.log a:hover {
   max-height: 240px;
   white-space: pre-wrap;
   word-break: break-all;
-}
-
-/* date input — 抹掉浏览器默认蓝色边框，用品牌色 */
-.filters input[type='datetime-local'] {
-  font-family: var(--font-han);
-  height: 36px;
 }
 </style>

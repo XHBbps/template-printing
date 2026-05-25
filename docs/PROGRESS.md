@@ -325,6 +325,20 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-25
 
+- **扬力品牌 UI 改造：审计日志页（按 `handoff/target-audit.html`）**
+  - 新组件 `components/BrandDatePicker.vue`：替代原生 datetime-local 的自定义日期时间
+    选择器（无新依赖）。触发器 38px + lucide calendar 图标；popover 320px + 顶部 2px
+    红线 + 月份导航 + 周一为首列 6×7 网格（今天 inset 红下划线 / 选中 ink 实色底）+
+    时分输入 + 清除/今天/确定。v-model 发本地 `YYYY-MM-DDTHH:mm`，与父级
+    `new Date().toISOString()` 兼容
+  - `AuditLogView.vue`：① 起/止改用 BrandDatePicker ② page-bar 加 2px×96px 红签名线
+    ③ 结果区改 Section 头 `[mono 01][红方块][事件列表][mono N OF M · EVENTS][延展线]`
+    ④ 表格简化——操作者/资源只显名称（系统显「— · 系统」灰字、资源显小写英文），
+    UUID 仅在详情 dialog 展开 ⑤ 动作徽章三档配色（绿登录·创建 / 琥珀登出·撤销·删除 /
+    灰模板修改·一般），前置 5px 同色圆点
+  - 验证：vue-tsc 通过；Playwright e2e 实测——徽章三色 + 圆点、page-bar 红线、
+    datepicker 选日/时分/确定回填、查询带 `from=...ISO`、清除复位均正常
+  - 注：「操作者」筛选仍按 actorId(UUID) 精确过滤（后端未提供用户名搜索，超出本次范围）
 - **扬力品牌 UI 改造：登录页重构**
   - `LoginView.vue` 全量重写为左品牌面板 + 右表单面板布局，按 `handoff/target-login.html`
     高保真稿落地（品牌锁定 + 几何动效 + 月渲染量/P50/成功率统计 + 双语排版 +
