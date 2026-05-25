@@ -74,7 +74,7 @@ const labels = computed(() =>
   top: 0;
   bottom: 0;
   width: 1.5px;
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   box-shadow: 0 0 12px rgba(108, 92, 231, 0.3);
 }
 .sg-h {
@@ -82,12 +82,12 @@ const labels = computed(() =>
   left: 0;
   right: 0;
   height: 1.5px;
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   box-shadow: 0 0 12px rgba(108, 92, 231, 0.3);
 }
 .sg-label {
   position: absolute;
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
   font-size: 10px;
   font-family: ui-monospace, monospace;

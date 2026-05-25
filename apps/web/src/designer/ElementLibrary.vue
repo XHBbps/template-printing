@@ -9,6 +9,11 @@ import type { TemplateElement } from '@template-printing/schema';
 
 const store = useDesignerStore();
 const groupOrder: LibraryGroup[] = ['文字', '图形', '数据'];
+const groupCaption: Record<LibraryGroup, string> = {
+  文字: 'Text',
+  图形: 'Shapes',
+  数据: 'Data',
+};
 const itemsByGroup = computed<Record<LibraryGroup, ElementMeta[]>>(() => ({
   文字: LIBRARY_ITEMS.filter((i) => i.group === '文字'),
   图形: LIBRARY_ITEMS.filter((i) => i.group === '图形'),
@@ -49,7 +54,12 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
     </div>
     <div class="lib-scroll">
       <div v-for="g in groupOrder" :key="g" class="lib-group">
-        <div class="lib-group-title">{{ g }}</div>
+        <div class="lib-group-title">
+          <span
+            >{{ g }} <span class="en">· {{ groupCaption[g] }}</span></span
+          >
+          <span class="rule"></span>
+        </div>
         <div class="lib-grid">
           <button
             v-for="item in itemsByGroup[g]"
@@ -79,13 +89,25 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
 .lib-group + .lib-group {
   margin-top: 8px;
 }
+/* Eyebrow 模式：中文 + 英文小字注解 + 右侧 1px stone 延展 rule */
 .lib-group-title {
-  padding: 8px 14px 4px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tp-ink-faint);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 6px;
+  font-family: var(--font-han);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--fg-3);
+}
+.lib-group-title .en {
+  font-family: var(--font-sans);
+  font-weight: 400;
+}
+.lib-group-title .rule {
+  flex: 1;
+  height: 1px;
+  background: var(--stone);
 }
 .lib-grid {
   display: grid;
@@ -95,15 +117,15 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
 }
 .lib-btn {
   padding: 10px 4px;
-  background: var(--tp-panel);
+  background: var(--paper-white);
   border: 1px solid var(--stone);
-  border-radius: var(--tp-radius-item, 8px);
+  border-radius: var(--radius-2);
   cursor: grab;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   font-size: 11px;
   transition:
     border-color var(--dur-fast) var(--ease-default),

@@ -155,12 +155,20 @@ watch(
 
 <template>
   <div class="tp-section-bottom prop-panel">
-    <div class="tp-sub-head">
-      <span class="tp-sub-title">属性</span>
-      <span v-if="sel" class="tp-sub-hint">已选 {{ store.selectedIds.length }} 个</span>
+    <div class="pp-head">
+      <div class="pp-head-text">
+        <div class="pp-title">属性</div>
+        <div class="pp-cap">
+          PROPERTIES ·
+          <span class="han">{{ sel ? `已选 ${store.selectedIds.length} 个` : '未选中' }}</span>
+        </div>
+      </div>
     </div>
 
-    <div v-if="!sel" class="empty">未选中任何元素</div>
+    <div v-if="!sel" class="empty">
+      <div class="eyebrow">No selection · 未选中元素</div>
+      <div class="msg">在画布上点击元素查看 / 编辑属性</div>
+    </div>
 
     <div v-else class="prop-body">
       <div class="row">
@@ -695,14 +703,69 @@ watch(
   font-size: 12px;
   overflow-y: auto;
 }
+/* head — 与 FieldManager 对称（14 semibold + mono caption） */
+.pp-head {
+  padding: 14px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--stone);
+  flex-shrink: 0;
+}
+.pp-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.pp-title {
+  font-family: var(--font-han);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.pp-cap {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.pp-cap .han {
+  font-family: var(--font-han);
+  text-transform: none;
+  letter-spacing: 0;
+}
 .prop-body {
   padding: 4px 0 12px;
 }
+/* 空态卡 — 1px stone + mist 底（brief §5.5） */
 .empty {
-  padding: 32px 16px;
-  color: var(--tp-ink-faint);
+  margin: 16px;
+  padding: 28px 16px;
+  background: var(--mist);
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-2);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.empty .eyebrow {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: var(--tr-caption);
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.empty .msg {
+  font-family: var(--font-han);
   font-size: 12px;
+  color: var(--iron);
+  line-height: 1.7;
 }
 .row {
   display: flex;
@@ -714,13 +777,13 @@ watch(
   gap: 8px;
 }
 .lbl {
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   min-width: 36px;
   font-size: 11px;
   letter-spacing: 0.03em;
 }
 .val {
-  color: var(--tp-ink);
+  color: var(--ink);
 }
 .mono {
   font-family: ui-monospace, monospace;
@@ -736,19 +799,19 @@ watch(
   flex: 1;
   display: flex;
   align-items: stretch;
-  background: var(--tp-field-bg);
+  background: rgba(211, 45, 39, 0.04);
   border: 1px solid transparent;
-  border-radius: var(--tp-radius-item);
+  border-radius: var(--radius-2);
   overflow: hidden;
   transition: border-color 120ms ease;
   min-width: 0;
 }
 .axis:focus-within {
-  border-color: var(--tp-accent);
+  border-color: var(--yangli-red);
   background: #fff;
 }
 .axis-lbl {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -763,7 +826,7 @@ watch(
   background: transparent;
   padding: 4px 8px;
   font-size: 12px;
-  color: var(--tp-ink);
+  color: var(--ink);
   outline: none;
   font-family: ui-monospace, monospace;
   min-width: 0;
@@ -779,7 +842,7 @@ watch(
 }
 .axis-unit {
   background: transparent;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   font-size: 10px;
   padding: 0 8px;
   display: inline-flex;
@@ -789,7 +852,7 @@ watch(
 .row-badge {
   padding: 0 14px 4px;
   font-size: 10.5px;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
 }
 .row-badge .lbl {
   min-width: 36px;
@@ -799,12 +862,12 @@ watch(
 }
 .style-block {
   padding: 12px 14px;
-  border-bottom: 1px solid var(--tp-line);
+  border-bottom: 1px solid var(--stone);
 }
 .style-title {
   font-size: 11px;
   font-weight: 600;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 8px;
@@ -818,16 +881,16 @@ watch(
 .slbl {
   width: 36px;
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .sval {
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .snum,
 .ssel {
   padding: 3px 6px;
-  border: 1px solid var(--tp-line-strong);
+  border: 1px solid var(--yangli-graphite);
   border-radius: 4px;
   font-size: 12px;
   min-width: 80px;
@@ -837,18 +900,18 @@ watch(
   gap: 4px;
 }
 .seg button {
-  border: 1px solid var(--tp-line-strong);
-  background: var(--tp-panel);
+  border: 1px solid var(--yangli-graphite);
+  background: var(--paper-white);
   padding: 3px 10px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .seg button.on {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
-  border-color: var(--tp-accent);
+  border-color: var(--yangli-red);
 }
 .sclickable {
   cursor: pointer;
@@ -857,15 +920,15 @@ watch(
   justify-content: space-between;
 }
 .caret {
-  color: var(--tp-ink-faint);
+  color: var(--iron);
 }
 .slider {
   flex: 1;
-  accent-color: var(--tp-accent);
+  accent-color: var(--yangli-red);
 }
 .img-source {
   padding: 12px 14px;
-  border-bottom: 1px solid var(--tp-line);
+  border-bottom: 1px solid var(--stone);
 }
 .upload-row {
   flex-direction: column;
@@ -881,17 +944,17 @@ watch(
   justify-content: center;
   height: 32px;
   padding: 0 14px;
-  border: 1px dashed var(--tp-accent);
-  background: var(--tp-accent-bg);
-  color: var(--tp-accent-ink);
-  border-radius: var(--tp-radius-item);
+  border: 1px dashed var(--yangli-red);
+  background: rgba(211, 45, 39, 0.08);
+  color: var(--yangli-red);
+  border-radius: var(--radius-2);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 120ms ease;
 }
 .upload-btn:hover:not(:disabled) {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
   border-style: solid;
 }
@@ -912,7 +975,7 @@ watch(
 }
 .upload-error {
   font-size: 11px;
-  color: #d94f4f;
+  color: var(--yangli-red);
   background: #fff5f5;
   padding: 4px 8px;
   border-radius: 4px;

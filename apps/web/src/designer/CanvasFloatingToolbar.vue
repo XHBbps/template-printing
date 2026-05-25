@@ -88,82 +88,84 @@ function cancelEdit(): void {
 <style scoped>
 .cft-bar {
   position: absolute;
-  bottom: 32px;
+  bottom: 24px;
   right: 24px;
   z-index: 10;
   display: inline-flex;
   align-items: center;
-  background: #fff;
-  border-radius: 999px;
-  padding: 4px 6px;
-  box-shadow:
-    0 2px 6px rgba(20, 20, 30, 0.06),
-    0 8px 24px rgba(20, 20, 30, 0.1);
-  border: 1px solid var(--tp-line, #ececef);
+  background: var(--paper-white);
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-2);
+  padding: 4px;
   user-select: none;
 }
 .cft-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
-  border-radius: 50%;
+  border-radius: var(--radius-1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--tp-ink-soft, #5e5e66);
+  color: var(--fg-2);
   cursor: pointer;
-  transition: all 120ms ease;
+  transition:
+    background var(--dur-fast) var(--ease-default),
+    color var(--dur-fast) var(--ease-default);
 }
 .cft-btn:hover:not(:disabled) {
-  background: var(--tp-field-bg, rgba(108, 92, 231, 0.06));
-  color: var(--tp-accent, #6c5ce7);
+  background: var(--mist);
+  color: var(--ink);
 }
 .cft-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 .cft-btn--active {
-  background: var(--tp-accent-bg, #f0eeff);
-  color: var(--tp-accent-ink, #4f3fcc);
+  background: var(--ink);
+  color: var(--paper-white);
 }
 .cft-btn--active:hover {
-  background: var(--tp-accent, #6c5ce7);
-  color: #fff;
+  background: var(--ink);
+  color: var(--paper-white);
 }
 .cft-divider {
   width: 1px;
-  height: 18px;
-  background: var(--tp-line, #ececef);
+  height: 16px;
+  background: var(--stone);
   margin: 0 4px;
 }
 .cft-zoom-label {
-  min-width: 48px;
+  min-width: 44px;
+  height: 28px;
   text-align: center;
-  font-size: 12px;
-  color: var(--tp-ink, #1f1f23);
-  font-family: ui-monospace, monospace;
-  font-weight: 500;
+  font-size: 11.5px;
+  color: var(--ink);
+  font-family: var(--font-mono);
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-  transition: background 120ms ease;
+  padding: 0 6px;
+  border-radius: var(--radius-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast) var(--ease-default);
 }
 .cft-zoom-label:hover {
-  background: var(--tp-field-bg, rgba(108, 92, 231, 0.06));
+  background: var(--mist);
 }
 .cft-zoom-input {
   width: 56px;
+  height: 28px;
   text-align: center;
-  font-size: 12px;
-  font-family: ui-monospace, monospace;
-  font-weight: 500;
-  padding: 4px 6px;
-  border-radius: 6px;
-  border: 1px solid var(--tp-accent, #6c5ce7);
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  padding: 0 6px;
+  border-radius: var(--radius-1);
+  border: 1px solid var(--yangli-red);
   outline: none;
-  color: var(--tp-ink, #1f1f23);
-  background: #fff;
+  color: var(--ink);
+  background: var(--paper-white);
 }
 /* Hide number input spinners */
 .cft-zoom-input::-webkit-outer-spin-button,

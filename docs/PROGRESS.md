@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-25（iter 30B 数据/管理页扬力化）
+**最近更新**：2026-05-25（iter 30D 设计器扬力化收敛）
 
 ---
 
@@ -25,9 +25,8 @@
 | **飞书机器人卡片交互渲染 + API 页面模板列表** | ✅ 已完成 | iter 28 |
 | **渲染日志 + API Token 管理（Bearer）** | ✅ 已完成 | iter 29 |
 | **扬力品牌 UI 改造 · 30A 基础 + Sidebar** | ✅ 已完成 | iter 30A |
-| **扬力品牌 UI 改造 · 30B 数据/管理页** | ✅ 已完成 | iter 30B（最新） |
-| 扬力品牌 UI 改造 · 30C 账号 + 模板中心 | ⏳ 计划中 | MeView + TemplatesView |
-| 扬力品牌 UI 改造 · 30D 设计器 | ⏳ 计划中 | DesignerView 4 列重排 + 22 子组件 |
+| **扬力品牌 UI 改造 · 30B 数据/管理页** | ✅ 已完成 | iter 30B（含 30C 全部：MeView + TemplatesView） |
+| **扬力品牌 UI 改造 · 30D 设计器收敛** | ✅ 已完成 | iter 30D（最新） |
 | 部署：阿里云 ACR + ECS + GitHub Actions | 🟡 框架就绪 | iter 19，待外部条件（域名 / 备案 / 飞书应用） |
 | Admin 用户管理后台（CRUD） | 🟡 仅占位页 | `apps/web/src/views/admin/UsersAdminView.vue` 已存在，后端 CRUD 未补 |
 | 渲染任务历史 / 我的渲染任务 | ⏳ 待开始 | 见第 5 节 |
@@ -119,6 +118,40 @@
 - 新 guard `ApiAuthGuard`：双栈回退（Bearer `tpkn_xxx` → JWT cookie + CSRF），应用到 `/api/render`
 - 新视图 `/me/api-tokens` + sidebar「API 凭证」：列表 / 创建 dialog / 一次性明文展示 / 吊销
 - 浏览器场景仍兼容 cookie（设计器调 /api/render 不受影响）
+
+### 2.11 扬力品牌 UI 改造 · 30D 设计器收敛（iter 30D）
+
+完成设计器整套的扬力品牌化（DesignerView + 22 子组件 + designer.css，
+共 ~4500 行），按 brief §5.3-5.5 与 target-mockup.html 对齐：
+
+- **T1 token 全量收敛**：sed 一次性替换 designer/*.vue 与 designer.css
+  共 202 处 `var(--tp-*)` 引用为直接 yangli vars / 字面色，删除 30A
+  引入的兼容映射 :root 块（38 行）。视觉零变化（数值与映射等价），
+  后续微调可直接基于 yangli 体系。
+- **T2 画布**：紫色圆点 16px → stone rgba(89,87,89,0.18) 12px tile；
+  A4 纸 3 层 box-shadow → 1px stone 描边 + 无 shadow（扁平）；
+  拖拽 grid 紫 → stone；滚动条 thumb 紫 → stone graphite。
+- **T3 浮岛**（CanvasFloatingToolbar）：胶囊 999px + box-shadow →
+  radius 4 + 1px stone + 无 shadow；按钮 32×32 圆 → 28×28 radius 1，
+  default fg-2 / hover mist+ink / active ink+paper；缩放数字 mono。
+- **T4 ElementLibrary** 分组标题 Eyebrow 模式：中文 + 英文 + 1px stone
+  延展 rule (\"文字 · Text\" / \"图形 · Shapes\" / \"数据 · Data\")。
+- **T5 CanvasElementsList** 空态：纯文字 → 1px dashed stone 框 + iron
+  文字（brief §5.3）；清空按钮 hover 旧红 → yangli-red。
+- **T6 FieldManager** (brief §5.5)：
+  · 头部 11 UPPERCASE → .fm-head 14 semibold + mono caption
+    \"N DECLARED · 共 N 个\" + 右上 28 outline + 按钮
+  · 搜索框 6 radius graphite → 2 radius stone + 嵌入放大镜 + focus red
+  · 空态 → UPPERCASE eyebrow + 中文 + mono \"VAR · {{ NAME }}\"
+  · field-card 灰底紫 hover → paper + stone / graphite hover；bound
+    硬编码绿 → rgba(15,140,90) 软调
+- **T7 PropertyPanel**（与 FieldManager 对称）：
+  · .pp-head 14 semibold + mono \"PROPERTIES · 已选 N 个\"
+  · 空态卡 mist + 1px stone + eyebrow + 中文 msg
+- **T8 残留紫红清扫**：CanvasElement is-selected 移除 16px 紫光环（保留
+  inset 红描边）；3 处旧 danger 红 #d94f4f → var(--yangli-red)
+
+至此 designer 紫色 / 旧红硬编码完全清零（grep 验证 = 0）。
 
 ### 2.10 扬力品牌 UI 改造 · 30B 数据/管理页（iter 30B）
 
