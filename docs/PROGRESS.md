@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-25（iter 31 生产就绪三件套）
+**最近更新**：2026-05-25（iter 32 观测性 + 审计日志）
 
 ---
 
@@ -27,7 +27,8 @@
 | **扬力品牌 UI 改造 · 30A 基础 + Sidebar** | ✅ 已完成 | iter 30A |
 | **扬力品牌 UI 改造 · 30B 数据/管理页** | ✅ 已完成 | iter 30B（含 30C 全部：MeView + TemplatesView） |
 | **扬力品牌 UI 改造 · 30D 设计器收敛** | ✅ 已完成 | iter 30D |
-| **生产就绪三件套（Signed URL / 重试 + 限流 / Quota + 清理）** | ✅ 已完成 | iter 31（最新） |
+| **生产就绪三件套（Signed URL / 重试 + 限流 / Quota + 清理）** | ✅ 已完成 | iter 31 |
+| **观测性 + 审计日志（Sentry / Prometheus / audit_log）** | ✅ 已完成 | iter 32（最新） |
 | 部署：阿里云 ACR + ECS + GitHub Actions | 🟡 框架就绪 | iter 19，待外部条件（域名 / 备案 / 飞书应用） |
 | Admin 用户管理后台（CRUD） | 🟡 仅占位页 | `apps/web/src/views/admin/UsersAdminView.vue` 已存在，后端 CRUD 未补 |
 | 渲染任务历史 / 我的渲染任务 | ⏳ 待开始 | 见第 5 节 |
@@ -119,6 +120,42 @@
 - 新 guard `ApiAuthGuard`：双栈回退（Bearer `tpkn_xxx` → JWT cookie + CSRF），应用到 `/api/render`
 - 新视图 `/me/api-tokens` + sidebar「API 凭证」：列表 / 创建 dialog / 一次性明文展示 / 吊销
 - 浏览器场景仍兼容 cookie（设计器调 /api/render 不受影响）
+
+### 2.13 观测性 + 审计日志（iter 32）
+
+为 2000 人集团生产部署补齐"出问题能知道、合规能回答"的能力。
+
+- **T1 审计日志**：新表 `audit_log`（actor + action + resource + details + ip + ua）+
+  `AuditLogService` fire-and-forget + `@Global AuditModule`。接入 10 个关键 action：
+  login.local / logout / profile.update / password.set/change / lark.unbind /
+  template.create/update/delete / render.enqueue / token.create/revoke。
+  失败不影响业务（Logger.warn）。
+
+- **T2 Sentry 错误追踪**：`@sentry/node` v8 装入 api 端。`instrument.ts` 在所有
+  import 之前 init（v8 要求），SENTRY_DSN 为空 = noop。
+  `GlobalExceptionFilter` 接 Sentry：5xx + 未知错误自动 captureException +
+  上下文（user / request / ip）。`beforeSend` 过滤 4xx 预期错误。
+  前端 Sentry（@sentry/vue）留 iter 33 followup。
+
+- **T3 Prometheus /metrics**：`prom-client` v15 + `MetricsModule @Global`。
+  端点 `GET /metrics` @Public @SkipThrottle，返 Prometheus exposition 文本。
+  自定义业务指标：
+  · `tp_render_jobs_total{status,source}` — RenderService.enqueue 时 +1
+  · `tp_render_quota_exceeded_total` — quota 超限时 +1
+  · `tp_http_*` — 占位（express middleware 接入留 followup）
+  + Node defaultMetrics（process_cpu / heap / event_loop / GC）
+
+- **T4 前端 cleanedAt 收尾**（iter 31 T5 配套）：
+  RenderService.get/listJobs 返字段加 `cleanedAt: Date | null`。
+  `RenderLogsView`：
+  · 列表操作列 cleanedAt != null → 隐藏「下载 PDF」+ 显示「已清理」mono outline pill
+  · 详情 dialog 输出 section cleanedAt 时显示 mist 卡片 "已于 X 自动清理"
+  · 否则原下载按钮
+
+新增 env：`SENTRY_DSN` / `SENTRY_TRACES_SAMPLE_RATE` / `APP_VERSION`。
+
+DB migration：`add_audit_log`（actor_id / action / resource_type / resource_id /
+details / ip / ua / created_at + 3 索引）。
 
 ### 2.12 生产就绪三件套（iter 31）
 
