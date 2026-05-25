@@ -250,15 +250,18 @@ body {
   margin-top: 2px;
 }
 
-/* Status pill (rare licensed pill use) */
+/* Status pill — 全局统一格式：mono 11 / height 22 / radius 999 / padding 0 10
+   只通过颜色变体（ok/idle/warn/danger/outline）区分状态 */
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
   height: 22px; padding: 0 10px;
   border-radius: 999px;
-  font-family: var(--font-sans);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 .pill.ok { background: rgba(15,140,90,0.12); color: #0F8C5A; }
 .pill.idle { background: var(--stone); color: var(--ink); }

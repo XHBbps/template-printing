@@ -336,14 +336,10 @@ function rebindLark(): void {
   color: var(--fg-3);
 }
 
-/* Override role pill — mono lower-case identifier, not uppercase brand caption */
+/* role pill 用 base .pill 格式，仅去掉 UPPERCASE
+   （role 是 \`emergency_admin\` 标识符，原样展示更准确） */
 .role-pill {
-  font-family: var(--font-mono) !important;
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  letter-spacing: 0.04em !important;
   text-transform: none !important;
-  padding: 0 10px !important;
 }
 
 .muted-id {
