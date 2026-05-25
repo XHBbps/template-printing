@@ -4,7 +4,6 @@ import {
   FileText,
   User,
   Key,
-  KeyRound,
   History,
   Users,
   LogOut,
@@ -93,10 +92,6 @@ async function logout(): Promise<void> {
 
     <div v-if="!collapsed" class="sidebar-section-label">Integration · 集成</div>
     <nav class="nav">
-      <RouterLink to="/me/api-tokens" active-class="active">
-        <span class="ico"><KeyRound :size="16" :stroke-width="1.5" /></span>
-        <span v-if="!collapsed">API 凭证</span>
-      </RouterLink>
       <RouterLink to="/api" active-class="active">
         <span class="ico"><Key :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">API</span>
