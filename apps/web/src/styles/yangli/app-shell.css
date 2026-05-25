@@ -31,11 +31,14 @@ body {
   flex-direction: column;
 }
 .sidebar-head {
-  padding: 20px 20px 18px;
+  height: 64px;            /* 与 .page-bar 同高，左右两侧顶栏视觉对齐 */
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--stone);
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 .brand-lockup {
   display: flex; align-items: center; gap: 10px;
