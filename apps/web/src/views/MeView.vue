@@ -191,7 +191,7 @@ function rebindLark(): void {
               <div class="row">
                 <span class="k">角色 · Role</span>
                 <span class="v">
-                  <span class="pill outline role-pill">{{ auth.user?.role ?? '—' }}</span>
+                  <span class="role-text">{{ auth.user?.role ?? '—' }}</span>
                 </span>
               </div>
             </div>
@@ -207,8 +207,8 @@ function rebindLark(): void {
               <div class="status-row">
                 <span class="key">本地密码</span>
                 <span class="status">
-                  <span v-if="hasLocalPassword" class="pill ok">已设置 · SET</span>
-                  <span v-else class="pill idle">未设置 · UNSET</span>
+                  <span v-if="hasLocalPassword" class="status-text status-ok">已设置 · SET</span>
+                  <span v-else class="status-text status-idle">未设置 · UNSET</span>
                 </span>
                 <button class="btn btn-secondary sm action" type="button" @click="openPwdDialog">
                   {{ hasLocalPassword ? '修改密码' : '设置密码' }}
@@ -228,10 +228,10 @@ function rebindLark(): void {
                 <span class="key">飞书账号</span>
                 <span class="status">
                   <template v-if="auth.user?.larkUserId">
-                    <span class="pill ok">已绑定 · BOUND</span>
+                    <span class="status-text status-ok">已绑定 · BOUND</span>
                     <code class="muted-id">{{ auth.user.larkUserId }}</code>
                   </template>
-                  <span v-else class="pill idle">未绑定 · UNBOUND</span>
+                  <span v-else class="status-text status-idle">未绑定 · UNBOUND</span>
                 </span>
                 <button
                   v-if="auth.user?.larkUserId"
@@ -336,10 +336,24 @@ function rebindLark(): void {
   color: var(--fg-3);
 }
 
-/* role pill 用 base .pill 格式，仅去掉 UPPERCASE
-   （role 是 \`emergency_admin\` 标识符，原样展示更准确） */
-.role-pill {
-  text-transform: none !important;
+/* 状态指示统一为纯文字（去胶囊背景/描边），保留语义色彩 */
+.role-text {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.status-text {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.status-text.status-ok {
+  color: #0f8c5a;
+}
+.status-text.status-idle {
+  color: var(--fg-3);
 }
 
 .muted-id {

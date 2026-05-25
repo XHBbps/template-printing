@@ -57,10 +57,15 @@ const filteredList = computed<TemplateListItem[]>(() => {
   return arr;
 });
 
-// 列表中第一张（最近编辑）显示红色 featured rule
+// 全列表里最近编辑（updatedAt 最大）的那张 —— 与当前排序无关
+// 这样按名称 A→Z 排序时，最近编辑卡也仍能高亮
 const recentId = computed(() => {
-  if (sortBy.value !== 'updated') return null;
-  return filteredList.value[0]?.id ?? null;
+  if (templates.list.length === 0) return null;
+  return (
+    [...templates.list].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    )[0]?.id ?? null
+  );
 });
 
 // Wrap mode transitions with View Transitions API.
@@ -305,7 +310,6 @@ const countLabel = computed(() => {
                   <span class="sep">·</span>
                   <span>V1 DRAFT</span>
                 </span>
-                <span v-if="t.id === recentId" class="row-tag">最近编辑</span>
               </div>
             </div>
 
@@ -336,9 +340,12 @@ const countLabel = computed(() => {
                   <span>{{ formatDate(t.updatedAt) }}</span>
                   <span class="sep">·</span>
                   <span>V1 DRAFT</span>
+                  <template v-if="t.id === recentId">
+                    <span class="sep">·</span>
+                    <span class="recent-text">最近编辑</span>
+                  </template>
                 </div>
               </div>
-              <span v-if="t.id === recentId" class="row-tag">最近编辑</span>
               <div class="row-actions">
                 <button type="button" title="复制" @click.stop="duplicateTemplate(t)">
                   <Copy :size="12" :stroke-width="1.8" />
@@ -568,7 +575,9 @@ const countLabel = computed(() => {
 .tpl:hover .tpl-actions {
   opacity: 1;
 }
-/* 最近编辑标识在 .tpl-body 内用 .row-tag 文字徽标显示，更明确不歧义 */
+.tpl.recent {
+  border-top: 2px solid var(--yangli-red);
+}
 
 /* 缩略图 — A4 比例 + 内嵌 20px 网格的 paper 区域 */
 .tpl-thumb {
@@ -660,11 +669,6 @@ const countLabel = computed(() => {
 }
 .tpl-body .meta .sep {
   color: var(--stone);
-}
-/* 「最近编辑」标签在 .tpl-body flex column 中不要 stretch — 固定 content 宽度，左对齐 */
-.tpl-body .row-tag {
-  align-self: flex-start;
-  margin-top: 2px;
 }
 
 /* ============ New template tile ============ */
@@ -817,19 +821,12 @@ const countLabel = computed(() => {
   color: var(--stone);
 }
 
-.row-tag {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: var(--tr-caption);
-  text-transform: uppercase;
+/* 列表视图行内「最近编辑」文字标识（与 grid view 的 2px 红顶边互补） */
+.row-meta .recent-text {
+  font-family: var(--font-han);
+  font-size: 11px;
   color: var(--yangli-red);
-  border: 1px solid var(--yangli-red);
-  border-radius: 999px;
+  letter-spacing: 0;
 }
 
 .row-actions {
