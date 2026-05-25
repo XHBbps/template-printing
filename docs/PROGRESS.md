@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-25（iter 32 观测性 + 审计日志）
+**最近更新**：2026-05-26（API 页 v2 重构 — tab 化 + 手风琴）
 
 ---
 
@@ -259,16 +259,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
   - `.intro` 段（max-width 760）
   - `.tokens` table：name 加粗 / prefix mono / `.pill` 状态 / 红色下划线「立即吊销」
   - 创建 dialog + 一次性明文 dialog 改用 yangli 字体 + 暗底明文显示
-- **`ApiView.vue`**（`/api`）：
-  - `.api-layout` 2 列 grid（240 TOC + 1fr docs）
-  - TOC：sticky / IntersectionObserver scroll-spy / active 红边条 + 红字
-  - h1 36px + mono h-cap `REST · BEARER TOKEN · 飞书 WEBHOOK`
-  - section（mb 56）+ h2 + `.han` 注解 + 红色 `li::marker`
-  - `.callout` 卡：顶 2px 红 rule + UPPERCASE 红 cap + title + desc（鉴权章节用）
-  - `.endpoint` card：head bg mist + 方法 pill（POST 绿 / GET 石墨）+ mono path + chev + 折叠 body
-  - `.spec` table：4 列（字段 / 类型 / 必需 / 说明）+ mono code 列
-  - `.code` pre：ink 底 + paper 字
-  - `.tpl-row` grid：name + ID / 右侧字段展开链接
+- **`ApiView.vue`**（`/api`）：详见 iter 32 v2 重构（顶部 3 tab + 接口手风琴），下方 3 节"近期变更"记录
 - 全局：`AppShell.app-main` 背景 `#f4f4f7` → `var(--mist)`
 
 3 个 view 不再使用 `var(--tp-*, #紫色fallback)` 死代码形式，全部直接消费 yangli vars。
@@ -323,8 +314,41 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 > 按时间倒序，最近 ~15 次重大变更。详细 commit 见 `git log --oneline`。
 
+### 2026-05-26
+
+- **API 页 v2 重构（`ApiView.vue`）——消除"一屏喷射所有信息"**
+  - 顶部拆 3 个 tab（page-bar 下方，padding 0 32px，下边线 1px stone，每个 44px 高，
+    active 态 2px 红下边线 + ink 字 + mono 副标转红，禁蓝/禁胶囊）：
+    **凭证 Tokens**（SECURITY 警告 + token 表 + 创建/吊销 dialog）/ **文档 Docs**（默认）/
+    **模板字段 Schemas**（模板列表 + `schema.fields` 展开）
+  - 文档 tab：左 220px 粘性 TOC（`On this page`）+ 右内容（max-width 880）；section 头统一
+    `[01 mono 红] [8px 红方块] [han 18px] [mono EN] [延展线]`
+  - 鉴权大瘦身：原 METHOD 1+2 两个 callout（~150 行）→ 一个紧凑 callout（mist 底 + 左 2px 红边条 +
+    mono `Bearer Token` eyebrow + 一句话 + ink 底代码块）；"飞书 webhook 怎么做？"收进默认折叠
+    `<details>`（summary 前置红 ＋/－）
+  - 接口列表改**手风琴**（`.endpoints` 描边 + radius 4）：每行 `.ep-head`
+    `[METHOD chip] [mono path] [han 描述] [chevron]`；**单开模式**（默认只展开 POST /api/render，
+    展开第二个自动收起其它），chevron 展开 180° 旋转并转红
+  - 接口展开内容用**内部 sub-tabs**（请求 / 响应 / 回调 / 错误 / 示例），一次只显示一栏：
+    字段表紧凑化（padding 10/12、12.5px、必/否 用红实心 ● / 灰空 ○ 取代"是/否"）；
+    示例栏单个代码块带 cURL / Node.js / Python 顶部切换 + 右上 COPY（暗底，hover 0.14 白）；
+    GET 无回调栏、lark 无回调栏（按数据驱动只渲染存在的栏）
+  - 错误码不再做顶层 section，挪进各接口"错误"sub-tab；文案瘦身（lede 仅
+    `REST · BEARER TOKEN · 飞书 WEBHOOK` 一行 mono，概览压成一句，删除过门语）
+  - page-bar 顶部加 2px×96px 红实线签名（与审计/模板中心一致）
+  - 数据驱动：`endpoints[]` 结构化（含 headers/body/resp/callback/errors/samples 多语言），
+    sub-tab 与代码语言均按存在性渲染；`?to=tokens`（/me/api-tokens 重定向）映射到凭证 tab
+  - 验证：Playwright — 默认文档 tab、3 接口仅 1 展开、单开切换、示例 3 语言切换、tab 切换
+    显隐、page-bar 红线 96px、typecheck 通过
+
 ### 2026-05-25
 
+- **本地 Docker 端口避让修复**
+  - Windows `netsh interface ipv4 show excludedportrange protocol=tcp` 可能把 `6379` 纳入保留端口段，
+    导致 Redis 容器启动时报 `ports are not available`。`docker-compose.dev.yml` 将 Redis 宿主机映射改为
+    `6479:6379`，容器内 `api` / `render` 仍连 `redis://redis:6379`。
+  - 同步修正 `.env.example`：宿主机 `DATABASE_URL` 使用 dev compose 已配置的 `localhost:6432`，
+    `REDIS_URL` 使用 `localhost:6479`；README / deployment 文档补充本地端口约定。
 - **模板中心两处修复**
   - 「最近编辑」红框：原按当前页/已加载项算 max(updatedAt) → 每页都各高亮一张。改为
     查询全局（当前筛选下）`sort=updated&limit=1` 的唯一 id（`recentId` 由 computed 改 ref），
