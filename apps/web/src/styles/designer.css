@@ -172,31 +172,18 @@
   min-width: 0;
 }
 
-/* 顶部浮动 toolbar */
+/* 工具栏 — 直接 inline 放进顶部 breadcrumb（不再浮动） */
 .tp-top-toolbar {
-  position: absolute;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--tp-panel);
-  border: 1px solid var(--stone);
-  border-radius: var(--radius-2);
-  padding: 6px 10px;
   display: flex;
   align-items: center;
   gap: 8px;
-  z-index: 10;
-  min-width: 720px;
-  max-width: calc(100% - 80px);
   white-space: nowrap;
 }
-.tp-top-toolbar .tt-spacer { flex: 1; }
 
-/* Host = positioning context for floating toolbar; sits in designer-center
-   at fixed inset, doesn't scroll itself. The scroll happens inside .tp-canvas-area. */
+/* Canvas host —— 原本给浮动 toolbar 留的 80px 顶部空间已不需要 */
 .tp-canvas-host {
   position: absolute;
-  inset: 80px 24px 24px 24px;
+  inset: 14px 24px 24px 24px;
 }
 /* 画布区域 — 浅紫点状栅格 */
 .tp-canvas-area {

@@ -14,6 +14,7 @@ import {
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import DesignerHeader from '../designer/DesignerHeader.vue';
 import { apiFetch } from '../lib/api';
 import { defaultTemplate } from '../stores/designer';
 import { useTemplatesStore, type TemplateListItem } from '../stores/templates';
@@ -362,6 +363,8 @@ const countLabel = computed(() => {
         <button class="tv-back" type="button" @click="returnToList">← 返回模板中心</button>
         <span class="tv-bc-sep">/</span>
         <span class="tv-bc-current">{{ currentTemplateName }}</span>
+        <div class="tv-bc-spacer"></div>
+        <DesignerHeader v-if="currentId" />
       </header>
       <div class="tv-editor-host">
         <DesignerView v-if="currentId" :template-id="currentId" :embedded="true" />
@@ -876,6 +879,10 @@ const countLabel = computed(() => {
   font-family: var(--font-han);
   font-size: 13px;
   color: var(--fg-2);
+}
+.tv-bc-spacer {
+  flex: 1;
+  min-width: 24px;
 }
 .tv-back {
   background: transparent;

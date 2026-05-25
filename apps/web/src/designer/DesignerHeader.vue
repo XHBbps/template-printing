@@ -120,7 +120,7 @@ function retrySave(): void {
 </script>
 
 <template>
-  <header class="tp-top-toolbar">
+  <div class="tp-top-toolbar">
     <ElDropdown trigger="click">
       <button class="tt-chip" type="button">
         <FileText :size="14" :stroke-width="1.5" />
@@ -164,8 +164,6 @@ function retrySave(): void {
       <RotateCw :size="14" :stroke-width="1.5" />
     </button>
 
-    <span class="tt-spacer" />
-
     <span
       v-if="saveStatusText"
       class="tt-save-state"
@@ -196,7 +194,7 @@ function retrySave(): void {
     </button>
 
     <CustomPaperDialog v-model="customDialogOpen" @confirm="onCustomPaperConfirm" />
-  </header>
+  </div>
   <PreviewView v-model="previewOpen" />
 </template>
 
@@ -245,6 +243,7 @@ function retrySave(): void {
   align-items: center;
   gap: 6px;
   padding: 0 8px;
+  margin-left: 12px; /* 与左侧 chip 簇分组 */
   font-family: var(--font-han);
   font-size: 12px;
   color: var(--fg-3);

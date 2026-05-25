@@ -6,7 +6,6 @@ import { useRoute } from 'vue-router';
 
 import CanvasElementsList from '../designer/CanvasElementsList.vue';
 import DesignerCanvas from '../designer/DesignerCanvas.vue';
-import DesignerHeader from '../designer/DesignerHeader.vue';
 import ElementLibrary from '../designer/ElementLibrary.vue';
 import FieldManager from '../designer/FieldManager.vue';
 import PropertyPanel from '../designer/PropertyPanel.vue';
@@ -166,9 +165,8 @@ watch(
       <CanvasElementsList />
     </aside>
 
-    <!-- CENTER: floating toolbar + canvas -->
+    <!-- CENTER: canvas（toolbar 已上提到 TemplatesView 顶部 breadcrumb） -->
     <section class="designer-center">
-      <DesignerHeader />
       <DesignerCanvas />
     </section>
 
