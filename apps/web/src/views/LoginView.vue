@@ -149,6 +149,7 @@ async function submitLocal(): Promise<void> {
               id="tp-l-user"
               v-model="username"
               class="tp-l-input"
+              :class="{ 'tp-l-input--filled': username }"
               type="text"
               placeholder=" "
               autocomplete="username"
@@ -163,6 +164,7 @@ async function submitLocal(): Promise<void> {
               id="tp-l-pwd"
               v-model="password"
               class="tp-l-input"
+              :class="{ 'tp-l-input--filled': password }"
               type="password"
               placeholder=" "
               autocomplete="current-password"
@@ -742,7 +744,9 @@ async function submitLocal(): Promise<void> {
   border-bottom-color: var(--yangli-red);
 }
 .tp-l-input:focus + .tp-l-floating,
-.tp-l-input:not(:placeholder-shown) + .tp-l-floating {
+.tp-l-input:not(:placeholder-shown) + .tp-l-floating,
+.tp-l-input:-webkit-autofill + .tp-l-floating,
+.tp-l-input--filled + .tp-l-floating {
   transform: translateY(-18px) scale(0.78);
   color: var(--yangli-red);
 }
