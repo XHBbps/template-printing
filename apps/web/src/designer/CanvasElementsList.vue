@@ -155,32 +155,38 @@ async function onClearAll(): Promise<void> {
   overflow-y: auto;
   padding: 6px 8px 6px;
 }
+/* 空态 — 1px dashed stone 框 + iron 文字（brief §5.3） */
 .empty {
-  padding: 32px 16px;
+  margin: 12px 12px;
+  padding: 24px 16px;
   text-align: center;
-  color: var(--iron);
+  font-family: var(--font-han);
   font-size: 12px;
   line-height: 1.6;
+  color: var(--iron);
+  border: 1px dashed var(--stone);
+  border-radius: var(--radius-2);
 }
 
 .clear-btn {
   background: transparent;
   border: none;
+  font-family: var(--font-han);
   font-size: 11px;
-  color: var(--iron);
+  color: var(--fg-3);
   cursor: pointer;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-2);
   display: inline-flex;
   align-items: center;
   gap: 4px;
   transition:
-    color 120ms ease,
-    background 120ms ease;
+    color var(--dur-fast) var(--ease-default),
+    background var(--dur-fast) var(--ease-default);
 }
 .clear-btn:hover {
-  color: #d94f4f;
-  background: rgba(217, 79, 79, 0.08);
+  color: var(--yangli-red);
+  background: rgba(211, 45, 39, 0.08);
 }
 
 .elem-row {

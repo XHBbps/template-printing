@@ -165,22 +165,31 @@ async function remove(key: string): Promise<void> {
 
 <template>
   <div class="tp-section-top field-mgr">
-    <div class="tp-sub-head">
-      <span class="tp-sub-title">变量 · 共 {{ store.fieldDefs.length }} 个</span>
+    <div class="fm-head">
+      <div class="fm-head-text">
+        <div class="fm-title">变量</div>
+        <div class="fm-cap">
+          {{ store.fieldDefs.length }} DECLARED ·
+          <span class="han">共 {{ store.fieldDefs.length }} 个</span>
+        </div>
+      </div>
       <button class="tp-sub-add" title="添加变量" @click="openAdd">
-        <Plus :size="14" :stroke-width="2" />
+        <Plus :size="14" :stroke-width="1.5" />
       </button>
     </div>
     <div class="fm-search">
-      <Search :size="13" :stroke-width="2" />
+      <Search :size="13" :stroke-width="1.6" />
       <input type="text" v-model="searchQuery" placeholder="搜索变量名或显示名…" />
     </div>
     <div class="fm-body">
       <div v-if="filteredFields.length === 0 && store.fieldDefs.length === 0" class="empty">
-        尚未声明变量<br />点击 + 添加
+        <div class="eyebrow">No variables · 暂无变量</div>
+        <div class="msg">尚未声明变量，点击右上 + 添加。</div>
+        <div class="hint">VAR · {{ '{{ NAME }}' }}</div>
       </div>
       <div v-else-if="filteredFields.length === 0" class="empty">
-        没有匹配 "{{ searchQuery }}" 的变量
+        <div class="eyebrow">No match · 无匹配</div>
+        <div class="msg">没有匹配 "{{ searchQuery }}" 的变量</div>
       </div>
       <div
         v-for="{ key, def } in filteredFields"
@@ -293,40 +302,101 @@ async function remove(key: string): Promise<void> {
 .field-mgr {
   min-height: 0;
 }
+/* head（brief §5.5：14 semibold 标题 + mono caption） */
+.fm-head {
+  padding: 14px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--stone);
+  flex-shrink: 0;
+}
+.fm-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.fm-title {
+  font-family: var(--font-han);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.fm-cap {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.fm-cap .han {
+  font-family: var(--font-han);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .fm-body {
   flex: 1;
   overflow-y: auto;
   padding: 8px 10px 12px;
   max-height: 220px;
 }
+/* 空态 — eyebrow + 中文 msg + mono hint */
 .empty {
-  padding: 24px 12px;
+  padding: 32px 16px;
   text-align: center;
-  color: var(--iron);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.empty .eyebrow {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: var(--tr-caption);
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.empty .msg {
+  font-family: var(--font-han);
   font-size: 12px;
+  color: var(--iron);
   line-height: 1.7;
 }
-/* Default = unbound = light gray */
+.empty .hint {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Default = unbound = paper + stone border */
 .field-card {
   margin-bottom: 6px;
   padding: 8px 10px;
   border-radius: var(--radius-2);
-  border: 1px solid var(--yangli-graphite);
-  background: #f5f5f6;
+  border: 1px solid var(--stone);
+  background: var(--paper-white);
   font-size: 12px;
   transition:
-    border-color 120ms ease,
-    background 120ms ease;
+    border-color var(--dur-fast) var(--ease-default),
+    background var(--dur-fast) var(--ease-default);
 }
 .field-card:hover {
-  border-color: var(--yangli-red);
-  background: rgba(211, 45, 39, 0.04);
+  border-color: var(--yangli-graphite);
+  background: var(--mist);
 }
 
-/* Bound = light green */
+/* Bound = soft green tint */
 .field-card.bound {
-  background: #e6f5ec;
-  border-color: #9bd5b3;
+  background: rgba(15, 140, 90, 0.06);
+  border-color: rgba(15, 140, 90, 0.25);
 }
 .card-row {
   display: flex;
@@ -391,32 +461,42 @@ async function remove(key: string): Promise<void> {
   color: var(--yangli-red);
 }
 .action.del:hover {
-  background: rgba(217, 79, 79, 0.1);
-  color: #d94f4f;
+  background: rgba(211, 45, 39, 0.08);
+  color: var(--yangli-red);
 }
 .enum-row {
   display: flex;
   align-items: center;
   margin-bottom: 4px;
 }
+/* 搜索框 — 1px stone + radius 2 + focus red（brief §5.5） */
 .fm-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px 4px;
-  color: var(--iron);
+  position: relative;
+  padding: 10px 14px 4px;
+  color: var(--fg-3);
+}
+.fm-search :first-child {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 .fm-search input {
-  flex: 1;
-  border: 1px solid var(--yangli-graphite);
-  border-radius: 6px;
-  padding: 4px 8px;
+  width: 100%;
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-1);
+  padding: 6px 8px 6px 30px;
+  font-family: var(--font-han);
   font-size: 12px;
   background: var(--paper-white);
   color: var(--ink);
   outline: none;
+  transition: border-color var(--dur-fast) var(--ease-default);
 }
 .fm-search input:focus {
   border-color: var(--yangli-red);
+  outline: 1px solid var(--yangli-red);
+  outline-offset: -1px;
 }
 </style>
