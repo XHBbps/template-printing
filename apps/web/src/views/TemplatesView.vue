@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElDialog, ElMessage, ElMessageBox } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import {
   Plus,
@@ -134,23 +134,31 @@ async function deleteTemplate(id: string, name: string): Promise<void> {
   }
 }
 
-async function renameTemplate(t: TemplateListItem): Promise<void> {
-  let next: string;
-  try {
-    const result = await ElMessageBox.prompt('请输入新名字', '重命名模板', {
-      inputValue: t.name,
-      confirmButtonText: '保存',
-      cancelButtonText: '取消',
-      inputValidator: (v) => {
-        if (!v || !v.trim()) return '名字不能为空';
-        return true;
-      },
-    });
-    next = result.value.trim();
-  } catch {
+// ---- Rename dialog state ----
+const renameDialogOpen = ref(false);
+const renameTarget = ref<TemplateListItem | null>(null);
+const renameInput = ref('');
+const renameSubmitting = ref(false);
+
+function renameTemplate(t: TemplateListItem): void {
+  renameTarget.value = t;
+  renameInput.value = t.name;
+  renameDialogOpen.value = true;
+}
+
+async function confirmRename(): Promise<void> {
+  const t = renameTarget.value;
+  if (!t) return;
+  const next = renameInput.value.trim();
+  if (!next) {
+    ElMessage.warning('名字不能为空');
     return;
   }
-  if (next === t.name) return;
+  if (next === t.name) {
+    renameDialogOpen.value = false;
+    return;
+  }
+  renameSubmitting.value = true;
   try {
     await apiFetch(`/templates/${t.id}`, {
       method: 'PATCH',
@@ -158,8 +166,11 @@ async function renameTemplate(t: TemplateListItem): Promise<void> {
     });
     await templates.fetchList();
     ElMessage.success('已重命名');
+    renameDialogOpen.value = false;
   } catch (e) {
     ElMessage.error(`重命名失败：${(e as Error).message}`);
+  } finally {
+    renameSubmitting.value = false;
   }
 }
 
@@ -370,6 +381,33 @@ const countLabel = computed(() => {
         <DesignerView v-if="currentId" :template-id="currentId" :embedded="true" />
       </div>
     </div>
+
+    <!-- ============ 重命名 dialog ============ -->
+    <ElDialog v-model="renameDialogOpen" title="重命名模板" width="420px" :append-to-body="true">
+      <div class="rn-form">
+        <label class="rn-lbl">请输入新名字 <span class="han">· New Name</span></label>
+        <input
+          v-model="renameInput"
+          type="text"
+          maxlength="80"
+          autofocus
+          @keyup.enter="confirmRename"
+        />
+      </div>
+      <template #footer>
+        <button class="btn btn-secondary sm" type="button" @click="renameDialogOpen = false">
+          取消
+        </button>
+        <button
+          class="btn btn-primary sm"
+          type="button"
+          :disabled="renameSubmitting"
+          @click="confirmRename"
+        >
+          {{ renameSubmitting ? '保存中…' : '保存' }}
+        </button>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
@@ -859,6 +897,34 @@ const countLabel = computed(() => {
   color: var(--fg-3);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* ============ Rename dialog form ============ */
+.rn-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rn-lbl {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: var(--tr-caption);
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.rn-lbl .han {
+  font-family: var(--font-han);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.rn-form input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  font-family: var(--font-han);
+  font-size: 13px;
 }
 
 /* ============ Editor mode ============ */

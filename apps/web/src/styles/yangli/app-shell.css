@@ -323,3 +323,75 @@ select {
   background-size: 14px;
   padding-right: 32px;
 }
+
+/* ============ Element Plus dialog / overlay brand overrides ============ */
+.el-overlay {
+  background-color: rgba(28, 28, 28, 0.55);
+}
+.el-dialog {
+  border-radius: var(--radius-2) !important;
+  border: 1px solid var(--stone);
+  box-shadow: var(--shadow-1) !important;
+  padding: 0 !important;
+}
+.el-dialog__header {
+  padding: 18px 20px 14px !important;
+  margin-right: 0 !important;
+  border-bottom: 1px solid var(--stone);
+}
+.el-dialog__title {
+  font-family: var(--font-han) !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+  line-height: 1.4 !important;
+}
+.el-dialog__headerbtn {
+  top: 14px !important;
+  right: 14px !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+.el-dialog__headerbtn .el-dialog__close {
+  color: var(--fg-3) !important;
+  font-size: 16px !important;
+}
+.el-dialog__headerbtn:hover .el-dialog__close {
+  color: var(--yangli-red) !important;
+}
+.el-dialog__body {
+  padding: 20px !important;
+  color: var(--ink);
+  font-family: var(--font-han);
+}
+.el-dialog__footer {
+  padding: 14px 20px !important;
+  border-top: 1px solid var(--stone);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ElMessageBox 同样品牌化 */
+.el-message-box {
+  border-radius: var(--radius-2) !important;
+  border: 1px solid var(--stone) !important;
+  box-shadow: var(--shadow-1) !important;
+}
+.el-message-box__title {
+  font-family: var(--font-han) !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}
+.el-message-box__btns .el-button {
+  border-radius: var(--radius-2) !important;
+}
+.el-message-box__btns .el-button--primary {
+  background: var(--yangli-red) !important;
+  border-color: var(--yangli-red) !important;
+  color: var(--paper-white) !important;
+}
+.el-message-box__btns .el-button--primary:hover {
+  background: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
+}
