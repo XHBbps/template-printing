@@ -221,7 +221,6 @@ onMounted(refresh);
           <div v-if="!loading && items.length === 0" class="card">
             <div class="empty-state">
               <div class="eyebrow">No matching jobs · 暂无任务</div>
-              <div class="msg">无匹配的渲染任务。<br />调整筛选条件或在模板中心发起一次渲染。</div>
               <div class="hint">RENDER · QUEUED · COMPLETED · FAILED</div>
             </div>
           </div>

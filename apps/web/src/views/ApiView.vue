@@ -647,7 +647,7 @@ function toggleEp(id: string): void {
   display: grid;
   grid-template-columns: 240px 1fr;
   gap: 32px;
-  max-width: 1240px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 

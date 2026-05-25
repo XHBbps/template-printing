@@ -129,17 +129,10 @@ const activeCount = computed(() => items.value.filter((i) => !i.revokedAt).lengt
     <!-- ============ Body ============ -->
     <div class="page-body">
       <div class="max">
-        <p class="intro">
-          用于在脚本 / 集成 / 自动化中调用 <code>POST /api/render</code>
-          系列接口。管理端点本身只接受登录 cookie 鉴权（防 token 自管理 token 的环）。Token
-          仅创建时显示一次，DB 中以 SHA-256 哈希形式存储。
-        </p>
-
         <!-- 空态 -->
         <div v-if="!loading && items.length === 0" class="card">
           <div class="empty-state">
             <div class="eyebrow">No tokens · 暂无凭证</div>
-            <div class="msg">当前无 API token。<br />点击右上「创建 Token」开始接入。</div>
             <div class="hint">FORMAT · tpkn_•••••• (32 hex)</div>
           </div>
         </div>

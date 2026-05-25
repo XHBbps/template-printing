@@ -297,7 +297,7 @@ function rebindLark(): void {
 }
 
 .me-max {
-  max-width: 780px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
