@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { ElDialog, ElMessage, ElMessageBox } from 'element-plus';
+import { ElDialog, ElMessage } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import {
   Plus,
@@ -14,6 +14,7 @@ import {
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 import DesignerHeader from '../designer/DesignerHeader.vue';
 import { apiFetch } from '../lib/api';
 import { defaultTemplate } from '../stores/designer';
@@ -121,21 +122,28 @@ async function returnToList(): Promise<void> {
   await transitionTo('list');
 }
 
-async function deleteTemplate(id: string, name: string): Promise<void> {
+// ---- Delete confirm dialog ----
+const deleteDialogOpen = ref(false);
+const deleteTarget = ref<{ id: string; name: string } | null>(null);
+const deleting = ref(false);
+
+function deleteTemplate(id: string, name: string): void {
+  deleteTarget.value = { id, name };
+  deleteDialogOpen.value = true;
+}
+
+async function confirmDelete(): Promise<void> {
+  const t = deleteTarget.value;
+  if (!t) return;
+  deleting.value = true;
   try {
-    await ElMessageBox.confirm(`删除模板「${name}」？此操作不可恢复。`, '删除模板', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    });
-  } catch {
-    return;
-  }
-  try {
-    await templates.remove(id);
+    await templates.remove(t.id);
     ElMessage.success('已删除');
+    deleteDialogOpen.value = false;
   } catch {
     ElMessage.error('删除失败');
+  } finally {
+    deleting.value = false;
   }
 }
 
@@ -389,6 +397,22 @@ const countLabel = computed(() => {
         <DesignerView v-if="currentId" :template-id="currentId" :embedded="true" />
       </div>
     </div>
+
+    <!-- ============ 删除模板 confirm ============ -->
+    <ConfirmDialog
+      v-model="deleteDialogOpen"
+      variant="destructive"
+      title="删除模板"
+      cap="DELETE TEMPLATE"
+      :body="
+        deleteTarget
+          ? `删除模板「${deleteTarget.name}」？此操作不可恢复，模板及其所有渲染历史将一并失去关联。`
+          : ''
+      "
+      confirm-text="删除"
+      :loading="deleting"
+      @confirm="confirmDelete"
+    />
 
     <!-- ============ 重命名 dialog ============ -->
     <ElDialog v-model="renameDialogOpen" title="重命名模板" width="420px" :append-to-body="true">

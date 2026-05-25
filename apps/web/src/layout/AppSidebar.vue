@@ -10,10 +10,10 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-vue-next';
-// eslint-disable-next-line import/no-unresolved
-import { ElMessageBox } from 'element-plus';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 import { apiFetch } from '../lib/api';
 import { useAuthStore } from '../stores/auth';
 
@@ -35,17 +35,16 @@ function toggle(): void {
   localStorage.setItem('tp_sidebar_collapsed', props.collapsed ? 'false' : 'true');
 }
 
-async function logout(): Promise<void> {
-  try {
-    await ElMessageBox.confirm('确认要退出登录吗？', '退出登录', {
-      confirmButtonText: '退出',
-      cancelButtonText: '取消',
-      type: 'warning',
-      center: true,
-    });
-  } catch {
-    return;
-  }
+// ---- Logout confirm dialog ----
+const logoutDialogOpen = ref(false);
+const loggingOut = ref(false);
+
+function openLogout(): void {
+  logoutDialogOpen.value = true;
+}
+
+async function confirmLogout(): Promise<void> {
+  loggingOut.value = true;
   try {
     await apiFetch('/auth/logout', { method: 'POST' });
   } catch {
@@ -107,10 +106,27 @@ async function logout(): Promise<void> {
       <div v-if="!collapsed" class="user-meta">
         <div class="name">{{ auth.user?.name ?? '未登录' }}</div>
       </div>
-      <button v-if="!collapsed" class="logout-btn" type="button" title="退出登录" @click="logout">
+      <button
+        v-if="!collapsed"
+        class="logout-btn"
+        type="button"
+        title="退出登录"
+        @click="openLogout"
+      >
         <LogOut :size="14" :stroke-width="1.5" />
       </button>
     </div>
+
+    <ConfirmDialog
+      v-model="logoutDialogOpen"
+      variant="destructive"
+      title="退出登录"
+      cap="SIGN OUT"
+      body="确认要退出登录吗？退出后需重新登录才能继续编辑模板。"
+      confirm-text="退出登录"
+      :loading="loggingOut"
+      @confirm="confirmLogout"
+    />
   </aside>
 </template>
 

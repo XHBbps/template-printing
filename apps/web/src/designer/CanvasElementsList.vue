@@ -2,8 +2,8 @@
 import { computed, ref, watch } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
-// eslint-disable-next-line import/no-unresolved
-import { ElMessageBox } from 'element-plus';
+
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 // eslint-disable-next-line import/no-unresolved
 import {
   Type,
@@ -88,22 +88,13 @@ function removeEl(id: string, e: Event): void {
   e.stopPropagation();
   store.deleteElement(id);
 }
-async function onClearAll(): Promise<void> {
-  try {
-    await ElMessageBox.confirm(
-      `确定清空全部 ${elements.value.length} 个元素？此操作可通过撤销恢复。`,
-      '清空画布',
-      {
-        confirmButtonText: '清空',
-        cancelButtonText: '取消',
-        type: 'warning',
-        center: true,
-      },
-    );
-    store.deleteAllElements();
-  } catch {
-    /* user cancelled */
-  }
+const clearDialogOpen = ref(false);
+function onClearAll(): void {
+  clearDialogOpen.value = true;
+}
+function confirmClearAll(): void {
+  store.deleteAllElements();
+  clearDialogOpen.value = false;
 }
 </script>
 
@@ -140,6 +131,16 @@ async function onClearAll(): Promise<void> {
       <button :disabled="page >= pageCount" @click="page++">›</button>
       <span class="pgsize">每页 {{ PAGE_SIZE }}</span>
     </div>
+
+    <ConfirmDialog
+      v-model="clearDialogOpen"
+      variant="destructive"
+      title="清空画布"
+      cap="CLEAR ALL ELEMENTS"
+      :body="`确定清空全部 ${elements.length} 个元素？此操作可通过撤销（Ctrl+Z）恢复。`"
+      confirm-text="清空"
+      @confirm="confirmClearAll"
+    />
   </div>
 </template>
 

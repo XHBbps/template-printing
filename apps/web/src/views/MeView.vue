@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { ElDialog, ElMessage, ElMessageBox } from 'element-plus';
+import { ElDialog, ElMessage } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import { Pencil, User as UserIcon } from 'lucide-vue-next';
 import { nextTick, ref } from 'vue';
 
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 import { apiFetch, ApiClientError } from '../lib/api';
 import { buildLarkLoginUrl } from '../lib/auth-routes';
 import { useAuthStore } from '../stores/auth';
@@ -95,26 +96,28 @@ async function submitPassword(): Promise<void> {
 }
 
 // ---- Lark binding ----
-async function unbindLark(): Promise<void> {
+const unbindDialogOpen = ref(false);
+const unbinding = ref(false);
+
+function unbindLark(): void {
   if (!hasLocalPassword.value) {
     ElMessage.warning('请先设置本地密码后再解绑飞书');
     return;
   }
-  try {
-    await ElMessageBox.confirm('解绑后将不能再用飞书登录此账号，确认继续？', '解绑飞书', {
-      type: 'warning',
-      confirmButtonText: '解绑',
-      cancelButtonText: '取消',
-    });
-  } catch {
-    return;
-  }
+  unbindDialogOpen.value = true;
+}
+
+async function confirmUnbindLark(): Promise<void> {
+  unbinding.value = true;
   try {
     await apiFetch<{ ok: true }>('/users/me/lark-binding', { method: 'DELETE' });
     ElMessage.success('已解绑飞书');
+    unbindDialogOpen.value = false;
     await auth.hydrate();
   } catch (e) {
     ElMessage.error(e instanceof ApiClientError ? e.message : '解绑失败');
+  } finally {
+    unbinding.value = false;
   }
 }
 
@@ -250,6 +253,18 @@ function rebindLark(): void {
         </div>
       </div>
     </div>
+
+    <!-- ============ Unbind Lark confirm ============ -->
+    <ConfirmDialog
+      v-model="unbindDialogOpen"
+      variant="destructive"
+      title="解绑飞书"
+      cap="UNBIND LARK"
+      body="解绑后将不能再用飞书登录此账号，且无法接收飞书 IM 渲染通知。本地密码不受影响，仍可用 emergency_admin 路径登录。"
+      confirm-text="解绑"
+      :loading="unbinding"
+      @confirm="confirmUnbindLark"
+    />
 
     <!-- ============ Password dialog ============ -->
     <ElDialog

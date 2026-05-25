@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 // eslint-disable-next-line import/no-unresolved
-import { ElDialog, ElMessage, ElMessageBox } from 'element-plus';
+import { ElDialog, ElMessage } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import {
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-vue-next';
 // eslint-disable-next-line import/no-unresolved
 import { apiFetch } from '../lib/api';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 
 const route = useRoute();
 
@@ -95,22 +96,29 @@ async function doCreateToken(): Promise<void> {
   }
 }
 
-async function doRevokeToken(t: TokenSummary): Promise<void> {
-  try {
-    await ElMessageBox.confirm(
-      `吊销 token「${t.name}」？此操作不可恢复 — 任何使用此 token 的脚本将立即 401。`,
-      '吊销 Token',
-      { type: 'warning', confirmButtonText: '吊销', cancelButtonText: '取消' },
-    );
-  } catch {
-    return;
-  }
+// ---- Revoke confirm dialog ----
+const revokeDialogOpen = ref(false);
+const revokeTarget = ref<TokenSummary | null>(null);
+const revoking = ref(false);
+
+function doRevokeToken(t: TokenSummary): void {
+  revokeTarget.value = t;
+  revokeDialogOpen.value = true;
+}
+
+async function confirmRevoke(): Promise<void> {
+  const t = revokeTarget.value;
+  if (!t) return;
+  revoking.value = true;
   try {
     await apiFetch(`/users/me/api-tokens/${t.id}`, { method: 'DELETE' });
     ElMessage.success('已吊销');
+    revokeDialogOpen.value = false;
     await refreshTokens();
   } catch (e) {
     ElMessage.error(`吊销失败：${(e as Error).message}`);
+  } finally {
+    revoking.value = false;
   }
 }
 
@@ -822,6 +830,22 @@ function toggleEp(id: string): void {
         </article>
       </div>
     </div>
+
+    <!-- ============ 吊销 Token confirm ============ -->
+    <ConfirmDialog
+      v-model="revokeDialogOpen"
+      variant="destructive"
+      title="吊销 Token"
+      cap="REVOKE BEARER TOKEN"
+      :body="
+        revokeTarget
+          ? `吊销 token「${revokeTarget.name}」？此操作不可恢复 — 任何使用此 token 的脚本将立即 401。`
+          : ''
+      "
+      confirm-text="吊销"
+      :loading="revoking"
+      @confirm="confirmRevoke"
+    />
 
     <!-- ============ 创建 Token dialog ============ -->
     <ElDialog v-model="createDialogOpen" title="创建新 Token" width="460px">

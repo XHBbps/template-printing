@@ -7,7 +7,6 @@ import {
   ElFormItem,
   ElInput,
   ElMessage,
-  ElMessageBox,
   ElOption,
   ElSelect,
   ElCheckbox,
@@ -15,6 +14,8 @@ import {
 import { ref, computed } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import { Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
+
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 import { useDesignerStore } from '../stores/designer';
 
 type FieldType = 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'enum' | 'image' | 'array';
@@ -144,22 +145,18 @@ function submit(): void {
   dialogOpen.value = false;
 }
 
-async function remove(key: string): Promise<void> {
-  try {
-    await ElMessageBox.confirm(
-      `删除变量 "${key}"？模板中绑定到该字段的元素将变为未绑定状态。`,
-      '删除变量',
-      {
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-        center: true,
-      },
-    );
-    store.removeField(key);
-  } catch {
-    /* user cancelled */
+const removeDialogOpen = ref(false);
+const removeTargetKey = ref<string | null>(null);
+
+function remove(key: string): void {
+  removeTargetKey.value = key;
+  removeDialogOpen.value = true;
+}
+function confirmRemove(): void {
+  if (removeTargetKey.value) {
+    store.removeField(removeTargetKey.value);
   }
+  removeDialogOpen.value = false;
 }
 </script>
 
@@ -295,6 +292,20 @@ async function remove(key: string): Promise<void> {
         </ElButton>
       </ElForm>
     </ElDialog>
+
+    <ConfirmDialog
+      v-model="removeDialogOpen"
+      variant="destructive"
+      title="删除变量"
+      cap="DELETE VARIABLE"
+      :body="
+        removeTargetKey
+          ? `删除变量「${removeTargetKey}」？模板中绑定到此字段的元素将变为未绑定状态，渲染时该字段读不到值。`
+          : ''
+      "
+      confirm-text="删除"
+      @confirm="confirmRemove"
+    />
   </div>
 </template>
 
