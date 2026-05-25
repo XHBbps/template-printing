@@ -2,8 +2,8 @@
 // eslint-disable-next-line import/no-unresolved
 import { ElDialog, ElMessage, ElMessageBox } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
-import { User as UserIcon } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { Pencil, User as UserIcon } from 'lucide-vue-next';
+import { nextTick, ref } from 'vue';
 
 import { apiFetch, ApiClientError } from '../lib/api';
 import { buildLarkLoginUrl } from '../lib/auth-routes';
@@ -18,6 +18,46 @@ const pwdNew = ref('');
 const pwdConfirm = ref('');
 const pwdSubmitting = ref(false);
 const hasLocalPassword = ref<boolean>(Boolean(auth.user?.hasLocalPassword));
+
+// ---- Username inline edit ----
+const nameEditing = ref(false);
+const nameInput = ref('');
+const nameSubmitting = ref(false);
+const nameInputRef = ref<HTMLInputElement | null>(null);
+
+function startEditName(): void {
+  nameInput.value = auth.user?.name ?? '';
+  nameEditing.value = true;
+  void nextTick(() => nameInputRef.value?.focus());
+}
+function cancelEditName(): void {
+  nameEditing.value = false;
+}
+async function saveName(): Promise<void> {
+  const next = nameInput.value.trim();
+  if (!next) {
+    ElMessage.warning('名字不能为空');
+    return;
+  }
+  if (next === auth.user?.name) {
+    nameEditing.value = false;
+    return;
+  }
+  nameSubmitting.value = true;
+  try {
+    await apiFetch<{ ok: true }>('/users/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: next }),
+    });
+    ElMessage.success('已保存');
+    nameEditing.value = false;
+    await auth.hydrate();
+  } catch (e) {
+    ElMessage.error(e instanceof ApiClientError ? e.message : '保存失败');
+  } finally {
+    nameSubmitting.value = false;
+  }
+}
 
 function openPwdDialog(): void {
   pwdCurrent.value = '';
@@ -81,22 +121,6 @@ async function unbindLark(): Promise<void> {
 function rebindLark(): void {
   window.location.assign(buildLarkLoginUrl('/me'));
 }
-
-function showLarkRationale(): void {
-  void ElMessageBox.alert(
-    '绑定飞书后可以：\n· 用飞书 SSO 一键登录，无需记住本地密码\n· 接收渲染完成 / 失败的飞书 IM 通知\n· 在飞书机器人 / 多维表格里发起渲染时回传到你的账号',
-    '为什么要绑定飞书？',
-    { confirmButtonText: '我知道了', type: 'info' },
-  );
-}
-
-function showPasswordHistory(): void {
-  void ElMessageBox.alert(
-    '密码修改历史目前未在前端展示。如需审计，请联系管理员查询数据库 users.password_changed_at 列。',
-    '上次修改时间',
-    { confirmButtonText: '知道了' },
-  );
-}
 </script>
 
 <template>
@@ -123,12 +147,46 @@ function showPasswordHistory(): void {
             <div class="card-body">
               <div class="row">
                 <span class="k">用户名 · Username</span>
-                <span class="v">{{ auth.user?.name ?? '—' }}</span>
-              </div>
-              <div class="row">
-                <span class="k">邮箱 · Email</span>
-                <span v-if="auth.user?.email" class="v">{{ auth.user.email }}</span>
-                <span v-else class="v muted">未提供</span>
+                <span class="v">
+                  <template v-if="!nameEditing">
+                    <span class="name-text">{{ auth.user?.name ?? '—' }}</span>
+                    <button
+                      class="name-edit-btn"
+                      type="button"
+                      title="编辑用户名"
+                      @click="startEditName"
+                    >
+                      <Pencil :size="12" :stroke-width="1.6" />
+                    </button>
+                  </template>
+                  <template v-else>
+                    <input
+                      ref="nameInputRef"
+                      v-model="nameInput"
+                      class="name-input"
+                      type="text"
+                      maxlength="64"
+                      @keyup.enter="saveName"
+                      @keyup.esc="cancelEditName"
+                    />
+                    <button
+                      class="btn btn-primary sm"
+                      type="button"
+                      :disabled="nameSubmitting"
+                      @click="saveName"
+                    >
+                      保存
+                    </button>
+                    <button
+                      class="btn btn-secondary sm"
+                      type="button"
+                      :disabled="nameSubmitting"
+                      @click="cancelEditName"
+                    >
+                      取消
+                    </button>
+                  </template>
+                </span>
               </div>
               <div class="row">
                 <span class="k">角色 · Role</span>
@@ -145,20 +203,15 @@ function showPasswordHistory(): void {
               <div class="cap">登录密码</div>
               <span class="meta">SECURITY · LOCAL PASSWORD</span>
             </div>
-            <div class="card-body">
-              <div class="row last">
-                <span class="k">本地密码</span>
-                <span class="v">
+            <div class="card-body status-card">
+              <div class="status-row">
+                <span class="key">本地密码</span>
+                <span class="status">
                   <span v-if="hasLocalPassword" class="pill ok">已设置 · SET</span>
                   <span v-else class="pill idle">未设置 · UNSET</span>
                 </span>
-              </div>
-              <div class="cta-row">
-                <button class="btn btn-secondary" type="button" @click="openPwdDialog">
+                <button class="btn btn-secondary sm action" type="button" @click="openPwdDialog">
                   {{ hasLocalPassword ? '修改密码' : '设置密码' }}
-                </button>
-                <button class="btn btn-ghost" type="button" @click="showPasswordHistory">
-                  查看上次修改
                 </button>
               </div>
             </div>
@@ -170,31 +223,26 @@ function showPasswordHistory(): void {
               <div class="cap">飞书绑定</div>
               <span class="meta">LARK · SSO &amp; NOTIFY</span>
             </div>
-            <div class="card-body">
-              <div class="row last">
-                <span class="k">飞书账号</span>
-                <span class="v">
+            <div class="card-body status-card">
+              <div class="status-row">
+                <span class="key">飞书账号</span>
+                <span class="status">
                   <template v-if="auth.user?.larkUserId">
                     <span class="pill ok">已绑定 · BOUND</span>
                     <code class="muted-id">{{ auth.user.larkUserId }}</code>
                   </template>
                   <span v-else class="pill idle">未绑定 · UNBOUND</span>
                 </span>
-              </div>
-              <div class="cta-row">
                 <button
                   v-if="auth.user?.larkUserId"
-                  class="btn btn-secondary"
+                  class="btn btn-secondary sm action"
                   type="button"
                   @click="unbindLark"
                 >
                   解绑飞书
                 </button>
-                <button v-else class="btn btn-primary" type="button" @click="rebindLark">
+                <button v-else class="btn btn-primary sm action" type="button" @click="rebindLark">
                   绑定飞书账号
-                </button>
-                <button class="btn btn-ghost" type="button" @click="showLarkRationale">
-                  为什么要绑定？
                 </button>
               </div>
             </div>
@@ -290,9 +338,12 @@ function showPasswordHistory(): void {
 
 /* Override role pill — mono lower-case identifier, not uppercase brand caption */
 .role-pill {
-  font-family: var(--font-mono);
-  letter-spacing: 0.04em;
-  text-transform: none;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: none !important;
+  padding: 0 10px !important;
 }
 
 .muted-id {
@@ -301,12 +352,73 @@ function showPasswordHistory(): void {
   color: var(--fg-3);
 }
 
-/* ============ CTA row ============ */
-.cta-row {
-  margin-top: 18px;
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+/* ============ Username inline edit ============ */
+.name-text {
+  font-family: var(--font-han);
+  color: var(--ink);
+}
+.name-edit-btn {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--stone);
+  background: var(--paper-white);
+  color: var(--fg-3);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color var(--dur-fast) var(--ease-default),
+    border-color var(--dur-fast) var(--ease-default);
+}
+.name-edit-btn:hover {
+  color: var(--ink);
+  border-color: var(--yangli-graphite);
+}
+.name-input {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-1);
+  font-family: var(--font-han);
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--paper-white);
+  outline: none;
+  min-width: 200px;
+  flex: 0 1 240px;
+}
+.name-input:focus {
+  border-color: var(--yangli-red);
+  outline: 1px solid var(--yangli-red);
+  outline-offset: -1px;
+}
+
+/* ============ 单行状态 + 操作（登录密码 / 飞书绑定） ============ */
+.status-card {
+  padding: 20px 24px !important;
+}
+.status-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 44px;
+}
+.status-row .key {
+  font-family: var(--font-han);
+  font-size: 12.5px;
+  color: var(--fg-3);
+}
+.status-row .status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.status-row .action {
+  /* primary 红色 CTA 与「立即打印」一致：实色无 shadow（.btn-primary 已是无 shadow） */
+  white-space: nowrap;
 }
 
 /* ============ Dialog form ============ */

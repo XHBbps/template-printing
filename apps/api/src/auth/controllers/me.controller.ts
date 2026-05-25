@@ -39,6 +39,10 @@ const SetPasswordDtoSchema = z.object({
   currentPassword: z.string().optional(),
 });
 
+const UpdateProfileDtoSchema = z.object({
+  name: z.string().trim().min(1).max(64),
+});
+
 @Controller('users')
 export class MeController {
   constructor(private readonly prisma: PrismaClient) {}
@@ -61,6 +65,21 @@ export class MeController {
         csrf: jwt.csrf,
       },
     };
+  }
+
+  @Patch('me/profile')
+  async updateProfile(
+    @CurrentUser() jwt: JwtClaims,
+    @Body() rawBody: unknown,
+  ): Promise<{ ok: true }> {
+    const dto = UpdateProfileDtoSchema.parse(rawBody);
+    const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
+    if (!user) throw new UnauthorizedException();
+    await this.prisma.user.update({
+      where: { id: jwt.sub },
+      data: { name: dto.name },
+    });
+    return { ok: true };
   }
 
   @Patch('me/password')
