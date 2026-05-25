@@ -11,6 +11,8 @@ import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
 
 // eslint-disable-next-line import/no-unresolved
+import { AuditLogService } from '../audit/audit-log.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { FileSigService } from '../uploads/file-sig.service.js';
@@ -29,6 +31,7 @@ export class RenderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileSig: FileSigService,
+    private readonly audit: AuditLogService,
   ) {
     const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
     this.queue = new Queue('render', {
@@ -74,6 +77,18 @@ export class RenderService {
         removeOnFail: { count: 1000 },
       },
     );
+
+    // iter 32 T1：审计日志（系统调用 ownerId=null 不记，由飞书 webhook 自己记）
+    if (ownerId) {
+      void this.audit.log({
+        actor: { id: ownerId, name: null },
+        action: 'render.enqueue',
+        resourceType: 'render_job',
+        resourceId: job.id,
+        details: { templateId: args.templateId, formats: [...formats] },
+      });
+    }
+
     return { jobId: job.id, status: job.status };
   }
 

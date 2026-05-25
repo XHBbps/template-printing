@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
 import {
   Body,
   Controller,
@@ -5,14 +6,18 @@ import {
   HttpStatus,
   Inject,
   Post,
+  Req,
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { z } from 'zod';
+/* eslint-enable import/no-unresolved */
 
+// eslint-disable-next-line import/no-unresolved
+import { AuditLogService } from '../../audit/audit-log.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { Public } from '../decorators/public.decorator.js';
 // eslint-disable-next-line import/no-unresolved
@@ -33,6 +38,7 @@ export class LocalController {
     private readonly jwt: JwtAuthService,
     private readonly refresh: RefreshTokenService,
     private readonly prisma: PrismaClient,
+    private readonly audit: AuditLogService,
     @Inject('COOKIE_ENV') private readonly cookieEnv: CookieEnv,
   ) {}
 
@@ -41,6 +47,7 @@ export class LocalController {
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() raw: unknown,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true; csrf: string; mustChangePassword: boolean }> {
     const body = LoginBodySchema.parse(raw);
@@ -59,6 +66,14 @@ export class LocalController {
     const { token: access, csrf } = this.jwt.sign({ sub: user.id, role: 'emergency_admin' });
     const { plaintext: refreshTok } = await this.refresh.create(user.id);
     setAuthCookies(res, this.cookieEnv, { access, refresh: refreshTok });
+
+    void this.audit.log({
+      actor: { id: user.id, name: user.name },
+      action: 'user.login.local',
+      resourceType: 'user',
+      resourceId: user.id,
+      request: req,
+    });
 
     return { ok: true, csrf, mustChangePassword: user.mustChangePassword };
   }

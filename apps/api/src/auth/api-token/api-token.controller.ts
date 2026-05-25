@@ -9,11 +9,15 @@ import {
   NotFoundException,
   Param,
   Post,
+  Req,
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
+import type { Request } from 'express';
 // eslint-disable-next-line import/no-unresolved
 import { z } from 'zod';
 
+// eslint-disable-next-line import/no-unresolved
+import { AuditLogService } from '../../audit/audit-log.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { CurrentUser } from '../decorators/current-user.decorator.js';
 // eslint-disable-next-line import/no-unresolved
@@ -28,7 +32,10 @@ const CreateBodySchema = z.object({
 
 @Controller('users/me/api-tokens')
 export class ApiTokenController {
-  constructor(private readonly svc: ApiTokenService) {}
+  constructor(
+    private readonly svc: ApiTokenService,
+    private readonly audit: AuditLogService,
+  ) {}
 
   /** 列出当前用户的 token（含已吊销） */
   @Get()
@@ -43,16 +50,30 @@ export class ApiTokenController {
   async create(
     @CurrentUser() me: JwtClaims,
     @Body() raw: unknown,
+    @Req() req: Request,
   ): Promise<{ plaintext: string; record: ApiTokenSummary }> {
     const parsed = CreateBodySchema.safeParse(raw);
     if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
-    return this.svc.create(me.sub, parsed.data.name.trim());
+    const result = await this.svc.create(me.sub, parsed.data.name.trim());
+    void this.audit.log({
+      actor: { id: me.sub, name: null },
+      action: 'token.create',
+      resourceType: 'api_token',
+      resourceId: result.record.id,
+      details: { name: result.record.name, prefix: result.record.prefix },
+      request: req,
+    });
+    return result;
   }
 
   /** 吊销 token（软删） */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async revoke(@CurrentUser() me: JwtClaims, @Param('id') id: string): Promise<void> {
+  async revoke(
+    @CurrentUser() me: JwtClaims,
+    @Param('id') id: string,
+    @Req() req: Request,
+  ): Promise<void> {
     try {
       await this.svc.revoke(me.sub, id);
     } catch (e) {
@@ -60,5 +81,12 @@ export class ApiTokenController {
       if ((e as Error).message === 'not_found') throw new NotFoundException();
       throw e;
     }
+    void this.audit.log({
+      actor: { id: me.sub, name: null },
+      action: 'token.revoke',
+      resourceType: 'api_token',
+      resourceId: id,
+      request: req,
+    });
   }
 }

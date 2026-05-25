@@ -6,6 +6,7 @@ import {
   Get,
   NotFoundException,
   Patch,
+  Req,
   UnauthorizedException,
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
@@ -13,9 +14,12 @@ import {
 import { PrismaClient } from '@prisma/client';
 // eslint-disable-next-line import/no-unresolved
 import bcrypt from 'bcryptjs';
+import type { Request } from 'express';
 // eslint-disable-next-line import/no-unresolved
 import { z } from 'zod';
 
+// eslint-disable-next-line import/no-unresolved
+import { AuditLogService } from '../../audit/audit-log.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { CurrentUser } from '../decorators/current-user.decorator.js';
 // eslint-disable-next-line import/no-unresolved
@@ -45,7 +49,10 @@ const UpdateProfileDtoSchema = z.object({
 
 @Controller('users')
 export class MeController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly audit: AuditLogService,
+  ) {}
 
   @Get('me')
   async me(@CurrentUser() jwt: JwtClaims): Promise<{ ok: true; user: MeResponse }> {
@@ -71,6 +78,7 @@ export class MeController {
   async updateProfile(
     @CurrentUser() jwt: JwtClaims,
     @Body() rawBody: unknown,
+    @Req() req: Request,
   ): Promise<{ ok: true }> {
     const dto = UpdateProfileDtoSchema.parse(rawBody);
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
@@ -79,6 +87,14 @@ export class MeController {
       where: { id: jwt.sub },
       data: { name: dto.name },
     });
+    void this.audit.log({
+      actor: { id: user.id, name: user.name },
+      action: 'user.profile.update',
+      resourceType: 'user',
+      resourceId: user.id,
+      details: { oldName: user.name, newName: dto.name },
+      request: req,
+    });
     return { ok: true };
   }
 
@@ -86,14 +102,16 @@ export class MeController {
   async setPassword(
     @CurrentUser() jwt: JwtClaims,
     @Body() rawBody: unknown,
+    @Req() req: Request,
   ): Promise<{ ok: true }> {
     const dto = SetPasswordDtoSchema.parse(rawBody);
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
     if (!user) throw new UnauthorizedException();
 
-    if (user.localPasswordHash) {
+    const wasSet = Boolean(user.localPasswordHash);
+    if (wasSet) {
       if (!dto.currentPassword) throw new BadRequestException('current_password_required');
-      const ok = await bcrypt.compare(dto.currentPassword, user.localPasswordHash);
+      const ok = await bcrypt.compare(dto.currentPassword, user.localPasswordHash!);
       if (!ok) throw new BadRequestException('current_password_incorrect');
     }
     const hash = await bcrypt.hash(dto.newPassword, 12);
@@ -106,11 +124,18 @@ export class MeController {
         localUsername: user.localUsername ?? user.larkUserId ?? user.id,
       },
     });
+    void this.audit.log({
+      actor: { id: user.id, name: user.name },
+      action: wasSet ? 'user.password.change' : 'user.password.set',
+      resourceType: 'user',
+      resourceId: user.id,
+      request: req,
+    });
     return { ok: true };
   }
 
   @Delete('me/lark-binding')
-  async unbindLark(@CurrentUser() jwt: JwtClaims): Promise<{ ok: true }> {
+  async unbindLark(@CurrentUser() jwt: JwtClaims, @Req() req: Request): Promise<{ ok: true }> {
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
     if (!user) throw new UnauthorizedException();
     // Refuse if user would be left with NO way to log in
@@ -125,6 +150,14 @@ export class MeController {
         larkUserId: null,
         avatarUrl: null,
       },
+    });
+    void this.audit.log({
+      actor: { id: user.id, name: user.name },
+      action: 'user.lark.unbind',
+      resourceType: 'user',
+      resourceId: user.id,
+      details: { previousLarkUserId: user.larkUserId },
+      request: req,
     });
     return { ok: true };
   }

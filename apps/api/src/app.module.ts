@@ -14,6 +14,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 
 // eslint-disable-next-line import/no-unresolved
+import { AuditModule } from './audit/audit.module.js';
+// eslint-disable-next-line import/no-unresolved
 import { AuthModule } from './auth/auth.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { pinoConfig } from './common/logger.js';
@@ -49,6 +51,7 @@ import { UploadsModule } from './uploads/uploads.module.js';
     // iter 31 T5：cron 调度（自动清理 N 天前 render 输出文件）
     ScheduleModule.forRoot(),
     PrismaModule,
+    AuditModule, // iter 32 T1：@Global 全局可用
     HealthModule,
     AuthModule,
     UploadsModule,

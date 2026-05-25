@@ -170,3 +170,23 @@ model RefreshToken {
   @@index([expiresAt])
   @@map("refresh_tokens")
 }
+
+// iter 32 T1：审计日志（who did what when）。fire-and-forget 写入；查询索引
+// 覆盖 actor / action / resource 三维度。
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorId      String?  @map("actor_id")          // null = 系统调用 / lark webhook
+  actorName    String?  @map("actor_name")        // 冗余存当时名字，user 删后审计仍可读
+  action       String                              // 'template.delete' / 'token.revoke' 等
+  resourceType String?  @map("resource_type")     // 'template' / 'render_job' / 'api_token' / 'user'
+  resourceId   String?  @map("resource_id")
+  details      Json?                               // 可选额外信息
+  ip           String?
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([resourceType, resourceId])
+  @@map("audit_log")
+}

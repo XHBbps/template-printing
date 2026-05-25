@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
 import {
   Controller,
   HttpCode,
@@ -9,8 +10,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+/* eslint-enable import/no-unresolved */
 import type { Request, Response } from 'express';
 
+// eslint-disable-next-line import/no-unresolved
+import { AuditLogService } from '../../audit/audit-log.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { Public } from '../decorators/public.decorator.js';
 /* eslint-disable import/no-unresolved */
@@ -32,25 +36,25 @@ export class AuthController {
     private readonly jwt: JwtAuthService,
     private readonly refresh: RefreshTokenService,
     private readonly prisma: PrismaClient,
+    private readonly audit: AuditLogService,
     @Inject('COOKIE_ENV') private readonly cookieEnv: CookieEnv,
   ) {}
 
   @Public()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<void> {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     // Idempotent: always clear cookies even if access token expired or absent.
     // Otherwise an expired-token user can't actually logout — the JwtAuthGuard
     // returns 401 before clearAuthCookies runs, leaving cookies stale.
     const cookies = (req as Request & { cookies?: Record<string, string> }).cookies ?? {};
     const refreshToken = cookies[REFRESH_COOKIE];
+    let actorId: string | null = null;
     if (refreshToken) {
       try {
         const v = await this.refresh.verify(refreshToken);
         if (v) {
+          actorId = v.userId;
           await this.refresh.revoke(v.id);
         }
       } catch {
@@ -58,6 +62,17 @@ export class AuthController {
       }
     }
     clearAuthCookies(res, this.cookieEnv);
+
+    if (actorId) {
+      const user = await this.prisma.user.findUnique({ where: { id: actorId } });
+      void this.audit.log({
+        actor: { id: actorId, name: user?.name ?? null },
+        action: 'user.logout',
+        resourceType: 'user',
+        resourceId: actorId,
+        request: req,
+      });
+    }
   }
 
   @Public()
