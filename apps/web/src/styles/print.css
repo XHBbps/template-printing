@@ -8,22 +8,52 @@
    =========================================== */
 
 @media print {
-  /* Hide global app chrome */
+  /* === Hide all app chrome === */
+
+  /* Sidebar — 30A renamed root class .app-sidebar → .sidebar.yangli-sidebar */
+  .sidebar,
+  .yangli-sidebar,
   .app-sidebar {
     display: none !important;
   }
 
-  /* Hide TemplatesView breadcrumb when in editor mode */
-  .tv-breadcrumb {
+  /* Editor chrome: breadcrumb / top toolbar / element & property panels / canvas toolbar */
+  .tv-breadcrumb,
+  .tp-top-toolbar,
+  .designer-left,
+  .designer-right,
+  .cft-bar {
     display: none !important;
   }
 
-  /* Strip wrap padding / max-width so the paper sits flush */
+  /* Designer 3-column grid → single block so canvas-center fills page */
+  .designer-root {
+    display: block !important;
+    height: auto !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+  .designer-center {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    background: #fff !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  /* Strip outer wraps so the paper sits flush */
   .app-shell {
+    display: block !important;
     height: auto !important;
     overflow: visible !important;
   }
   .app-main {
+    display: block !important;
     overflow: visible !important;
     background: #fff !important;
   }
@@ -31,23 +61,24 @@
   .tv-editor-mode,
   .tv-editor-host,
   .tv-list {
+    display: block !important;
     padding: 0 !important;
     margin: 0 !important;
     max-width: none !important;
     min-height: 0 !important;
     overflow: visible !important;
     background: #fff !important;
+    height: auto !important;
   }
 
-  /* Force body background white */
-  body {
+  /* Force body / html background white */
+  html, body {
     background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  /* iter 25: canvas wrap layer. host was position:absolute + inset 80/24,
-     canvas-area was width/height: 100%. In print context the absolute inset
-     would clip the visible area and height:100% would collapse to 0 (no parent
-     height). Reset both to natural flow so .tp-paper can render. */
+  /* Canvas wrap: was position:absolute + inset. Reset to natural flow. */
   .tp-canvas-host {
     position: static !important;
     inset: auto !important;
@@ -62,12 +93,6 @@
     overflow: visible !important;
     background: #fff !important;
     background-image: none !important;
-  }
-
-  /* iter 25: hide the floating canvas toolbar (undo/redo/pan/zoom) — never
-     wanted in printed output. */
-  .cft-bar {
-    display: none !important;
   }
 
   /* Reset page margins (the @page rule injected at print time controls paper size) */
