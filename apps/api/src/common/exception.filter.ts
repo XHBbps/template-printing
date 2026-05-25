@@ -1,5 +1,10 @@
+// eslint-disable-next-line import/no-unresolved
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common';
-import type { Response } from 'express';
+// eslint-disable-next-line import/no-unresolved
+import * as Sentry from '@sentry/node';
+import type { Request, Response } from 'express';
+
+import type { JwtClaims } from '../auth/jwt/jwt.service.js';
 
 interface ApiErrorBody {
   ok: false;
@@ -17,6 +22,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request & { user?: JwtClaims }>();
 
     let status = 500;
     let body: ApiErrorBody = {
@@ -42,6 +48,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       this.logger.error(`Unhandled error: ${exception.message}`, exception.stack);
     } else {
       this.logger.error(`Unhandled non-error throw: ${JSON.stringify(exception)}`);
+    }
+
+    // iter 32 T2：5xx + 未知错误上报 Sentry（4xx 已在 instrument.ts beforeSend 过滤）
+    if (status >= 500 || !(exception instanceof HttpException)) {
+      Sentry.withScope((scope) => {
+        scope.setTag('url', request.url);
+        scope.setTag('method', request.method);
+        if (request.user?.sub) {
+          scope.setUser({ id: request.user.sub, role: request.user.role });
+        }
+        scope.setContext('request', {
+          method: request.method,
+          url: request.url,
+          ip: request.ip,
+        });
+        Sentry.captureException(exception);
+      });
     }
 
     response.status(status).json(body);

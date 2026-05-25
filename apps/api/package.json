@@ -25,6 +25,7 @@
     "@nestjs/serve-static": "^4.0.2",
     "@nestjs/throttler": "^6",
     "@prisma/client": "5.16.2",
+    "@sentry/node": "^8",
     "@template-printing/schema": "workspace:*",
     "@template-printing/types": "workspace:*",
     "bcryptjs": "2.4.3",

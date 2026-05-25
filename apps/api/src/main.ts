@@ -1,9 +1,14 @@
+/* eslint-disable import/no-unresolved */
+// iter 32 T2：Sentry 必须在所有其他 import 之前初始化（SDK v8 要求）
+import './instrument.js';
+
 import 'reflect-metadata';
 
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
+/* eslint-enable import/no-unresolved */
 
 // eslint-disable-next-line import/no-unresolved
 import { AppModule } from './app.module.js';
