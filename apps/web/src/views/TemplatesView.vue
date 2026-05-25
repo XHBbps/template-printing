@@ -202,15 +202,10 @@ const countLabel = computed(() => {
           模板中心
         </div>
         <div class="page-sub">TEMPLATES · 模板库</div>
-        <div class="page-bar-spacer"></div>
-        <button class="btn btn-primary" type="button" @click="createNew">
-          <span class="ico"><Plus :size="14" :stroke-width="1.5" /></span>
-          新建模板
-        </button>
       </header>
 
       <div class="page-body">
-        <div class="max">
+        <div class="tv-inner">
           <!-- 工具栏 -->
           <div class="toolbar">
             <div class="search">
@@ -259,10 +254,11 @@ const countLabel = computed(() => {
             <span class="rule"></span>
           </div>
 
-          <!-- 网格 -->
+          <!-- 加载态 -->
           <div v-if="templates.loading" class="empty-line">加载中…</div>
-          <div v-else class="tpl-grid">
-            <!-- 模板卡片 -->
+
+          <!-- 网格视图 -->
+          <div v-else-if="viewMode === 'grid'" class="tpl-grid">
             <div
               v-for="t in filteredList"
               :key="t.id"
@@ -300,10 +296,57 @@ const countLabel = computed(() => {
               </div>
             </div>
 
-            <!-- 新建模板 tile -->
             <div class="tpl new" @click="createNew">
               <span class="plus">
                 <Plus :size="16" :stroke-width="1.8" />
+              </span>
+              <span class="label">新建模板</span>
+              <span class="hint">A4 · A5 · 标签纸</span>
+            </div>
+          </div>
+
+          <!-- 列表视图 -->
+          <div v-else class="tpl-list">
+            <div
+              v-for="t in filteredList"
+              :key="t.id"
+              class="tpl-row"
+              :class="{ recent: t.id === recentId }"
+              @click="openTemplate(t.id)"
+            >
+              <div class="row-thumb">
+                <span class="stamp">{{ paperLabel() }}</span>
+              </div>
+              <div class="row-meta">
+                <div class="name">{{ t.name }}</div>
+                <div class="meta">
+                  <span>{{ formatDate(t.updatedAt) }}</span>
+                  <span class="sep">·</span>
+                  <span>V1 DRAFT</span>
+                </div>
+              </div>
+              <span v-if="t.id === recentId" class="row-tag">最近编辑</span>
+              <div class="row-actions">
+                <button type="button" title="复制" @click.stop="duplicateTemplate(t)">
+                  <Copy :size="12" :stroke-width="1.8" />
+                </button>
+                <button type="button" title="重命名" @click.stop="renameTemplate(t)">
+                  <Pencil :size="12" :stroke-width="1.8" />
+                </button>
+                <button
+                  type="button"
+                  class="danger"
+                  title="删除"
+                  @click.stop="deleteTemplate(t.id, t.name)"
+                >
+                  <Trash2 :size="12" :stroke-width="1.8" />
+                </button>
+              </div>
+            </div>
+
+            <div class="tpl-row tpl-row--new" @click="createNew">
+              <span class="plus">
+                <Plus :size="14" :stroke-width="1.8" />
               </span>
               <span class="label">新建模板</span>
               <span class="hint">A4 · A5 · 标签纸</span>
@@ -336,6 +379,12 @@ const countLabel = computed(() => {
 }
 .tv-wrap.in-editor {
   overflow: visible;
+}
+
+/* 替代 app-shell.css 的 .max — 让网格用更宽的最大宽度（vs 默认 1120） */
+.tv-inner {
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
 /* ============ Toolbar ============ */
@@ -623,6 +672,190 @@ const countLabel = computed(() => {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-top: 4px;
+}
+
+/* ============ List view ============ */
+.tpl-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--paper-white);
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-2);
+  overflow: hidden;
+}
+.tpl-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--stone);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-default);
+  position: relative;
+}
+.tpl-row:last-child {
+  border-bottom: 0;
+}
+.tpl-row:hover {
+  background: var(--mist);
+}
+.tpl-row.recent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--yangli-red);
+}
+
+.row-thumb {
+  width: 56px;
+  height: 42px;
+  background: var(--mist);
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-1);
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.row-thumb::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background:
+    linear-gradient(to right, rgba(89, 87, 89, 0.1) 1px, transparent 1px) 0 0 / 8px 8px,
+    linear-gradient(to bottom, rgba(89, 87, 89, 0.1) 1px, transparent 1px) 0 0 / 8px 8px,
+    var(--paper-white);
+  border: 1px solid var(--stone);
+}
+.row-thumb .stamp {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--fg-3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.row-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.row-meta .name {
+  font-family: var(--font-han);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-meta .meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  letter-spacing: 0.02em;
+}
+.row-meta .meta .sep {
+  color: var(--stone);
+}
+
+.row-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: var(--tr-caption);
+  text-transform: uppercase;
+  color: var(--yangli-red);
+  border: 1px solid var(--yangli-red);
+  border-radius: 999px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 4px;
+}
+.row-actions button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--stone);
+  background: var(--paper-white);
+  color: var(--fg-2);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color var(--dur-fast) var(--ease-default),
+    border-color var(--dur-fast) var(--ease-default);
+}
+.row-actions button:hover {
+  color: var(--ink);
+  border-color: var(--yangli-graphite);
+}
+.row-actions button.danger:hover {
+  color: var(--yangli-red);
+  border-color: var(--yangli-red);
+}
+
+.tpl-row--new {
+  justify-content: center;
+  border-style: dashed;
+  border-top: 1px dashed var(--stone);
+  cursor: pointer;
+  background: var(--paper-white);
+  color: var(--fg-2);
+}
+.tpl-row--new:hover {
+  background: var(--paper-white);
+  color: var(--ink);
+  border-top-color: var(--yangli-red);
+}
+.tpl-row--new .plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--yangli-graphite);
+  border-radius: var(--radius-2);
+  color: var(--ink);
+  transition: all var(--dur-fast) var(--ease-default);
+}
+.tpl-row--new:hover .plus {
+  background: var(--yangli-red);
+  border-color: var(--yangli-red);
+  color: var(--paper-white);
+}
+.tpl-row--new .label {
+  font-family: var(--font-han);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.tpl-row--new .hint {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* ============ Editor mode ============ */
