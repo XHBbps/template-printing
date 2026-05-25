@@ -89,8 +89,11 @@ async function copyId(e: MouseEvent): Promise<void> {
   background: var(--tp-field-bg);
 }
 .tne-title {
-  font-weight: 700;
+  font-family: var(--font-han);
+  font-weight: 600;
   font-size: 14px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -133,8 +136,10 @@ async function copyId(e: MouseEvent): Promise<void> {
 .tne-input {
   width: 100%;
   font: inherit;
-  font-weight: 700;
+  font-family: var(--font-han);
+  font-weight: 600;
   font-size: 14px;
+  letter-spacing: -0.005em;
   padding: 2px 4px;
   border: 1px solid var(--tp-accent);
   border-radius: 4px;

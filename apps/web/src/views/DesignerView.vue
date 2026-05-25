@@ -173,7 +173,6 @@ watch(
         <div class="tp-head-text">
           <TemplateNameEditor />
           <div class="tp-head-sub">
-            <span class="dot"></span>
             <span>V{{ store.template.meta.version }}</span>
             <span class="sep">·</span>
             <span>{{ saveCaption.cap }}</span>

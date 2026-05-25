@@ -74,18 +74,18 @@
 
 /* 顶部 panel header（项目名 / 标题） */
 .tp-panel-head {
-  padding: 14px;
-  border-bottom: 1px solid var(--tp-line);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--stone);
   flex-shrink: 0;
+  min-width: 0;
 }
 .tp-head-text { min-width: 0; flex: 1; }
 .tp-head-title {
-  font-weight: 700;
+  font-family: var(--font-han);
   font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -98,12 +98,15 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--fg-3);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
 }
-.tp-head-sub .dot {
+/* 6×6 红方块作为微小品牌点（按 target-mockup .elements .head .sub::before） */
+.tp-head-sub::before {
+  content: '';
+  display: inline-block;
   width: 6px;
   height: 6px;
   background: var(--yangli-red);
