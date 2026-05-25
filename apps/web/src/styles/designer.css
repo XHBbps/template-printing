@@ -178,7 +178,7 @@
   position: absolute;
   inset: 14px 24px 24px 24px;
 }
-/* 画布区域 — 浅紫点状栅格 */
+/* 画布区域 — 圆点网格（stone @ 12px tile，冷工业感） */
 .tp-canvas-area {
   position: relative;
   width: 100%;
@@ -189,8 +189,8 @@
   justify-content: safe center;
   align-items: safe flex-start;
   overflow: auto;
-  background-image: radial-gradient(circle, rgba(108, 92, 231, 0.07) 1px, transparent 1px);
-  background-size: 16px 16px;
+  background-image: radial-gradient(circle, rgba(89, 87, 89, 0.18) 1px, transparent 1px);
+  background-size: 12px 12px;
 }
 .tp-canvas-area--pan {
   cursor: grab;
@@ -199,26 +199,22 @@
   pointer-events: none !important;
 }
 
-/* 纸张 */
+/* 纸张 — 1px stone 描边，无 shadow（扁平品牌） */
 .tp-paper {
   position: relative;
-  background: #fff;
-  border-radius: 4px;
-  box-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.04),
-    0 4px 12px rgba(0, 0, 0, 0.04),
-    0 24px 48px rgba(0, 0, 0, 0.06);
+  background: var(--paper-white);
+  border: 1px solid var(--stone);
   flex-shrink: 0;
 }
-/* 拖拽中 / drop hover 时显示淡虚线栅格 */
+/* 拖拽中 / drop hover 时显示淡 stone 栅格 */
 .tp-paper::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(to right, rgba(108, 92, 231, 0.12) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(108, 92, 231, 0.12) 1px, transparent 1px);
+    linear-gradient(to right, rgba(89, 87, 89, 0.14) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(89, 87, 89, 0.14) 1px, transparent 1px);
   background-size: var(--cell-w) var(--cell-h);
   opacity: 0;
   transition: opacity 180ms ease;
@@ -248,11 +244,11 @@
    ========================================================= */
 .designer-root *::-webkit-scrollbar { width: 8px; height: 8px; }
 .designer-root *::-webkit-scrollbar-thumb {
-  background: rgba(108, 92, 231, 0.16);
+  background: rgba(89, 87, 89, 0.22);
   border-radius: 4px;
 }
 .designer-root *::-webkit-scrollbar-thumb:hover {
-  background: rgba(108, 92, 231, 0.3);
+  background: rgba(89, 87, 89, 0.45);
 }
 
 /* =========================================================
