@@ -28,6 +28,8 @@ import { HealthModule } from './health/health.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { LarkModule } from './lark/lark.module.js';
 // eslint-disable-next-line import/no-unresolved
+import { MetricsModule } from './metrics/metrics.module.js';
+// eslint-disable-next-line import/no-unresolved
 import { PrismaModule } from './prisma/prisma.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { RenderModule } from './render/render.module.js';
@@ -52,6 +54,7 @@ import { UploadsModule } from './uploads/uploads.module.js';
     ScheduleModule.forRoot(),
     PrismaModule,
     AuditModule, // iter 32 T1：@Global 全局可用
+    MetricsModule, // iter 32 T3：@Global，/metrics 端点
     HealthModule,
     AuthModule,
     UploadsModule,

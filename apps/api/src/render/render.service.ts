@@ -13,6 +13,8 @@ import IORedis from 'ioredis';
 // eslint-disable-next-line import/no-unresolved
 import { AuditLogService } from '../audit/audit-log.service.js';
 // eslint-disable-next-line import/no-unresolved
+import { MetricsService } from '../metrics/metrics.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { FileSigService } from '../uploads/file-sig.service.js';
@@ -32,6 +34,7 @@ export class RenderService {
     private readonly prisma: PrismaService,
     private readonly fileSig: FileSigService,
     private readonly audit: AuditLogService,
+    private readonly metrics: MetricsService,
   ) {
     const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
     this.queue = new Queue('render', {
@@ -88,6 +91,9 @@ export class RenderService {
         details: { templateId: args.templateId, formats: [...formats] },
       });
     }
+
+    // iter 32 T3：metrics — 入队计数（source 由调用方决定，目前仅 api 路径）
+    this.metrics.renderJobs.inc({ status: 'enqueued', source: ownerId ? 'api' : 'system' });
 
     return { jobId: job.id, status: job.status };
   }
@@ -244,6 +250,8 @@ export class RenderService {
     if (used >= limit) {
       const resetAt = new Date(start);
       resetAt.setDate(resetAt.getDate() + 1);
+      // iter 32 T3：metrics — 记录配额超限事件
+      this.metrics.renderQuotaExceeded.inc();
       throw new HttpException(
         {
           ok: false,
