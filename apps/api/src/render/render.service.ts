@@ -1,4 +1,6 @@
 import {
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
   // eslint-disable-next-line import/no-unresolved
@@ -10,6 +12,8 @@ import IORedis from 'ioredis';
 
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { FileSigService } from '../uploads/file-sig.service.js';
 
 export interface EnqueueArgs {
   templateId: string;
@@ -22,7 +26,10 @@ export interface EnqueueArgs {
 export class RenderService {
   private readonly queue: Queue;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fileSig: FileSigService,
+  ) {
     const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
     this.queue = new Queue('render', {
       connection: new IORedis(url, { maxRetriesPerRequest: null }),
@@ -38,6 +45,11 @@ export class RenderService {
     const tpl = await this.prisma.template.findFirst({ where });
     if (!tpl) throw new NotFoundException('template_not_found');
 
+    // iter 31 T4：用户日配额（系统调用 ownerId=null 不计入任何用户配额）
+    if (ownerId) {
+      await this.checkDailyQuota(ownerId);
+    }
+
     const formats = args.formats?.length ? args.formats : (['pdf', 'png'] as const);
     const job = await this.prisma.renderJob.create({
       data: {
@@ -48,7 +60,20 @@ export class RenderService {
         callbackUrl: args.callbackUrl ?? null,
       },
     });
-    await this.queue.add('render', { jobId: job.id }, { jobId: job.id });
+    await this.queue.add(
+      'render',
+      { jobId: job.id, ownerId: ownerId ?? null },
+      {
+        jobId: job.id,
+        // iter 31 T2：渲染失败按指数退避重试 3 次（2s / 4s / 8s）
+        // 永久错误（template_not_found / schema 错误等）worker 会主动抛
+        // UnrecoverableError 跳过剩余 attempts
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: { count: 1000 },
+        removeOnFail: { count: 1000 },
+      },
+    );
     return { jobId: job.id, status: job.status };
   }
 
@@ -66,8 +91,8 @@ export class RenderService {
     return {
       jobId: job.id,
       status: job.status,
-      pdfUrl: job.pdfUrl,
-      pngUrl: job.pngUrl,
+      pdfUrl: this.fileSig.signUrl(job.pdfUrl),
+      pngUrl: this.fileSig.signUrl(job.pngUrl),
       errorMsg: job.errorMsg,
       createdAt: job.createdAt,
       completedAt: job.completedAt,
@@ -169,8 +194,8 @@ export class RenderService {
           createdAt: r.createdAt,
           completedAt: r.completedAt,
           durationMs,
-          pdfUrl: r.pdfUrl,
-          pngUrl: r.pngUrl,
+          pdfUrl: this.fileSig.signUrl(r.pdfUrl),
+          pngUrl: this.fileSig.signUrl(r.pngUrl),
           errorMsg: r.errorMsg,
           data: r.data,
           callbackUrl: r.callbackUrl,
@@ -180,5 +205,43 @@ export class RenderService {
       page: args.page,
       pageSize,
     };
+  }
+
+  /**
+   * iter 31 T4：单用户日配额。超限抛 HttpException(429) 含 QUOTA_EXCEEDED
+   * + 已用 / 上限 / 重置时间，前端可显示给用户。
+   *
+   * 计数维度：当日（本地 00:00 起）创建的 render_jobs，按 template.ownerId 归属。
+   * Lark webhook（ownerId=null）跳过此检查。
+   */
+  private async checkDailyQuota(ownerId: string): Promise<void> {
+    const limit = Number(process.env.RENDER_QUOTA_PER_USER_DAILY ?? 200);
+    if (!Number.isFinite(limit) || limit <= 0) return; // 0 / 负 = 关闭配额
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const used = await this.prisma.renderJob.count({
+      where: {
+        template: { ownerId },
+        createdAt: { gte: start },
+      },
+    });
+    if (used >= limit) {
+      const resetAt = new Date(start);
+      resetAt.setDate(resetAt.getDate() + 1);
+      throw new HttpException(
+        {
+          ok: false,
+          error: {
+            code: 'QUOTA_EXCEEDED',
+            message: `每日渲染配额已用完（${used}/${limit}）`,
+            used,
+            limit,
+            resetAt: resetAt.toISOString(),
+          },
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
   }
 }

@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-25（iter 30D 设计器扬力化收敛）
+**最近更新**：2026-05-25（iter 31 生产就绪三件套）
 
 ---
 
@@ -26,7 +26,8 @@
 | **渲染日志 + API Token 管理（Bearer）** | ✅ 已完成 | iter 29 |
 | **扬力品牌 UI 改造 · 30A 基础 + Sidebar** | ✅ 已完成 | iter 30A |
 | **扬力品牌 UI 改造 · 30B 数据/管理页** | ✅ 已完成 | iter 30B（含 30C 全部：MeView + TemplatesView） |
-| **扬力品牌 UI 改造 · 30D 设计器收敛** | ✅ 已完成 | iter 30D（最新） |
+| **扬力品牌 UI 改造 · 30D 设计器收敛** | ✅ 已完成 | iter 30D |
+| **生产就绪三件套（Signed URL / 重试 + 限流 / Quota + 清理）** | ✅ 已完成 | iter 31（最新） |
 | 部署：阿里云 ACR + ECS + GitHub Actions | 🟡 框架就绪 | iter 19，待外部条件（域名 / 备案 / 飞书应用） |
 | Admin 用户管理后台（CRUD） | 🟡 仅占位页 | `apps/web/src/views/admin/UsersAdminView.vue` 已存在，后端 CRUD 未补 |
 | 渲染任务历史 / 我的渲染任务 | ⏳ 待开始 | 见第 5 节 |
@@ -118,6 +119,53 @@
 - 新 guard `ApiAuthGuard`：双栈回退（Bearer `tpkn_xxx` → JWT cookie + CSRF），应用到 `/api/render`
 - 新视图 `/me/api-tokens` + sidebar「API 凭证」：列表 / 创建 dialog / 一次性明文展示 / 吊销
 - 浏览器场景仍兼容 cookie（设计器调 /api/render 不受影响）
+
+### 2.12 生产就绪三件套（iter 31）
+
+为 2000 人集团生产部署解决 3 个 blocker：
+
+- **T1 Signed URL（合规红线）**：`/uploads/render/<id>.pdf` 加 HMAC token + 24h 过期。
+  · `FileSigService.sign/verify/signUrl` — `<hex hmac>.<expiryUnix>` token
+  · `SignedUploadsController` 替代 `ServeStaticModule` 服务 render 输出，
+    token 校验失败 401，路径穿越 / 文件不存在 404
+  · `RenderService.get/listJobs` 返 URL 前实时签名（DB 仍存原始路径，
+    旧数据天然兼容 + TTL 短不会因缓存 stale）
+  · `apps/render/src/file-sig.ts` 与 api 端共享 HMAC，worker 给外部
+    callbackUrl 推送 PDF/PNG URL 时也带 token
+  · 单测 11/11 PASS（篡改 / 过期 / 路径穿越全部拒绝）
+
+- **T2 渲染失败重试 + 错误分类**：bullmq attempts: 3 + exponential backoff（2s/4s/8s）。
+  · template_not_found / job not found → `UnrecoverableError` 跳过剩余 attempts
+  · 其他 renderer 错误（Puppeteer crash / 字体抖动 / 网络）默认 transient，自动重试
+  · `markFailed` 仅最后一次 attempt 调用，避免 retry 期间 status 反复闪烁
+  · DB 加 `attempts_made INT DEFAULT 1` 跟踪重试次数
+
+- **T3 API rate limit**：`@nestjs/throttler` 全局 60 req/min/user，
+  POST /api/render override 至 30 req/min（可 `RENDER_RATE_LIMIT_PER_MIN` 覆盖）。
+  · `UserThrottlerGuard` override getTracker：优先 `user:<sub>`，fallback `ip:`
+  · `SignedUploadsController` 加 `@SkipThrottle()`（已由 token 限流）
+  · 429 + Retry-After header（throttler 默认）
+  · 验收：连续 70 次 healthz → 60 个 200 + 10 个 429（精确）
+
+- **T4 渲染 quota**：单用户日上限 200（可 `RENDER_QUOTA_PER_USER_DAILY` 覆盖）。
+  · `RenderService.checkDailyQuota`：COUNT(render_jobs WHERE template.ownerId AND
+    createdAt >= 当日 00:00) 超 limit 抛 HttpException(429)
+  · body 含 `{ code: 'QUOTA_EXCEEDED', used, limit, resetAt }`
+  · Lark webhook（ownerId=null）跳过此检查
+
+- **T5 自动清理 cron**：`@nestjs/schedule` `@Cron(EVERY_DAY_AT_3AM)` 触发
+  `RenderCleanupService.cleanupOldOutputs`。
+  · 查 createdAt < N 天 + cleanedAt IS NULL + status in (done/failed)
+  · 对 pdfUrl / pngUrl unlink 物理文件，ENOENT 视为已清
+  · DB updateMany SET cleanedAt = NOW(), pdfUrl/pngUrl = NULL
+  · 保留 render_jobs DB 记录用于审计
+  · `RENDER_CLEANUP_DAYS=30` 默认（0 关闭）
+
+新增 env：`FILE_SIG_TTL_SEC` / `RENDER_QUOTA_PER_USER_DAILY` /
+`RENDER_RATE_LIMIT_PER_MIN` / `RENDER_CLEANUP_DAYS`。
+
+DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
+索引 (cleaned_at, created_at)）。
 
 ### 2.11 扬力品牌 UI 改造 · 30D 设计器收敛（iter 30D）
 

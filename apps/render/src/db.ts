@@ -49,17 +49,18 @@ export async function markDone(
   id: string,
   pdfUrl: string | null,
   pngUrl: string | null,
+  attemptsMade = 1,
 ): Promise<void> {
   await pool.query(
-    'UPDATE render_jobs SET status = $1, pdf_url = $2, png_url = $3, completed_at = NOW() WHERE id = $4',
-    ['done', pdfUrl, pngUrl, id],
+    'UPDATE render_jobs SET status = $1, pdf_url = $2, png_url = $3, completed_at = NOW(), attempts_made = $4 WHERE id = $5',
+    ['done', pdfUrl, pngUrl, attemptsMade, id],
   );
 }
 
-export async function markFailed(id: string, errorMsg: string): Promise<void> {
+export async function markFailed(id: string, errorMsg: string, attemptsMade = 1): Promise<void> {
   await pool.query(
-    'UPDATE render_jobs SET status = $1, error_msg = $2, completed_at = NOW() WHERE id = $3',
-    ['failed', errorMsg, id],
+    'UPDATE render_jobs SET status = $1, error_msg = $2, completed_at = NOW(), attempts_made = $3 WHERE id = $4',
+    ['failed', errorMsg, attemptsMade, id],
   );
 }
 
