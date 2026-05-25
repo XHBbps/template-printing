@@ -91,11 +91,33 @@
   text-overflow: ellipsis;
 }
 .tp-head-sub {
-  font-size: 11px;
-  color: var(--tp-ink-faint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+.tp-head-sub .dot {
+  width: 6px;
+  height: 6px;
+  background: var(--yangli-red);
+  flex-shrink: 0;
+}
+.tp-head-sub .sep {
+  color: var(--stone);
+}
+.tp-head-sub .han {
+  font-family: var(--font-han);
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg-3);
 }
 
 /* 二级 section header (添加新元素 / 画布元素 / 数据字段 / 属性) */
