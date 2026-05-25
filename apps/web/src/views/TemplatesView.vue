@@ -96,12 +96,16 @@ async function loadListMore(): Promise<void> {
   if (listLoadingMore.value || !listHasMore.value) return;
   listLoadingMore.value = true;
   try {
-    const res = await templates.fetchSlice({
-      offset: listItems.value.length,
-      limit: LIST_BATCH,
-      search: searchQuery.value,
-      sort: sortBy.value,
-    });
+    // silent：不切全局 loading，避免滚动容器被卸载重建导致滚动条回顶
+    const res = await templates.fetchSlice(
+      {
+        offset: listItems.value.length,
+        limit: LIST_BATCH,
+        search: searchQuery.value,
+        sort: sortBy.value,
+      },
+      { silent: true },
+    );
     listItems.value = [...listItems.value, ...res.items];
     total.value = res.total;
   } finally {
@@ -116,8 +120,16 @@ function onListScroll(e: { scrollTop: number }): void {
   if (e.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 96) void loadListMore();
 }
 
-// 当前激活视图的数据集
-const activeItems = computed(() => (viewMode.value === 'grid' ? gridItems.value : listItems.value));
+// 「最近编辑」红框标识 —— 全局（当前筛选下）updatedAt 最大的那一个 id，
+// 不按当前页计算，确保整个列表只有一张被标识、且就是最近保存的那张。
+const recentId = ref<string | null>(null);
+async function refreshRecentId(): Promise<void> {
+  const res = await templates.fetchSlice(
+    { offset: 0, limit: 1, search: searchQuery.value, sort: 'updated' },
+    { silent: true },
+  );
+  recentId.value = res.items[0]?.id ?? null;
+}
 
 /** 刷新当前激活视图（首次进入 / 搜索 / 排序变化时回到起点）。 */
 async function reloadActive(): Promise<void> {
@@ -127,6 +139,7 @@ async function reloadActive(): Promise<void> {
   } else {
     await loadListInitial();
   }
+  await refreshRecentId();
 }
 
 /** 增删改后刷新：网格保持当前页（删空则回退一页），列表回到首批。 */
@@ -140,17 +153,8 @@ async function refreshAfterMutation(): Promise<void> {
   } else {
     await loadListInitial();
   }
+  await refreshRecentId();
 }
-
-// 当前已加载项里最近编辑（updatedAt 最大）的那张
-const recentId = computed(() => {
-  if (activeItems.value.length === 0) return null;
-  return (
-    [...activeItems.value].sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    )[0]?.id ?? null
-  );
-});
 
 // 搜索防抖 → 重拉当前视图
 let searchTimer: number | null = null;

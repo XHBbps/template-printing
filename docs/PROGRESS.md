@@ -325,6 +325,13 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-25
 
+- **模板中心两处修复**
+  - 「最近编辑」红框：原按当前页/已加载项算 max(updatedAt) → 每页都各高亮一张。改为
+    查询全局（当前筛选下）`sort=updated&limit=1` 的唯一 id（`recentId` 由 computed 改 ref），
+    全列表只标识一张、且为最近保存的那张；增删改 / 返回列表后刷新
+  - 无限滚动回顶：`loadListMore` 经 `fetchSlice` 切了全局 `loading`，触发模板 `v-if` 卸载
+    重建 `ElScrollbar` → 滚动条归 0。给 `fetchSlice` 加 `{silent}` 选项，加载下一批与取
+    最近编辑标识均静默（不切 loading），滚动位置保留
 - **模板中心：服务端分页（网格）+ 无限滚动（列表）+ 全站统一翻页组件**
   - 后端：`TemplatesService.list` 改为偏移分页 `{offset,limit,search,sort}` →
     `{items,total,offset,limit}`，搜索（name contains / id）+ 排序下沉 DB，复用

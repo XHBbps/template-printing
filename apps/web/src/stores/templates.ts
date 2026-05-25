@@ -36,8 +36,11 @@ export const useTemplatesStore = defineStore('templates', {
      */
     async fetchSlice(
       params: TemplateSliceParams,
+      opts?: { silent?: boolean },
     ): Promise<{ items: TemplateListItem[]; total: number }> {
-      this.loading = true;
+      // silent：不切全局 loading（无限滚动加载下一批 / 取最近编辑标识时用，
+      // 避免视图因 loading 切换卸载并重建滚动容器导致滚动条回顶）
+      if (!opts?.silent) this.loading = true;
       try {
         const qs = new URLSearchParams({
           offset: String(params.offset),
@@ -49,7 +52,7 @@ export const useTemplatesStore = defineStore('templates', {
         const res = await apiFetch<TemplateSliceResponse>(`/templates?${qs.toString()}`);
         return { items: res.items, total: res.total };
       } finally {
-        this.loading = false;
+        if (!opts?.silent) this.loading = false;
       }
     },
     async create(name: string, data: unknown): Promise<TemplateListItem> {
