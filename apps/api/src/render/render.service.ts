@@ -106,6 +106,7 @@ export class RenderService {
     errorMsg: string | null;
     createdAt: Date;
     completedAt: Date | null;
+    cleanedAt: Date | null;
   }> {
     const job = await this.prisma.renderJob.findUnique({ where: { id: jobId } });
     if (!job) throw new NotFoundException('job_not_found');
@@ -117,6 +118,7 @@ export class RenderService {
       errorMsg: job.errorMsg,
       createdAt: job.createdAt,
       completedAt: job.completedAt,
+      cleanedAt: job.cleanedAt,
     };
   }
 
@@ -143,6 +145,7 @@ export class RenderService {
       source: 'bot' | 'bitable' | 'api';
       createdAt: Date;
       completedAt: Date | null;
+      cleanedAt: Date | null;
       durationMs: number | null;
       pdfUrl: string | null;
       pngUrl: string | null;
@@ -214,6 +217,7 @@ export class RenderService {
           source,
           createdAt: r.createdAt,
           completedAt: r.completedAt,
+          cleanedAt: r.cleanedAt,
           durationMs,
           pdfUrl: this.fileSig.signUrl(r.pdfUrl),
           pngUrl: this.fileSig.signUrl(r.pngUrl),

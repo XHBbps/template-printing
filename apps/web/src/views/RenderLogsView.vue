@@ -15,6 +15,7 @@ interface RenderJob {
   source: 'bot' | 'bitable' | 'api';
   createdAt: string;
   completedAt: string | null;
+  cleanedAt: string | null;
   durationMs: number | null;
   pdfUrl: string | null;
   pngUrl: string | null;
@@ -255,9 +256,16 @@ onMounted(refresh);
                     <td>
                       <div class="row-actions">
                         <a href="#" @click.prevent="openDetail(job)">详情</a>
-                        <a v-if="job.pdfUrl" :href="job.pdfUrl" target="_blank" rel="noopener">
-                          下载 PDF
-                        </a>
+                        <a
+                          v-if="job.pdfUrl && !job.cleanedAt"
+                          :href="job.pdfUrl"
+                          target="_blank"
+                          rel="noopener"
+                          >下载 PDF</a
+                        >
+                        <span v-if="job.cleanedAt" class="cleaned-mark" title="输出已自动清理">
+                          已清理
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -332,7 +340,14 @@ onMounted(refresh);
         <div class="grid-section">请求数据 (data)</div>
         <pre class="code-block">{{ dataJsonPretty }}</pre>
 
-        <template v-if="detailJob.pdfUrl || detailJob.pngUrl">
+        <template v-if="detailJob.cleanedAt">
+          <div class="grid-section">输出</div>
+          <div class="cleaned-notice">
+            本任务的输出文件已于 {{ formatAbs(detailJob.cleanedAt) }} 自动清理
+            <span class="cleaned-hint">（默认 30 天后清盘，DB 记录保留用于审计）</span>
+          </div>
+        </template>
+        <template v-else-if="detailJob.pdfUrl || detailJob.pngUrl">
           <div class="grid-section">输出</div>
           <div class="downloads">
             <a
@@ -608,5 +623,36 @@ table.log .id {
 .download-btn:hover {
   background: var(--ink);
   color: var(--paper-white);
+}
+
+/* iter 32 T4：已清理标识 */
+.cleaned-mark {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  padding: 0 6px;
+  border: 1px solid var(--stone);
+  border-radius: 999px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+}
+.cleaned-notice {
+  padding: 12px 14px;
+  background: var(--mist);
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-2);
+  font-family: var(--font-han);
+  font-size: 12.5px;
+  color: var(--fg-2);
+  line-height: 1.7;
+}
+.cleaned-hint {
+  display: block;
+  color: var(--fg-3);
+  font-size: 11.5px;
+  margin-top: 2px;
 }
 </style>
