@@ -6,6 +6,7 @@ import {
   Key,
   History,
   Users,
+  ShieldAlert,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -98,6 +99,10 @@ async function confirmLogout(): Promise<void> {
       <RouterLink v-if="isAdmin()" to="/admin/users" active-class="active">
         <span class="ico"><Users :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">用户管理</span>
+      </RouterLink>
+      <RouterLink v-if="isAdmin()" to="/admin/audit" active-class="active">
+        <span class="ico"><ShieldAlert :size="16" :stroke-width="1.5" /></span>
+        <span v-if="!collapsed">审计日志</span>
       </RouterLink>
     </nav>
 

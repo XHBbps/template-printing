@@ -79,6 +79,12 @@ const router = createRouter({
       component: () => import('../views/admin/UsersAdminView.vue'),
     },
     {
+      path: '/admin/audit',
+      name: 'admin-audit',
+      meta: { requiresAuth: true, adminOnly: true },
+      component: () => import('../views/admin/AuditLogView.vue'),
+    },
+    {
       path: '/401',
       name: 'unauthorized',
       meta: { requiresAuth: false, fullscreen: true },

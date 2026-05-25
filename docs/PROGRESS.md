@@ -131,6 +131,12 @@
   template.create/update/delete / render.enqueue / token.create/revoke。
   失败不影响业务（Logger.warn）。
 
+- **T1+ 审计日志查询后台**：`AuditLogService.list()` + `distinctActions()`，
+  `GET /audit-logs`（分页 + action / actorId / resourceType / resourceId / 日期范围过滤）
+  与 `GET /audit-logs/actions`（去重 action 下拉），`@Roles('admin','emergency_admin')` 限制。
+  前端 `views/admin/AuditLogView.vue`（筛选 + 分页 + 详情弹窗 + 复制），
+  路由 `/admin/audit` + Sidebar「审计日志」入口（仅 admin 可见）。
+
 - **T2 Sentry 错误追踪**：`@sentry/node` v8 装入 api 端。`instrument.ts` 在所有
   import 之前 init（v8 要求），SENTRY_DSN 为空 = noop。
   `GlobalExceptionFilter` 接 Sentry：5xx + 未知错误自动 captureException +
@@ -316,6 +322,17 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 ## 3. 近期变更
 
 > 按时间倒序，最近 ~15 次重大变更。详细 commit 见 `git log --oneline`。
+
+### 2026-05-25
+
+- **iter 32 T1+：审计日志查询后台**
+  - 后端：`AuditLogService.list()`（分页 + 多字段 + 日期范围过滤）/ `distinctActions()`；
+    新 `AuditLogController` 暴露 `GET /audit-logs` + `GET /audit-logs/actions`，
+    `@Roles('admin','emergency_admin')` 限制；`AuditModule` 注册 controller
+  - 前端：`views/admin/AuditLogView.vue`（筛选 + 分页 + 详情弹窗 + 复制）；
+    路由 `/admin/audit`（adminOnly）+ Sidebar「审计日志」入口
+  - 验证：docker 栈 e2e — admin 登录后 `/audit-logs` 返 31 条降序、action 筛选生效、
+    `/audit-logs/actions` 去重正确
 
 ### 2026-05-24
 
