@@ -32,7 +32,8 @@ import { UploadsModule } from './uploads/uploads.module.js';
     ServeStaticModule.forRoot({
       rootPath: join(process.env.STORAGE_ROOT ?? '/storage'),
       serveRoot: '/',
-      exclude: ['/healthz', '/auth/*', '/users/*'],
+      // /uploads/render/* 走 SignedUploadsController（HMAC token 校验），不通过静态服务
+      exclude: ['/healthz', '/auth/*', '/users/*', '/uploads/render/*'],
     }),
     PrismaModule,
     HealthModule,

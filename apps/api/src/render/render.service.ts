@@ -10,6 +10,8 @@ import IORedis from 'ioredis';
 
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { FileSigService } from '../uploads/file-sig.service.js';
 
 export interface EnqueueArgs {
   templateId: string;
@@ -22,7 +24,10 @@ export interface EnqueueArgs {
 export class RenderService {
   private readonly queue: Queue;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fileSig: FileSigService,
+  ) {
     const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
     this.queue = new Queue('render', {
       connection: new IORedis(url, { maxRetriesPerRequest: null }),
@@ -66,8 +71,8 @@ export class RenderService {
     return {
       jobId: job.id,
       status: job.status,
-      pdfUrl: job.pdfUrl,
-      pngUrl: job.pngUrl,
+      pdfUrl: this.fileSig.signUrl(job.pdfUrl),
+      pngUrl: this.fileSig.signUrl(job.pngUrl),
       errorMsg: job.errorMsg,
       createdAt: job.createdAt,
       completedAt: job.completedAt,
@@ -169,8 +174,8 @@ export class RenderService {
           createdAt: r.createdAt,
           completedAt: r.completedAt,
           durationMs,
-          pdfUrl: r.pdfUrl,
-          pngUrl: r.pngUrl,
+          pdfUrl: this.fileSig.signUrl(r.pdfUrl),
+          pngUrl: this.fileSig.signUrl(r.pngUrl),
           errorMsg: r.errorMsg,
           data: r.data,
           callbackUrl: r.callbackUrl,

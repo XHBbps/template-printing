@@ -5,6 +5,8 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { ApiAuthGuard } from '../auth/guards/api-auth.guard.js';
+// eslint-disable-next-line import/no-unresolved
+import { UploadsModule } from '../uploads/uploads.module.js';
 
 // eslint-disable-next-line import/no-unresolved
 import { RenderController } from './render.controller.js';
@@ -12,7 +14,10 @@ import { RenderController } from './render.controller.js';
 import { RenderService } from './render.service.js';
 
 @Module({
-  imports: [AuthModule], // 拿 ApiTokenService + JwtAuthService 给 ApiAuthGuard
+  imports: [
+    AuthModule, // 拿 ApiTokenService + JwtAuthService 给 ApiAuthGuard
+    UploadsModule, // 拿 FileSigService 给 signed URL
+  ],
   controllers: [RenderController],
   providers: [RenderService, ApiAuthGuard],
   exports: [RenderService],

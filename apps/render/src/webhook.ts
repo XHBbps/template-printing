@@ -3,6 +3,8 @@ import { fetch } from 'undici';
 
 // eslint-disable-next-line import/no-unresolved
 import { fetchJob, markCallbackStatus } from './db.js';
+// eslint-disable-next-line import/no-unresolved
+import { signUrl } from './file-sig.js';
 
 export async function sendCallback(jobId: string, callbackUrl: string | null): Promise<void> {
   if (!callbackUrl) return;
@@ -14,8 +16,8 @@ export async function sendCallback(jobId: string, callbackUrl: string | null): P
   const payload = {
     jobId,
     status: job.status,
-    pdfUrl: job.pdf_url ?? null,
-    pngUrl: job.png_url ?? null,
+    pdfUrl: signUrl(job.pdf_url ?? null),
+    pngUrl: signUrl(job.png_url ?? null),
     errorMsg: job.error_msg ?? null,
   };
 
