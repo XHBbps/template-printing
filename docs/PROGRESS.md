@@ -325,6 +325,15 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-25
 
+- **扬力品牌 UI 改造：登录页重构**
+  - `LoginView.vue` 全量重写为左品牌面板 + 右表单面板布局，按 `handoff/target-login.html`
+    高保真稿落地（品牌锁定 + 几何动效 + 月渲染量/P50/成功率统计 + 双语排版 +
+    浮动 label 输入 + 保持登录 + 飞书登录 + 页脚链接）
+  - 命名空间 `tp-l-*` 隔离全局样式；颜色/间距/字体全部消费设计 token（无紫色、
+    无装饰阴影、无 8px+ 圆角、无 emoji）；引用 `public/yangli-logo-master.png`
+  - 登录逻辑（本地登录 / 飞书 SSO / continue 跳转 / 错误提示）完整保留不变
+  - followup：`保持登录 30 天` 复选框与 CN/EN 切换目前为视觉态，待接后端 session
+    时长 / i18n 文案切换
 - **iter 32 T1+：审计日志查询后台**
   - 后端：`AuditLogService.list()`（分页 + 多字段 + 日期范围过滤）/ `distinctActions()`；
     新 `AuditLogController` 暴露 `GET /audit-logs` + `GET /audit-logs/actions`，
