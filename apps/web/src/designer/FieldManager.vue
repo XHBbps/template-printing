@@ -185,7 +185,7 @@ async function remove(key: string): Promise<void> {
       <div v-if="filteredFields.length === 0 && store.fieldDefs.length === 0" class="empty">
         <div class="eyebrow">No variables · 暂无变量</div>
         <div class="msg">尚未声明变量，点击右上 + 添加。</div>
-        <div class="hint">VAR · {{ '{{ NAME }}' }}</div>
+        <div class="hint" v-pre>VAR · {{ NAME }}</div>
       </div>
       <div v-else-if="filteredFields.length === 0" class="empty">
         <div class="eyebrow">No match · 无匹配</div>
