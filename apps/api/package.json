@@ -22,6 +22,7 @@
     "@nestjs/jwt": "10.2.0",
     "@nestjs/platform-express": "10.3.10",
     "@nestjs/serve-static": "^4.0.2",
+    "@nestjs/throttler": "^6",
     "@prisma/client": "5.16.2",
     "@template-printing/schema": "workspace:*",
     "@template-printing/types": "workspace:*",

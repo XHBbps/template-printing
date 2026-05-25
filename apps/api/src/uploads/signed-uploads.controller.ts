@@ -11,6 +11,8 @@ import {
   NotFoundException,
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
+// eslint-disable-next-line import/no-unresolved
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 
 // eslint-disable-next-line import/no-unresolved
@@ -32,6 +34,8 @@ const MIME: Record<string, string> = {
  *
  * 校验 HMAC token，通过则返文件流；失败返 401（不是 404，避免泄露文件存在与否）。
  */
+// 高频文件下载，跳过全局 throttler（已由 HMAC token + expiry 限制访问）
+@SkipThrottle()
 @Controller('uploads/render')
 export class SignedUploadsController {
   constructor(private readonly fileSig: FileSigService) {}

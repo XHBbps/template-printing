@@ -9,6 +9,8 @@ import {
   UseGuards,
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
+// eslint-disable-next-line import/no-unresolved
+import { Throttle } from '@nestjs/throttler';
 
 // eslint-disable-next-line import/no-unresolved
 import { z } from 'zod';
@@ -40,6 +42,11 @@ const EnqueueDto = z.object({
 export class RenderController {
   constructor(private readonly svc: RenderService) {}
 
+  // iter 31 T3：override 全局 60/min → 30/min（可 .env 覆盖）。
+  // 单用户超限返 429 + Retry-After（throttler 默认行为）
+  @Throttle({
+    default: { limit: Number(process.env.RENDER_RATE_LIMIT_PER_MIN ?? 30), ttl: 60_000 },
+  })
   @Post()
   async enqueue(
     @CurrentUser() me: JwtClaims,
