@@ -155,12 +155,20 @@ watch(
 
 <template>
   <div class="tp-section-bottom prop-panel">
-    <div class="tp-sub-head">
-      <span class="tp-sub-title">属性</span>
-      <span v-if="sel" class="tp-sub-hint">已选 {{ store.selectedIds.length }} 个</span>
+    <div class="pp-head">
+      <div class="pp-head-text">
+        <div class="pp-title">属性</div>
+        <div class="pp-cap">
+          PROPERTIES ·
+          <span class="han">{{ sel ? `已选 ${store.selectedIds.length} 个` : '未选中' }}</span>
+        </div>
+      </div>
     </div>
 
-    <div v-if="!sel" class="empty">未选中任何元素</div>
+    <div v-if="!sel" class="empty">
+      <div class="eyebrow">No selection · 未选中元素</div>
+      <div class="msg">在画布上点击元素查看 / 编辑属性</div>
+    </div>
 
     <div v-else class="prop-body">
       <div class="row">
@@ -695,14 +703,69 @@ watch(
   font-size: 12px;
   overflow-y: auto;
 }
+/* head — 与 FieldManager 对称（14 semibold + mono caption） */
+.pp-head {
+  padding: 14px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--stone);
+  flex-shrink: 0;
+}
+.pp-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.pp-title {
+  font-family: var(--font-han);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.pp-cap {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.pp-cap .han {
+  font-family: var(--font-han);
+  text-transform: none;
+  letter-spacing: 0;
+}
 .prop-body {
   padding: 4px 0 12px;
 }
+/* 空态卡 — 1px stone + mist 底（brief §5.5） */
 .empty {
-  padding: 32px 16px;
-  color: var(--iron);
+  margin: 16px;
+  padding: 28px 16px;
+  background: var(--mist);
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-2);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.empty .eyebrow {
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: var(--tr-caption);
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.empty .msg {
+  font-family: var(--font-han);
   font-size: 12px;
+  color: var(--iron);
+  line-height: 1.7;
 }
 .row {
   display: flex;
@@ -912,7 +975,7 @@ watch(
 }
 .upload-error {
   font-size: 11px;
-  color: #d94f4f;
+  color: var(--yangli-red);
   background: #fff5f5;
   padding: 4px 8px;
   border-radius: 4px;

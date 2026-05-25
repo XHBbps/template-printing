@@ -254,7 +254,7 @@ async function onClearAll(): Promise<void> {
 }
 .elem-del:hover {
   background: rgba(217, 79, 79, 0.1);
-  color: #d94f4f;
+  color: var(--yangli-red);
 }
 .pagination {
   display: flex;

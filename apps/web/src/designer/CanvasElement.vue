@@ -111,9 +111,7 @@ const elementMap: Record<string, unknown> = {
   border-radius: 4px;
 }
 .tp-element.is-selected {
-  box-shadow:
-    inset 0 0 0 2px var(--yangli-red),
-    0 0 16px rgba(108, 92, 231, 0.18);
+  box-shadow: inset 0 0 0 2px var(--yangli-red);
 }
 /* 4 corner handles — white fill, purple border, circular (#3) */
 .tp-handle {
