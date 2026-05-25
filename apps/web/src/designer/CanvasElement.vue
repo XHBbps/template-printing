@@ -112,7 +112,7 @@ const elementMap: Record<string, unknown> = {
 }
 .tp-element.is-selected {
   box-shadow:
-    inset 0 0 0 2px var(--tp-accent),
+    inset 0 0 0 2px var(--yangli-red),
     0 0 16px rgba(108, 92, 231, 0.18);
 }
 /* 4 corner handles — white fill, purple border, circular (#3) */
@@ -121,7 +121,7 @@ const elementMap: Record<string, unknown> = {
   width: 9px;
   height: 9px;
   background: #fff;
-  border: 1.5px solid var(--tp-accent);
+  border: 1.5px solid var(--yangli-red);
   border-radius: 50%;
   z-index: 4;
   pointer-events: none;
@@ -147,7 +147,7 @@ const elementMap: Record<string, unknown> = {
   position: absolute;
   bottom: -26px;
   right: -1px;
-  background: var(--tp-ink);
+  background: var(--ink);
   color: #fff;
   font-family: ui-monospace, monospace;
   font-size: 11px;

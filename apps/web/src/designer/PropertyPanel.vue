@@ -700,7 +700,7 @@ watch(
 }
 .empty {
   padding: 32px 16px;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   text-align: center;
   font-size: 12px;
 }
@@ -714,13 +714,13 @@ watch(
   gap: 8px;
 }
 .lbl {
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   min-width: 36px;
   font-size: 11px;
   letter-spacing: 0.03em;
 }
 .val {
-  color: var(--tp-ink);
+  color: var(--ink);
 }
 .mono {
   font-family: ui-monospace, monospace;
@@ -736,19 +736,19 @@ watch(
   flex: 1;
   display: flex;
   align-items: stretch;
-  background: var(--tp-field-bg);
+  background: rgba(211, 45, 39, 0.04);
   border: 1px solid transparent;
-  border-radius: var(--tp-radius-item);
+  border-radius: var(--radius-2);
   overflow: hidden;
   transition: border-color 120ms ease;
   min-width: 0;
 }
 .axis:focus-within {
-  border-color: var(--tp-accent);
+  border-color: var(--yangli-red);
   background: #fff;
 }
 .axis-lbl {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -763,7 +763,7 @@ watch(
   background: transparent;
   padding: 4px 8px;
   font-size: 12px;
-  color: var(--tp-ink);
+  color: var(--ink);
   outline: none;
   font-family: ui-monospace, monospace;
   min-width: 0;
@@ -779,7 +779,7 @@ watch(
 }
 .axis-unit {
   background: transparent;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   font-size: 10px;
   padding: 0 8px;
   display: inline-flex;
@@ -789,7 +789,7 @@ watch(
 .row-badge {
   padding: 0 14px 4px;
   font-size: 10.5px;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
 }
 .row-badge .lbl {
   min-width: 36px;
@@ -799,12 +799,12 @@ watch(
 }
 .style-block {
   padding: 12px 14px;
-  border-bottom: 1px solid var(--tp-line);
+  border-bottom: 1px solid var(--stone);
 }
 .style-title {
   font-size: 11px;
   font-weight: 600;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 8px;
@@ -818,16 +818,16 @@ watch(
 .slbl {
   width: 36px;
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .sval {
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .snum,
 .ssel {
   padding: 3px 6px;
-  border: 1px solid var(--tp-line-strong);
+  border: 1px solid var(--yangli-graphite);
   border-radius: 4px;
   font-size: 12px;
   min-width: 80px;
@@ -837,18 +837,18 @@ watch(
   gap: 4px;
 }
 .seg button {
-  border: 1px solid var(--tp-line-strong);
-  background: var(--tp-panel);
+  border: 1px solid var(--yangli-graphite);
+  background: var(--paper-white);
   padding: 3px 10px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .seg button.on {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
-  border-color: var(--tp-accent);
+  border-color: var(--yangli-red);
 }
 .sclickable {
   cursor: pointer;
@@ -857,15 +857,15 @@ watch(
   justify-content: space-between;
 }
 .caret {
-  color: var(--tp-ink-faint);
+  color: var(--iron);
 }
 .slider {
   flex: 1;
-  accent-color: var(--tp-accent);
+  accent-color: var(--yangli-red);
 }
 .img-source {
   padding: 12px 14px;
-  border-bottom: 1px solid var(--tp-line);
+  border-bottom: 1px solid var(--stone);
 }
 .upload-row {
   flex-direction: column;
@@ -881,17 +881,17 @@ watch(
   justify-content: center;
   height: 32px;
   padding: 0 14px;
-  border: 1px dashed var(--tp-accent);
-  background: var(--tp-accent-bg);
-  color: var(--tp-accent-ink);
-  border-radius: var(--tp-radius-item);
+  border: 1px dashed var(--yangli-red);
+  background: rgba(211, 45, 39, 0.08);
+  color: var(--yangli-red);
+  border-radius: var(--radius-2);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 120ms ease;
 }
 .upload-btn:hover:not(:disabled) {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
   border-style: solid;
 }

@@ -302,7 +302,7 @@ async function remove(key: string): Promise<void> {
 .empty {
   padding: 24px 12px;
   text-align: center;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -310,8 +310,8 @@ async function remove(key: string): Promise<void> {
 .field-card {
   margin-bottom: 6px;
   padding: 8px 10px;
-  border-radius: var(--tp-radius-item, 8px);
-  border: 1px solid var(--tp-line-strong);
+  border-radius: var(--radius-2);
+  border: 1px solid var(--yangli-graphite);
   background: #f5f5f6;
   font-size: 12px;
   transition:
@@ -319,8 +319,8 @@ async function remove(key: string): Promise<void> {
     background 120ms ease;
 }
 .field-card:hover {
-  border-color: var(--tp-accent);
-  background: var(--tp-field-bg);
+  border-color: var(--yangli-red);
+  background: rgba(211, 45, 39, 0.04);
 }
 
 /* Bound = light green */
@@ -340,7 +340,7 @@ async function remove(key: string): Promise<void> {
 .k {
   font-family: ui-monospace, monospace;
   font-weight: 600;
-  color: var(--tp-ink);
+  color: var(--ink);
   flex: 1;
   min-width: 0;
   white-space: nowrap;
@@ -349,8 +349,8 @@ async function remove(key: string): Promise<void> {
 }
 .t {
   font-size: 10px;
-  background: var(--tp-accent-bg);
-  color: var(--tp-accent-ink);
+  background: rgba(211, 45, 39, 0.08);
+  color: var(--yangli-red);
   padding: 1px 6px;
   border-radius: 4px;
   font-family: ui-monospace, monospace;
@@ -359,7 +359,7 @@ async function remove(key: string): Promise<void> {
 .l {
   flex: 1;
   min-width: 0;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
@@ -367,8 +367,8 @@ async function remove(key: string): Promise<void> {
 }
 .req {
   font-size: 10px;
-  color: var(--tp-accent-ink);
-  background: var(--tp-accent-bg);
+  color: var(--yangli-red);
+  background: rgba(211, 45, 39, 0.08);
   padding: 0 5px;
   border-radius: 3px;
   flex-shrink: 0;
@@ -376,7 +376,7 @@ async function remove(key: string): Promise<void> {
 .action {
   border: none;
   background: transparent;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   cursor: pointer;
   width: 22px;
   height: 22px;
@@ -387,8 +387,8 @@ async function remove(key: string): Promise<void> {
   flex-shrink: 0;
 }
 .action:hover {
-  background: var(--tp-field-bg);
-  color: var(--tp-accent-ink);
+  background: rgba(211, 45, 39, 0.04);
+  color: var(--yangli-red);
 }
 .action.del:hover {
   background: rgba(217, 79, 79, 0.1);
@@ -404,19 +404,19 @@ async function remove(key: string): Promise<void> {
   align-items: center;
   gap: 6px;
   padding: 8px 14px 4px;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
 }
 .fm-search input {
   flex: 1;
-  border: 1px solid var(--tp-line-strong);
+  border: 1px solid var(--yangli-graphite);
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 12px;
-  background: var(--tp-panel);
-  color: var(--tp-ink);
+  background: var(--paper-white);
+  color: var(--ink);
   outline: none;
 }
 .fm-search input:focus {
-  border-color: var(--tp-accent);
+  border-color: var(--yangli-red);
 }
 </style>

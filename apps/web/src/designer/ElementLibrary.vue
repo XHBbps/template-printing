@@ -85,7 +85,7 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
 }
 .lib-grid {
   display: grid;
@@ -95,15 +95,15 @@ function onDragStart(e: DragEvent, meta: ElementMeta): void {
 }
 .lib-btn {
   padding: 10px 4px;
-  background: var(--tp-panel);
+  background: var(--paper-white);
   border: 1px solid var(--stone);
-  border-radius: var(--tp-radius-item, 8px);
+  border-radius: var(--radius-2);
   cursor: grab;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   font-size: 11px;
   transition:
     border-color var(--dur-fast) var(--ease-default),

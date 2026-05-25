@@ -158,7 +158,7 @@ async function onClearAll(): Promise<void> {
 .empty {
   padding: 32px 16px;
   text-align: center;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -167,7 +167,7 @@ async function onClearAll(): Promise<void> {
   background: transparent;
   border: none;
   font-size: 11px;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   cursor: pointer;
   padding: 2px 8px;
   border-radius: 4px;
@@ -190,23 +190,23 @@ async function onClearAll(): Promise<void> {
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  border-radius: var(--tp-radius-item, 8px);
+  border-radius: var(--radius-2);
   cursor: pointer;
-  color: var(--tp-ink);
+  color: var(--ink);
   font-size: 12.5px;
   margin-bottom: 2px;
   background: transparent;
 }
 .elem-row:hover {
-  background: var(--tp-field-bg);
+  background: rgba(211, 45, 39, 0.04);
 }
 .elem-row.is-active {
-  background: var(--tp-accent-bg);
-  color: var(--tp-accent-ink);
+  background: rgba(211, 45, 39, 0.08);
+  color: var(--yangli-red);
   font-weight: 600;
 }
 .elem-row.is-active .elem-icon {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
 }
 .elem-icon {
@@ -214,8 +214,8 @@ async function onClearAll(): Promise<void> {
   width: 22px;
   height: 22px;
   border-radius: 5px;
-  background: var(--tp-field-bg);
-  color: var(--tp-accent);
+  background: rgba(211, 45, 39, 0.04);
+  color: var(--yangli-red);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -233,7 +233,7 @@ async function onClearAll(): Promise<void> {
   width: 20px;
   height: 20px;
   border-radius: 4px;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -256,18 +256,18 @@ async function onClearAll(): Promise<void> {
   justify-content: center;
   gap: 8px;
   padding: 6px 10px 10px;
-  border-top: 1px solid var(--tp-line);
+  border-top: 1px solid var(--stone);
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .pagination button {
   width: 22px;
   height: 22px;
-  border: 1px solid var(--tp-line-strong);
-  background: var(--tp-panel);
+  border: 1px solid var(--yangli-graphite);
+  background: var(--paper-white);
   border-radius: 4px;
   cursor: pointer;
-  color: var(--tp-ink);
+  color: var(--ink);
 }
 .pagination button:disabled {
   opacity: 0.4;
@@ -278,6 +278,6 @@ async function onClearAll(): Promise<void> {
 }
 .pagination .pgsize {
   margin-left: auto;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
 }
 </style>

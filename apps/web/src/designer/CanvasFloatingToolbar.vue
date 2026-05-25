@@ -99,7 +99,7 @@ function cancelEdit(): void {
   box-shadow:
     0 2px 6px rgba(20, 20, 30, 0.06),
     0 8px 24px rgba(20, 20, 30, 0.1);
-  border: 1px solid var(--tp-line, #ececef);
+  border: 1px solid var(--stone);
   user-select: none;
 }
 .cft-btn {
@@ -111,37 +111,37 @@ function cancelEdit(): void {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--tp-ink-soft, #5e5e66);
+  color: var(--yangli-graphite);
   cursor: pointer;
   transition: all 120ms ease;
 }
 .cft-btn:hover:not(:disabled) {
-  background: var(--tp-field-bg, rgba(108, 92, 231, 0.06));
-  color: var(--tp-accent, #6c5ce7);
+  background: rgba(211, 45, 39, 0.04));
+  color: var(--yangli-red);
 }
 .cft-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 .cft-btn--active {
-  background: var(--tp-accent-bg, #f0eeff);
-  color: var(--tp-accent-ink, #4f3fcc);
+  background: rgba(211, 45, 39, 0.08);
+  color: var(--yangli-red);
 }
 .cft-btn--active:hover {
-  background: var(--tp-accent, #6c5ce7);
+  background: var(--yangli-red);
   color: #fff;
 }
 .cft-divider {
   width: 1px;
   height: 18px;
-  background: var(--tp-line, #ececef);
+  background: var(--stone);
   margin: 0 4px;
 }
 .cft-zoom-label {
   min-width: 48px;
   text-align: center;
   font-size: 12px;
-  color: var(--tp-ink, #1f1f23);
+  color: var(--ink);
   font-family: ui-monospace, monospace;
   font-weight: 500;
   cursor: pointer;
@@ -150,7 +150,7 @@ function cancelEdit(): void {
   transition: background 120ms ease;
 }
 .cft-zoom-label:hover {
-  background: var(--tp-field-bg, rgba(108, 92, 231, 0.06));
+  background: rgba(211, 45, 39, 0.04));
 }
 .cft-zoom-input {
   width: 56px;
@@ -160,9 +160,9 @@ function cancelEdit(): void {
   font-weight: 500;
   padding: 4px 6px;
   border-radius: 6px;
-  border: 1px solid var(--tp-accent, #6c5ce7);
+  border: 1px solid var(--yangli-red);
   outline: none;
-  color: var(--tp-ink, #1f1f23);
+  color: var(--ink);
   background: #fff;
 }
 /* Hide number input spinners */

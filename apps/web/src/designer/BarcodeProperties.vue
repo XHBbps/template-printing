@@ -110,12 +110,12 @@ function update(patch: Record<string, unknown>): void {
 <style scoped>
 .bc-block {
   padding: 12px 14px;
-  border-bottom: 1px solid var(--tp-line);
+  border-bottom: 1px solid var(--stone);
 }
 .bc-title {
   font-size: 11px;
   font-weight: 600;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 8px;
@@ -129,11 +129,11 @@ function update(patch: Record<string, unknown>): void {
 .slbl {
   width: 56px;
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .sval {
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   min-width: 40px;
   text-align: right;
 }
@@ -143,7 +143,7 @@ function update(patch: Record<string, unknown>): void {
 .snum,
 .ssel {
   padding: 3px 6px;
-  border: 1px solid var(--tp-line-strong);
+  border: 1px solid var(--yangli-graphite);
   border-radius: 4px;
   font-size: 12px;
   min-width: 100px;
@@ -153,17 +153,17 @@ function update(patch: Record<string, unknown>): void {
   gap: 4px;
 }
 .seg button {
-  border: 1px solid var(--tp-line-strong);
-  background: var(--tp-panel);
+  border: 1px solid var(--yangli-graphite);
+  background: var(--paper-white);
   padding: 3px 10px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .seg button.on {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
-  border-color: var(--tp-accent);
+  border-color: var(--yangli-red);
 }
 </style>

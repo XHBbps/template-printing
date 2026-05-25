@@ -112,12 +112,12 @@ function currentColor(): string {
 <style scoped>
 .bp-block {
   padding: 12px 14px;
-  border-bottom: 1px solid var(--tp-line);
+  border-bottom: 1px solid var(--stone);
 }
 .bp-title {
   font-size: 11px;
   font-weight: 600;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-bottom: 8px;
@@ -127,7 +127,7 @@ function currentColor(): string {
   grid-template-columns: 1fr 60px 1fr;
   grid-template-rows: 28px 1fr 28px;
   height: 96px;
-  border: 1px dashed var(--tp-line-strong);
+  border: 1px dashed var(--yangli-graphite);
   border-radius: 6px;
   padding: 4px;
   gap: 2px;
@@ -138,14 +138,14 @@ function currentColor(): string {
   cursor: pointer;
   border-radius: 4px;
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .cell:hover {
-  background: var(--tp-field-bg);
+  background: rgba(211, 45, 39, 0.04);
 }
 .cell.on {
-  color: var(--tp-accent-ink);
-  background: var(--tp-accent-bg);
+  color: var(--yangli-red);
+  background: rgba(211, 45, 39, 0.08);
   font-weight: 600;
 }
 .cell.t {
@@ -162,14 +162,14 @@ function currentColor(): string {
 }
 .center {
   grid-area: 2 / 2 / 3 / 3;
-  border: 1px solid var(--tp-line-strong);
-  background: var(--tp-field-bg);
+  border: 1px solid var(--yangli-graphite);
+  background: rgba(211, 45, 39, 0.04);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
 }
 
 .bp-controls {
@@ -186,11 +186,11 @@ function currentColor(): string {
 .ctrl-lbl {
   width: 36px;
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .ctrl-val {
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   min-width: 40px;
   text-align: right;
 }
@@ -202,23 +202,23 @@ function currentColor(): string {
   gap: 4px;
 }
 .seg button {
-  border: 1px solid var(--tp-line-strong);
-  background: var(--tp-panel);
+  border: 1px solid var(--yangli-graphite);
+  background: var(--paper-white);
   padding: 3px 10px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .seg button.on {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
-  border-color: var(--tp-accent);
+  border-color: var(--yangli-red);
 }
 .color-pick {
   width: 32px;
   height: 22px;
-  border: 1px solid var(--tp-line-strong);
+  border: 1px solid var(--yangli-graphite);
   border-radius: 4px;
   padding: 0;
   cursor: pointer;

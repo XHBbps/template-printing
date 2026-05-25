@@ -26,17 +26,17 @@ defineEmits<{ (e: 'pointerdown', ev: PointerEvent): void }>();
   z-index: 4;
   width: 32px;
   height: 20px;
-  background: var(--tp-panel);
-  border: 1.5px solid var(--tp-accent);
+  background: var(--paper-white);
+  border: 1.5px solid var(--yangli-red);
   border-radius: 8px;
-  box-shadow: var(--tp-accent-shadow);
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 120ms ease;
 }
 .tp-grip:hover {
-  background: var(--tp-accent-bg);
+  background: rgba(211, 45, 39, 0.08);
 }
 .tp-grip:active {
   cursor: grabbing;
@@ -67,7 +67,7 @@ defineEmits<{ (e: 'pointerdown', ev: PointerEvent): void }>();
   gap: 2.5px;
 }
 .tp-grip-dots i {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   border-radius: 50%;
   width: 3px;
   height: 3px;

@@ -73,29 +73,29 @@ const eligibleFields = computed(() =>
   margin-bottom: 8px;
 }
 .seg button {
-  border: 1px solid var(--tp-line-strong);
-  background: var(--tp-panel);
+  border: 1px solid var(--yangli-graphite);
+  background: var(--paper-white);
   padding: 3px 10px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
 }
 .seg button.on {
-  background: var(--tp-accent);
+  background: var(--yangli-red);
   color: #fff;
-  border-color: var(--tp-accent);
+  border-color: var(--yangli-red);
 }
 .bc-input {
   width: 100%;
   padding: 4px 8px;
-  border: 1px solid var(--tp-line-strong);
+  border: 1px solid var(--yangli-graphite);
   border-radius: 4px;
   font-size: 12px;
   outline: none;
-  background: var(--tp-panel);
+  background: var(--paper-white);
 }
 .bc-input:focus {
-  border-color: var(--tp-accent);
+  border-color: var(--yangli-red);
 }
 </style>

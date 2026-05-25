@@ -86,7 +86,7 @@ async function copyId(e: MouseEvent): Promise<void> {
   transition: background 120ms ease;
 }
 .tne-display:hover {
-  background: var(--tp-field-bg);
+  background: rgba(211, 45, 39, 0.04);
 }
 .tne-title {
   font-family: var(--font-han);
@@ -99,7 +99,7 @@ async function copyId(e: MouseEvent): Promise<void> {
   text-overflow: ellipsis;
 }
 .tne-edit-hint {
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   opacity: 0;
   transition: opacity 120ms ease;
 }
@@ -116,7 +116,7 @@ async function copyId(e: MouseEvent): Promise<void> {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   opacity: 0;
   transition:
     opacity 120ms ease,
@@ -127,8 +127,8 @@ async function copyId(e: MouseEvent): Promise<void> {
   opacity: 1;
 }
 .tne-copy-btn:hover {
-  background: var(--tp-field-bg);
-  color: var(--tp-accent);
+  background: rgba(211, 45, 39, 0.04);
+  color: var(--yangli-red);
 }
 .tne-copy-ok {
   color: #16a34a;
@@ -141,10 +141,10 @@ async function copyId(e: MouseEvent): Promise<void> {
   font-size: 14px;
   letter-spacing: -0.005em;
   padding: 2px 4px;
-  border: 1px solid var(--tp-accent);
+  border: 1px solid var(--yangli-red);
   border-radius: 4px;
-  background: var(--tp-panel);
+  background: var(--paper-white);
   outline: none;
-  color: var(--tp-ink);
+  color: var(--ink);
 }
 </style>

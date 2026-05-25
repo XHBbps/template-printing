@@ -84,7 +84,7 @@ function display(v: number): string {
 }
 .swi-range {
   flex: 1;
-  accent-color: var(--tp-accent);
+  accent-color: var(--yangli-red);
   height: 4px;
   cursor: pointer;
 }
@@ -92,7 +92,7 @@ function display(v: number): string {
   min-width: 40px;
   text-align: right;
   font-size: 11px;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   font-family: ui-monospace, monospace;
   cursor: pointer;
   padding: 1px 4px;
@@ -100,17 +100,17 @@ function display(v: number): string {
   transition: background 120ms ease;
 }
 .swi-val:hover {
-  background: var(--tp-field-bg);
+  background: rgba(211, 45, 39, 0.04);
 }
 .swi-num {
   width: 56px;
   font-size: 11px;
   padding: 1px 4px;
-  border: 1px solid var(--tp-accent);
+  border: 1px solid var(--yangli-red);
   border-radius: 3px;
   font-family: ui-monospace, monospace;
   text-align: right;
-  background: var(--tp-panel);
+  background: var(--paper-white);
   outline: none;
 }
 .swi-num::-webkit-outer-spin-button,

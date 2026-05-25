@@ -116,12 +116,12 @@ function addColumn(): void {
 <style scoped>
 .tc-block {
   padding: 12px 14px;
-  border-bottom: 1px solid var(--tp-line);
+  border-bottom: 1px solid var(--stone);
 }
 .tc-title {
   font-size: 11px;
   font-weight: 600;
-  color: var(--tp-ink-soft);
+  color: var(--yangli-graphite);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-bottom: 8px;
@@ -147,14 +147,14 @@ function addColumn(): void {
   height: 22px;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--tp-ink-faint);
+  color: var(--iron);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 .tc-actions button:hover {
-  background: var(--tp-field-bg);
-  color: var(--tp-accent-ink);
+  background: rgba(211, 45, 39, 0.04);
+  color: var(--yangli-red);
 }
 .tc-actions button:disabled {
   opacity: 0.4;
