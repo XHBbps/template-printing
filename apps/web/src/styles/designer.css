@@ -172,19 +172,19 @@
   min-width: 0;
 }
 
-/* 顶部浮动 toolbar (pill) */
+/* 顶部浮动 toolbar */
 .tp-top-toolbar {
   position: absolute;
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--tp-panel);
-  border-radius: var(--tp-radius-pill);
-  box-shadow: var(--tp-shadow-pill);
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-2);
   padding: 6px 10px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   z-index: 10;
   min-width: 720px;
   max-width: calc(100% - 80px);
