@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { ElDialog, ElMessage } from 'element-plus';
+import { ElDialog, ElMessage, ElPagination, ElScrollbar } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import {
   Plus,
@@ -11,7 +11,7 @@ import {
   LayoutGrid,
   List as ListIcon,
 } from 'lucide-vue-next';
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import ConfirmDialog from '../components/ConfirmDialog.vue';
@@ -36,30 +36,33 @@ const currentTemplateName = computed(() => {
   return t?.name ?? '未命名';
 });
 
-// Filter / sort state
+// Filter / sort / 分页状态（服务端分页：单页 10 条）
 const searchQuery = ref('');
 const categoryFilter = ref<string>('');
 const sortBy = ref<'updated' | 'name'>('updated');
 const viewMode = ref<'grid' | 'list'>('grid');
+const page = ref(1);
+const PAGE_SIZE = 10;
 
-const filteredList = computed<TemplateListItem[]>(() => {
-  const q = searchQuery.value.trim().toLowerCase();
-  let arr = q
-    ? templates.list.filter(
-        (t) => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q),
-      )
-    : [...templates.list];
-  if (sortBy.value === 'name') {
-    arr.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
-  } else {
-    // updated DESC（最近编辑）
-    arr.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+// 服务端已按 search/sort/page 过滤排序分页，视图直接渲染当前页
+const pagedList = computed<TemplateListItem[]>(() => templates.list);
+
+/** 拉取当前页；若当前页超出末页（如删到空页）回退一页再拉。 */
+async function reload(): Promise<void> {
+  await templates.fetchList({
+    page: page.value,
+    pageSize: PAGE_SIZE,
+    search: searchQuery.value,
+    sort: sortBy.value,
+  });
+  const lastPage = Math.max(1, Math.ceil(templates.total / PAGE_SIZE));
+  if (page.value > lastPage) {
+    page.value = lastPage;
+    await templates.fetchList({ page: page.value });
   }
-  return arr;
-});
+}
 
-// 全列表里最近编辑（updatedAt 最大）的那张 —— 与当前排序无关
-// 这样按名称 A→Z 排序时，最近编辑卡也仍能高亮
+// 当前页里最近编辑（updatedAt 最大）的那张 —— 排序为名称时也能高亮当前页最新项
 const recentId = computed(() => {
   if (templates.list.length === 0) return null;
   return (
@@ -69,10 +72,25 @@ const recentId = computed(() => {
   );
 });
 
+// 搜索防抖 → 回到第 1 页重拉
+let searchTimer: number | null = null;
+watch(searchQuery, () => {
+  if (searchTimer) window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(() => {
+    page.value = 1;
+    void reload();
+  }, 350);
+});
+watch(sortBy, () => {
+  page.value = 1;
+  void reload();
+});
+watch(page, () => void reload());
+
 // Wrap mode transitions with View Transitions API.
 async function transitionTo(target: 'list' | 'editor', id?: string): Promise<void> {
   if (target === 'list') {
-    await templates.fetchList();
+    await reload();
   }
   const doSwitch = async (): Promise<void> => {
     if (target === 'editor' && id) currentId.value = id;
@@ -92,7 +110,7 @@ async function transitionTo(target: 'list' | 'editor', id?: string): Promise<voi
 }
 
 onMounted(async () => {
-  await templates.fetchList();
+  await reload();
   if (route.query.new === '1') {
     void createNew();
     void router.replace({ query: {} });
@@ -138,6 +156,7 @@ async function confirmDelete(): Promise<void> {
   deleting.value = true;
   try {
     await templates.remove(t.id);
+    await reload();
     ElMessage.success('已删除');
     deleteDialogOpen.value = false;
   } catch {
@@ -177,7 +196,7 @@ async function confirmRename(): Promise<void> {
       method: 'PATCH',
       body: JSON.stringify({ name: next }),
     });
-    await templates.fetchList();
+    await reload();
     ElMessage.success('已重命名');
     renameDialogOpen.value = false;
   } catch (e) {
@@ -191,7 +210,7 @@ async function duplicateTemplate(t: TemplateListItem): Promise<void> {
   try {
     const full = await apiFetch<{ id: string; name: string; data: unknown }>(`/templates/${t.id}`);
     const copy = await templates.create(`${t.name} 副本`, full.data);
-    await templates.fetchList();
+    await reload();
     ElMessage.success(`已复制为「${copy.name}」`);
   } catch (e) {
     ElMessage.error(`复制失败：${(e as Error).message}`);
@@ -210,10 +229,11 @@ function paperLabel(): string {
 }
 
 const countLabel = computed(() => {
-  const n = filteredList.value.length;
-  const total = templates.list.length;
-  if (n === total) return `${total} OF ${total}`;
-  return `${n} OF ${total}`;
+  const total = templates.total;
+  if (total === 0) return '0 OF 0';
+  const from = (page.value - 1) * PAGE_SIZE + 1;
+  const to = Math.min(page.value * PAGE_SIZE, total);
+  return `${from}–${to} OF ${total}`;
 });
 </script>
 
@@ -285,7 +305,7 @@ const countLabel = computed(() => {
           <!-- 网格视图 -->
           <div v-else-if="viewMode === 'grid'" class="tpl-grid">
             <div
-              v-for="t in filteredList"
+              v-for="t in pagedList"
               :key="t.id"
               class="tpl"
               :class="{ recent: t.id === recentId }"
@@ -330,55 +350,68 @@ const countLabel = computed(() => {
             </div>
           </div>
 
-          <!-- 列表视图 -->
+          <!-- 列表视图：单区高度约 10 条，超出滚动 -->
           <div v-else class="tpl-list">
-            <div
-              v-for="t in filteredList"
-              :key="t.id"
-              class="tpl-row"
-              :class="{ recent: t.id === recentId }"
-              @click="openTemplate(t.id)"
-            >
-              <div class="row-thumb">
-                <span class="stamp">{{ paperLabel() }}</span>
-              </div>
-              <div class="row-meta">
-                <div class="name">{{ t.name }}</div>
-                <div class="meta">
-                  <span>{{ formatDate(t.updatedAt) }}</span>
-                  <span class="sep">·</span>
-                  <span>V1 DRAFT</span>
-                  <template v-if="t.id === recentId">
+            <ElScrollbar max-height="660px">
+              <div
+                v-for="t in pagedList"
+                :key="t.id"
+                class="tpl-row"
+                :class="{ recent: t.id === recentId }"
+                @click="openTemplate(t.id)"
+              >
+                <div class="row-thumb">
+                  <span class="stamp">{{ paperLabel() }}</span>
+                </div>
+                <div class="row-meta">
+                  <div class="name">{{ t.name }}</div>
+                  <div class="meta">
+                    <span>{{ formatDate(t.updatedAt) }}</span>
                     <span class="sep">·</span>
-                    <span class="recent-text">最近编辑</span>
-                  </template>
+                    <span>V1 DRAFT</span>
+                    <template v-if="t.id === recentId">
+                      <span class="sep">·</span>
+                      <span class="recent-text">最近编辑</span>
+                    </template>
+                  </div>
+                </div>
+                <div class="row-actions">
+                  <button type="button" title="复制" @click.stop="duplicateTemplate(t)">
+                    <Copy :size="12" :stroke-width="1.8" />
+                  </button>
+                  <button type="button" title="重命名" @click.stop="renameTemplate(t)">
+                    <Pencil :size="12" :stroke-width="1.8" />
+                  </button>
+                  <button
+                    type="button"
+                    class="danger"
+                    title="删除"
+                    @click.stop="deleteTemplate(t.id, t.name)"
+                  >
+                    <Trash2 :size="12" :stroke-width="1.8" />
+                  </button>
                 </div>
               </div>
-              <div class="row-actions">
-                <button type="button" title="复制" @click.stop="duplicateTemplate(t)">
-                  <Copy :size="12" :stroke-width="1.8" />
-                </button>
-                <button type="button" title="重命名" @click.stop="renameTemplate(t)">
-                  <Pencil :size="12" :stroke-width="1.8" />
-                </button>
-                <button
-                  type="button"
-                  class="danger"
-                  title="删除"
-                  @click.stop="deleteTemplate(t.id, t.name)"
-                >
-                  <Trash2 :size="12" :stroke-width="1.8" />
-                </button>
-              </div>
-            </div>
 
-            <div class="tpl-row tpl-row--new" @click="createNew">
-              <span class="plus">
-                <Plus :size="14" :stroke-width="1.8" />
-              </span>
-              <span class="label">新建模板</span>
-              <span class="hint">A4 · A5 · 标签纸</span>
-            </div>
+              <div class="tpl-row tpl-row--new" @click="createNew">
+                <span class="plus">
+                  <Plus :size="14" :stroke-width="1.8" />
+                </span>
+                <span class="label">新建模板</span>
+                <span class="hint">A4 · A5 · 标签纸</span>
+              </div>
+            </ElScrollbar>
+          </div>
+
+          <!-- 分页：网格 / 列表共用，单页 10 条 -->
+          <div v-if="!templates.loading && templates.total > PAGE_SIZE" class="tv-pagination">
+            <ElPagination
+              v-model:current-page="page"
+              :page-size="PAGE_SIZE"
+              :total="templates.total"
+              background
+              layout="prev, pager, next, total"
+            />
           </div>
         </div>
       </div>
@@ -922,6 +955,15 @@ const countLabel = computed(() => {
   color: var(--fg-3);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* ============ 分页 ============ */
+.tv-pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  /* 把 element-plus 默认蓝主色改为扬力红（激活页码 / hover），符合品牌禁蓝 */
+  --el-color-primary: var(--yangli-red);
 }
 
 /* ============ Rename dialog form ============ */

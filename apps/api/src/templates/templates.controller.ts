@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   BadRequestException,
   // eslint-disable-next-line import/no-unresolved
@@ -36,6 +37,13 @@ const UpdateDto = z.object({
   data: z.unknown().optional(),
 });
 
+const ListQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  search: z.string().trim().max(120).optional(),
+  sort: z.enum(['updated', 'name']).default('updated'),
+});
+
 @Controller('templates')
 export class TemplatesController {
   constructor(
@@ -44,8 +52,16 @@ export class TemplatesController {
   ) {}
 
   @Get()
-  async list(@CurrentUser() me: JwtClaims) {
-    return this.svc.list(me.sub);
+  async list(@CurrentUser() me: JwtClaims, @Query() rawQuery: unknown) {
+    const parsed = ListQuery.safeParse(rawQuery);
+    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
+    const q = parsed.data;
+    return this.svc.list(me.sub, {
+      page: q.page,
+      pageSize: q.pageSize,
+      search: q.search ?? null,
+      sort: q.sort,
+    });
   }
 
   @Get(':id')
