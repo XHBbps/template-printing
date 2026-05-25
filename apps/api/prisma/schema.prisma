@@ -72,6 +72,8 @@ model RenderJob {
   errorMsg       String?   @map("error_msg")
   callbackUrl    String?   @map("callback_url")
   callbackStatus String?   @map("callback_status")                 // sent / failed / null (no callback)
+  attemptsMade   Int       @default(1) @map("attempts_made")       // iter 31: bullmq retry 第几次尝试
+  cleanedAt      DateTime? @map("cleaned_at")                      // iter 31: 输出文件已被 cron 清理时间
   createdAt      DateTime  @default(now()) @map("created_at")
   startedAt      DateTime? @map("started_at")
   completedAt   DateTime? @map("completed_at")
@@ -81,6 +83,7 @@ model RenderJob {
 
   @@index([templateId, createdAt(sort: Desc)])
   @@index([status, createdAt])
+  @@index([cleanedAt, createdAt])
   @@map("render_jobs")
 }
 

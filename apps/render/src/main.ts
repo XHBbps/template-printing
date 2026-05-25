@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-unresolved
-import { Worker } from 'bullmq';
+import { UnrecoverableError, Worker } from 'bullmq';
 // eslint-disable-next-line import/no-unresolved
 import IORedis from 'ioredis';
 
@@ -27,20 +27,26 @@ async function main(): Promise<void> {
     'render',
     async (bullJob) => {
       const jobId = (bullJob.data as { jobId: string }).jobId;
+      // bullmq 1-indexed: 第 N 次尝试时 attemptsMade = N
+      const attemptNo = (bullJob.attemptsMade ?? 0) + 1;
+      const totalAttempts = bullJob.opts.attempts ?? 1;
+      const isLastAttempt = attemptNo >= totalAttempts;
       // eslint-disable-next-line no-console
-      console.log(`[render] start job ${jobId}`);
+      console.log(`[render] start job ${jobId} (attempt ${attemptNo}/${totalAttempts})`);
 
       const job = await fetchJob(jobId);
       if (!job) {
+        // 业务行不存在 — 视作 permanent 失败（永远等不到）
         // eslint-disable-next-line no-console
-        console.warn(`[render] job ${jobId} not found in db`);
-        return;
+        console.warn(`[render] job ${jobId} not found in db — permanent failure`);
+        throw new UnrecoverableError(`job ${jobId} not found in db`);
       }
       const tpl = await fetchTemplate(job.template_id);
       if (!tpl) {
-        await markFailed(jobId, 'template_not_found');
+        // template_not_found 永久失败 — 跳过剩余 attempts
+        await markFailed(jobId, 'template_not_found', attemptNo);
         await sendCallback(jobId, job.callback_url);
-        return;
+        throw new UnrecoverableError('template_not_found');
       }
 
       await markProcessing(jobId);
@@ -54,19 +60,26 @@ async function main(): Promise<void> {
           formats: job.formats,
           paperMm,
         });
-        await markDone(jobId, result.pdfUrl, result.pngUrl);
+        await markDone(jobId, result.pdfUrl, result.pngUrl, attemptNo);
         // eslint-disable-next-line no-console
-        console.log(`[render] done ${jobId}`);
+        console.log(`[render] done ${jobId} (attempt ${attemptNo})`);
       } catch (e) {
         const msg = (e as Error).message ?? 'unknown_error';
         // eslint-disable-next-line no-console
-        console.error(`[render] failed ${jobId}: ${msg}`);
-        await markFailed(jobId, msg);
+        console.error(`[render] failed ${jobId} (attempt ${attemptNo}/${totalAttempts}): ${msg}`);
+        // markFailed 仅在最后一次 attempt 调用 — 中间失败保持 status='processing'，
+        // 避免 status 在 retry 期间反复 failed/processing 闪烁
+        if (isLastAttempt) {
+          await markFailed(jobId, msg, attemptNo);
+          await sendCallback(jobId, job.callback_url);
+        }
+        // 抛错让 bullmq 走 attempts + backoff 重试逻辑
+        throw e;
       } finally {
         pool.release(page);
       }
 
-      // Webhook (success or failure both reported)
+      // 成功也通知 webhook
       await sendCallback(jobId, job.callback_url);
     },
     { connection, concurrency: BROWSERS * PAGES_PER_BROWSER },

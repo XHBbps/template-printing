@@ -53,7 +53,20 @@ export class RenderService {
         callbackUrl: args.callbackUrl ?? null,
       },
     });
-    await this.queue.add('render', { jobId: job.id }, { jobId: job.id });
+    await this.queue.add(
+      'render',
+      { jobId: job.id },
+      {
+        jobId: job.id,
+        // iter 31 T2：渲染失败按指数退避重试 3 次（2s / 4s / 8s）
+        // 永久错误（template_not_found / schema 错误等）worker 会主动抛
+        // UnrecoverableError 跳过剩余 attempts
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: { count: 1000 },
+        removeOnFail: { count: 1000 },
+      },
+    );
     return { jobId: job.id, status: job.status };
   }
 
