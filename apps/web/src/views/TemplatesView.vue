@@ -305,6 +305,7 @@ const countLabel = computed(() => {
                   <span class="sep">·</span>
                   <span>V1 DRAFT</span>
                 </span>
+                <span v-if="t.id === recentId" class="row-tag">最近编辑</span>
               </div>
             </div>
 
@@ -567,9 +568,7 @@ const countLabel = computed(() => {
 .tpl:hover .tpl-actions {
   opacity: 1;
 }
-.tpl.recent {
-  border-top: 2px solid var(--yangli-red);
-}
+/* 最近编辑标识在 .tpl-body 内用 .row-tag 文字徽标显示，更明确不歧义 */
 
 /* 缩略图 — A4 比例 + 内嵌 20px 网格的 paper 区域 */
 .tpl-thumb {
@@ -661,6 +660,11 @@ const countLabel = computed(() => {
 }
 .tpl-body .meta .sep {
   color: var(--stone);
+}
+/* 「最近编辑」标签在 .tpl-body flex column 中不要 stretch — 固定 content 宽度，左对齐 */
+.tpl-body .row-tag {
+  align-self: flex-start;
+  margin-top: 2px;
 }
 
 /* ============ New template tile ============ */
