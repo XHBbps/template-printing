@@ -5,6 +5,8 @@ import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common
 // eslint-disable-next-line import/no-unresolved
 import { APP_GUARD } from '@nestjs/core';
 // eslint-disable-next-line import/no-unresolved
+import { ScheduleModule } from '@nestjs/schedule';
+// eslint-disable-next-line import/no-unresolved
 import { ServeStaticModule } from '@nestjs/serve-static';
 // eslint-disable-next-line import/no-unresolved
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -44,6 +46,8 @@ import { UploadsModule } from './uploads/uploads.module.js';
     // iter 31 T3：全局 rate limit 60 req/min/user。POST /api/render 用
     // @Throttle 在 controller 内 override 为 30/min（可 .env 覆盖）。
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
+    // iter 31 T5：cron 调度（自动清理 N 天前 render 输出文件）
+    ScheduleModule.forRoot(),
     PrismaModule,
     HealthModule,
     AuthModule,

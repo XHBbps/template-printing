@@ -9,6 +9,8 @@ import { ApiAuthGuard } from '../auth/guards/api-auth.guard.js';
 import { UploadsModule } from '../uploads/uploads.module.js';
 
 // eslint-disable-next-line import/no-unresolved
+import { RenderCleanupService } from './render-cleanup.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { RenderController } from './render.controller.js';
 // eslint-disable-next-line import/no-unresolved
 import { RenderService } from './render.service.js';
@@ -19,7 +21,7 @@ import { RenderService } from './render.service.js';
     UploadsModule, // 拿 FileSigService 给 signed URL
   ],
   controllers: [RenderController],
-  providers: [RenderService, ApiAuthGuard],
+  providers: [RenderService, ApiAuthGuard, RenderCleanupService],
   exports: [RenderService],
 })
 export class RenderModule {}
