@@ -325,20 +325,23 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-25
 
-- **模板中心分页（服务端）+ 列表滚动**
-  - 后端：`TemplatesService.list(ownerId, {page,pageSize,search,sort})` 返
-    `{items,total,page,pageSize}`，搜索（name contains / id）+ 排序（updated/name）
-    下沉数据库，复用 `(owner_id, updated_at DESC)` 索引；Controller 用 zod 校验 query
-    （pageSize 上限 100，默认 10）
-  - store：`fetchList(params)` 改为服务端分页、持有 query 状态，增删改后 `reload()`
-    刷新当前页；`create` 不再本地 unshift，`remove` 由视图 reload
-  - `TemplatesView`：网格视图 + 列表视图共用 `ElPagination`（10/页，激活页码覆盖为
-    扬力红）；列表视图行包进 `ElScrollbar`（max-height 660px ≈ 10 行，超出滚动）；
-    搜索防抖 350ms → 服务端；删到空页自动回退一页
-  - `ApiView`：模板参考列表适配新结构（取 `?pageSize=100` 的 `.items`）
-  - 性能：从"一次性返回全量"改为单页 ≤10 条，模板上千也只查一页
-  - 验证：Playwright e2e — 网格 10 卡/页 + 2 页翻页、`1–10 OF 17`/`11–17 OF 17`、
-    列表 ElScrollbar max-height 660、服务端搜索命中、激活页码红 `rgb(211,45,39)`
+- **模板中心：服务端分页（网格）+ 无限滚动（列表）+ 全站统一翻页组件**
+  - 后端：`TemplatesService.list` 改为偏移分页 `{offset,limit,search,sort}` →
+    `{items,total,offset,limit}`，搜索（name contains / id）+ 排序下沉 DB，复用
+    `(owner_id, updated_at DESC)` 索引；Controller zod 校验（limit 上限 100，默认 15）。
+    从"一次性返回全量"改为按需取一段，模板上千也只查一段
+  - store：`fetchSlice({offset,limit,...})` 纯取数（不持有页码），视图编排
+  - 新组件 `components/BrandPagination.vue`：包装 ElPagination + 「首页/末页」直达按钮
+    + 主色覆盖扬力红（禁默认蓝）+ 单页自动隐藏；**审计日志 / 渲染日志 / 模板中心三处
+    统一复用**，修正原审计页分页蓝色 + 风格不统一
+  - `TemplatesView` 网格：新建卡固定第一排第一个（仅第 1 页）；第 1 页 = 新建 + 9 模板，
+    第 2 页起每页 10、无新建卡（非均匀分页，`BrandPagination` 传 `page-count`）
+  - `TemplatesView` 列表：改为**无限滚动**（无分页）——新建卡固定第一个，首批 14 模板
+    （+新建=15 格），滚到接近底部（96px）自动拉下一批 15 个，直到加载完显示「已到底」
+  - `ApiView`：模板参考列表适配（`?limit=100` 的 `.items`）
+  - 验证：Playwright e2e — 网格新建卡居首、`1–9 OF 61`、第 2 页无新建卡、首/末页跳转
+    + 边界禁用、激活页码红 `rgb(211,45,39)`；列表初始 14 行→滚动加载至 61 行→「已到底」，
+    批次 offset 14/29/44/59 正确
 - **扬力品牌 UI 改造：审计日志页（按 `handoff/target-audit.html`）**
   - 新组件 `components/BrandDatePicker.vue`：替代原生 datetime-local 的自定义日期时间
     选择器（无新依赖）。触发器 38px + lucide calendar 图标；popover 320px + 顶部 2px

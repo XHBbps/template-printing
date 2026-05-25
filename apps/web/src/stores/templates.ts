@@ -11,46 +11,43 @@ export interface TemplateListItem {
   updatedAt: string;
 }
 
-export interface TemplateListQuery {
-  page: number;
-  pageSize: number;
+export interface TemplateSliceParams {
+  offset: number;
+  limit: number;
   search: string;
   sort: 'updated' | 'name';
 }
 
-interface TemplateListResponse {
+interface TemplateSliceResponse {
   items: TemplateListItem[];
   total: number;
-  page: number;
-  pageSize: number;
+  offset: number;
+  limit: number;
 }
 
 export const useTemplatesStore = defineStore('templates', {
   state: () => ({
-    list: [] as TemplateListItem[],
-    total: 0,
     loading: false,
-    query: { page: 1, pageSize: 10, search: '', sort: 'updated' } as TemplateListQuery,
   }),
   actions: {
     /**
-     * 服务端分页拉取当前页。传入的 params 会并入 query 状态，
-     * 之后的增删改可直接 fetchList() 复用同一查询条件刷新当前页。
+     * 偏移分页取一段模板。网格按页换算 offset/limit；列表无限滚动按已加载数偏移。
+     * 纯取数，不持有页码状态（由视图编排）。
      */
-    async fetchList(params?: Partial<TemplateListQuery>): Promise<void> {
-      if (params) this.query = { ...this.query, ...params };
+    async fetchSlice(
+      params: TemplateSliceParams,
+    ): Promise<{ items: TemplateListItem[]; total: number }> {
       this.loading = true;
       try {
         const qs = new URLSearchParams({
-          page: String(this.query.page),
-          pageSize: String(this.query.pageSize),
-          sort: this.query.sort,
+          offset: String(params.offset),
+          limit: String(params.limit),
+          sort: params.sort,
         });
-        const search = this.query.search.trim();
+        const search = params.search.trim();
         if (search) qs.set('search', search);
-        const res = await apiFetch<TemplateListResponse>(`/templates?${qs.toString()}`);
-        this.list = res.items;
-        this.total = res.total;
+        const res = await apiFetch<TemplateSliceResponse>(`/templates?${qs.toString()}`);
+        return { items: res.items, total: res.total };
       } finally {
         this.loading = false;
       }

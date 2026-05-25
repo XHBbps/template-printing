@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 // eslint-disable-next-line import/no-unresolved
-import { ElDialog, ElMessage, ElPagination } from 'element-plus';
+import { ElDialog, ElMessage } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import { History, RefreshCw, Download, Copy } from 'lucide-vue-next';
-// eslint-disable-next-line import/no-unresolved
+
+import BrandPagination from '../components/BrandPagination.vue';
 import { apiFetch } from '../lib/api';
 
 interface RenderJob {
@@ -275,14 +276,8 @@ onMounted(refresh);
           </div>
 
           <!-- 分页 -->
-          <div v-if="total > pageSize" class="pagination">
-            <ElPagination
-              v-model:current-page="page"
-              :page-size="pageSize"
-              :total="total"
-              background
-              layout="prev, pager, next, total"
-            />
+          <div class="pagination">
+            <BrandPagination v-model:current-page="page" :total="total" :page-size="pageSize" />
           </div>
         </div>
       </div>

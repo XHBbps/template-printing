@@ -6,8 +6,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export interface TemplateListArgs {
-  page: number;
-  pageSize: number;
+  offset: number;
+  limit: number;
   search?: string | null;
   sort?: 'updated' | 'name';
 }
@@ -16,10 +16,13 @@ export interface TemplateListArgs {
 export class TemplatesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * 偏移分页：offset/limit 直接映射 skip/take，支持网格非均匀分页（首页 9 其余 10）
+   * 与列表无限滚动（按已加载数偏移）两种前端取数策略。
+   */
   async list(ownerId: string, args: TemplateListArgs) {
-    const pageSize = Math.min(Math.max(args.pageSize, 1), 100);
-    const page = Math.max(args.page, 1);
-    const skip = (page - 1) * pageSize;
+    const limit = Math.min(Math.max(args.limit, 1), 100);
+    const offset = Math.max(args.offset, 0);
     const q = args.search?.trim();
 
     const where: Prisma.TemplateWhereInput = {
@@ -35,14 +38,14 @@ export class TemplatesService {
       this.prisma.template.findMany({
         where,
         orderBy,
-        skip,
-        take: pageSize,
+        skip: offset,
+        take: limit,
         select: { id: true, name: true, description: true, createdAt: true, updatedAt: true },
       }),
       this.prisma.template.count({ where }),
     ]);
 
-    return { items, total, page, pageSize };
+    return { items, total, offset, limit };
   }
 
   async get(ownerId: string, id: string) {

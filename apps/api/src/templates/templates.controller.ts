@@ -38,8 +38,8 @@ const UpdateDto = z.object({
 });
 
 const ListQuery = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(15),
   search: z.string().trim().max(120).optional(),
   sort: z.enum(['updated', 'name']).default('updated'),
 });
@@ -57,8 +57,8 @@ export class TemplatesController {
     if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
     const q = parsed.data;
     return this.svc.list(me.sub, {
-      page: q.page,
-      pageSize: q.pageSize,
+      offset: q.offset,
+      limit: q.limit,
       search: q.search ?? null,
       sort: q.sort,
     });

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { ElDialog, ElMessage, ElPagination, ElScrollbar } from 'element-plus';
+import { ElDialog, ElMessage, ElScrollbar } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import {
   Plus,
@@ -14,6 +14,7 @@ import {
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import BrandPagination from '../components/BrandPagination.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import DesignerHeader from '../designer/DesignerHeader.vue';
 import { apiFetch } from '../lib/api';
@@ -32,65 +33,138 @@ const currentId = ref<string | null>(null);
 
 const currentTemplateName = computed(() => {
   if (!currentId.value) return '';
-  const t = templates.list.find((x) => x.id === currentId.value);
+  const t =
+    gridItems.value.find((x) => x.id === currentId.value) ??
+    listItems.value.find((x) => x.id === currentId.value);
   return t?.name ?? '未命名';
 });
 
-// Filter / sort / 分页状态（服务端分页：单页 10 条）
+// Filter / sort / 视图状态
 const searchQuery = ref('');
 const categoryFilter = ref<string>('');
 const sortBy = ref<'updated' | 'name'>('updated');
 const viewMode = ref<'grid' | 'list'>('grid');
-const page = ref(1);
-const PAGE_SIZE = 10;
+const total = ref(0);
 
-// 服务端已按 search/sort/page 过滤排序分页，视图直接渲染当前页
-const pagedList = computed<TemplateListItem[]>(() => templates.list);
+// —— 网格：分页。第 1 页 = 新建卡 + 9 个模板；第 2 页起每页 10 个、无新建卡 ——
+const GRID_FIRST = 9;
+const GRID_REST = 10;
+const gridItems = ref<TemplateListItem[]>([]);
+const gridPage = ref(1);
+const gridPageCount = computed(() =>
+  total.value <= GRID_FIRST ? 1 : 1 + Math.ceil((total.value - GRID_FIRST) / GRID_REST),
+);
 
-/** 拉取当前页；若当前页超出末页（如删到空页）回退一页再拉。 */
-async function reload(): Promise<void> {
-  await templates.fetchList({
-    page: page.value,
-    pageSize: PAGE_SIZE,
+async function loadGridPage(p: number): Promise<void> {
+  const offset = p === 1 ? 0 : GRID_FIRST + (p - 2) * GRID_REST;
+  const limit = p === 1 ? GRID_FIRST : GRID_REST;
+  const res = await templates.fetchSlice({
+    offset,
+    limit,
     search: searchQuery.value,
     sort: sortBy.value,
   });
-  const lastPage = Math.max(1, Math.ceil(templates.total / PAGE_SIZE));
-  if (page.value > lastPage) {
-    page.value = lastPage;
-    await templates.fetchList({ page: page.value });
+  gridItems.value = res.items;
+  total.value = res.total;
+}
+
+function onGridPageChange(p: number): void {
+  gridPage.value = p;
+  void loadGridPage(p);
+}
+
+// —— 列表：无限滚动。首批 = 新建卡 + 14 个模板（共 15 格）；之后每批 15 个模板 ——
+const LIST_FIRST = 14;
+const LIST_BATCH = 15;
+const listItems = ref<TemplateListItem[]>([]);
+const listLoadingMore = ref(false);
+const listScrollRef = ref<InstanceType<typeof ElScrollbar> | null>(null);
+const listHasMore = computed(() => listItems.value.length < total.value);
+
+async function loadListInitial(): Promise<void> {
+  const res = await templates.fetchSlice({
+    offset: 0,
+    limit: LIST_FIRST,
+    search: searchQuery.value,
+    sort: sortBy.value,
+  });
+  listItems.value = res.items;
+  total.value = res.total;
+}
+
+async function loadListMore(): Promise<void> {
+  if (listLoadingMore.value || !listHasMore.value) return;
+  listLoadingMore.value = true;
+  try {
+    const res = await templates.fetchSlice({
+      offset: listItems.value.length,
+      limit: LIST_BATCH,
+      search: searchQuery.value,
+      sort: sortBy.value,
+    });
+    listItems.value = [...listItems.value, ...res.items];
+    total.value = res.total;
+  } finally {
+    listLoadingMore.value = false;
   }
 }
 
-// 当前页里最近编辑（updatedAt 最大）的那张 —— 排序为名称时也能高亮当前页最新项
+// 滚动到接近底部（96px 内）就拉下一批
+function onListScroll(e: { scrollTop: number }): void {
+  const wrap = listScrollRef.value?.wrapRef;
+  if (!wrap) return;
+  if (e.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 96) void loadListMore();
+}
+
+// 当前激活视图的数据集
+const activeItems = computed(() => (viewMode.value === 'grid' ? gridItems.value : listItems.value));
+
+/** 刷新当前激活视图（首次进入 / 搜索 / 排序变化时回到起点）。 */
+async function reloadActive(): Promise<void> {
+  if (viewMode.value === 'grid') {
+    gridPage.value = 1;
+    await loadGridPage(1);
+  } else {
+    await loadListInitial();
+  }
+}
+
+/** 增删改后刷新：网格保持当前页（删空则回退一页），列表回到首批。 */
+async function refreshAfterMutation(): Promise<void> {
+  if (viewMode.value === 'grid') {
+    await loadGridPage(gridPage.value);
+    if (gridItems.value.length === 0 && gridPage.value > 1) {
+      gridPage.value -= 1;
+      await loadGridPage(gridPage.value);
+    }
+  } else {
+    await loadListInitial();
+  }
+}
+
+// 当前已加载项里最近编辑（updatedAt 最大）的那张
 const recentId = computed(() => {
-  if (templates.list.length === 0) return null;
+  if (activeItems.value.length === 0) return null;
   return (
-    [...templates.list].sort(
+    [...activeItems.value].sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     )[0]?.id ?? null
   );
 });
 
-// 搜索防抖 → 回到第 1 页重拉
+// 搜索防抖 → 重拉当前视图
 let searchTimer: number | null = null;
 watch(searchQuery, () => {
   if (searchTimer) window.clearTimeout(searchTimer);
-  searchTimer = window.setTimeout(() => {
-    page.value = 1;
-    void reload();
-  }, 350);
+  searchTimer = window.setTimeout(() => void reloadActive(), 350);
 });
-watch(sortBy, () => {
-  page.value = 1;
-  void reload();
-});
-watch(page, () => void reload());
+watch(sortBy, () => void reloadActive());
+watch(viewMode, () => void reloadActive());
 
 // Wrap mode transitions with View Transitions API.
 async function transitionTo(target: 'list' | 'editor', id?: string): Promise<void> {
   if (target === 'list') {
-    await reload();
+    await reloadActive();
   }
   const doSwitch = async (): Promise<void> => {
     if (target === 'editor' && id) currentId.value = id;
@@ -110,7 +184,7 @@ async function transitionTo(target: 'list' | 'editor', id?: string): Promise<voi
 }
 
 onMounted(async () => {
-  await reload();
+  await reloadActive();
   if (route.query.new === '1') {
     void createNew();
     void router.replace({ query: {} });
@@ -156,7 +230,7 @@ async function confirmDelete(): Promise<void> {
   deleting.value = true;
   try {
     await templates.remove(t.id);
-    await reload();
+    await refreshAfterMutation();
     ElMessage.success('已删除');
     deleteDialogOpen.value = false;
   } catch {
@@ -196,7 +270,7 @@ async function confirmRename(): Promise<void> {
       method: 'PATCH',
       body: JSON.stringify({ name: next }),
     });
-    await reload();
+    await refreshAfterMutation();
     ElMessage.success('已重命名');
     renameDialogOpen.value = false;
   } catch (e) {
@@ -210,7 +284,7 @@ async function duplicateTemplate(t: TemplateListItem): Promise<void> {
   try {
     const full = await apiFetch<{ id: string; name: string; data: unknown }>(`/templates/${t.id}`);
     const copy = await templates.create(`${t.name} 副本`, full.data);
-    await reload();
+    await refreshAfterMutation();
     ElMessage.success(`已复制为「${copy.name}」`);
   } catch (e) {
     ElMessage.error(`复制失败：${(e as Error).message}`);
@@ -229,11 +303,14 @@ function paperLabel(): string {
 }
 
 const countLabel = computed(() => {
-  const total = templates.total;
-  if (total === 0) return '0 OF 0';
-  const from = (page.value - 1) * PAGE_SIZE + 1;
-  const to = Math.min(page.value * PAGE_SIZE, total);
-  return `${from}–${to} OF ${total}`;
+  if (total.value === 0) return '0 OF 0';
+  // 列表（无限滚动）：已加载 / 总数
+  if (viewMode.value === 'list') return `${listItems.value.length} OF ${total.value}`;
+  // 网格：当前页区间
+  const from = gridPage.value === 1 ? 1 : GRID_FIRST + (gridPage.value - 2) * GRID_REST + 1;
+  const span = gridPage.value === 1 ? GRID_FIRST : GRID_REST;
+  const to = Math.min(from + span - 1, total.value);
+  return `${from}–${to} OF ${total.value}`;
 });
 </script>
 
@@ -302,10 +379,18 @@ const countLabel = computed(() => {
           <!-- 加载态 -->
           <div v-if="templates.loading" class="empty-line">加载中…</div>
 
-          <!-- 网格视图 -->
+          <!-- 网格视图：新建卡在第一排第一个（仅第 1 页），其余为当前页模板 -->
           <div v-else-if="viewMode === 'grid'" class="tpl-grid">
+            <div v-if="gridPage === 1" class="tpl new" @click="createNew">
+              <span class="plus">
+                <Plus :size="16" :stroke-width="1.8" />
+              </span>
+              <span class="label">新建模板</span>
+              <span class="hint">A4 · A5 · 标签纸</span>
+            </div>
+
             <div
-              v-for="t in pagedList"
+              v-for="t in gridItems"
               :key="t.id"
               class="tpl"
               :class="{ recent: t.id === recentId }"
@@ -340,21 +425,21 @@ const countLabel = computed(() => {
                 </span>
               </div>
             </div>
-
-            <div class="tpl new" @click="createNew">
-              <span class="plus">
-                <Plus :size="16" :stroke-width="1.8" />
-              </span>
-              <span class="label">新建模板</span>
-              <span class="hint">A4 · A5 · 标签纸</span>
-            </div>
           </div>
 
-          <!-- 列表视图：单区高度约 10 条，超出滚动 -->
+          <!-- 列表视图：无限滚动，新建卡固定第一个，滚到底自动加载下一批 -->
           <div v-else class="tpl-list">
-            <ElScrollbar max-height="660px">
+            <ElScrollbar ref="listScrollRef" max-height="660px" @scroll="onListScroll">
+              <div class="tpl-row tpl-row--new" @click="createNew">
+                <span class="plus">
+                  <Plus :size="14" :stroke-width="1.8" />
+                </span>
+                <span class="label">新建模板</span>
+                <span class="hint">A4 · A5 · 标签纸</span>
+              </div>
+
               <div
-                v-for="t in pagedList"
+                v-for="t in listItems"
                 :key="t.id"
                 class="tpl-row"
                 :class="{ recent: t.id === recentId }"
@@ -393,24 +478,20 @@ const countLabel = computed(() => {
                 </div>
               </div>
 
-              <div class="tpl-row tpl-row--new" @click="createNew">
-                <span class="plus">
-                  <Plus :size="14" :stroke-width="1.8" />
-                </span>
-                <span class="label">新建模板</span>
-                <span class="hint">A4 · A5 · 标签纸</span>
+              <div v-if="listLoadingMore" class="list-more-line">加载中…</div>
+              <div v-else-if="!listHasMore && listItems.length > 0" class="list-more-line">
+                已到底 · 共 {{ total }} 个
               </div>
             </ElScrollbar>
           </div>
 
-          <!-- 分页：网格 / 列表共用，单页 10 条 -->
-          <div v-if="!templates.loading && templates.total > PAGE_SIZE" class="tv-pagination">
-            <ElPagination
-              v-model:current-page="page"
-              :page-size="PAGE_SIZE"
-              :total="templates.total"
-              background
-              layout="prev, pager, next, total"
+          <!-- 分页：仅网格视图（列表为无限滚动） -->
+          <div v-if="viewMode === 'grid' && !templates.loading" class="tv-pagination">
+            <BrandPagination
+              :current-page="gridPage"
+              :total="total"
+              :page-count="gridPageCount"
+              @update:current-page="onGridPageChange"
             />
           </div>
         </div>
@@ -962,8 +1043,17 @@ const countLabel = computed(() => {
   margin-top: 20px;
   display: flex;
   justify-content: center;
-  /* 把 element-plus 默认蓝主色改为扬力红（激活页码 / hover），符合品牌禁蓝 */
-  --el-color-primary: var(--yangli-red);
+}
+
+/* 列表无限滚动的底部状态行 */
+.list-more-line {
+  padding: 14px 16px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-3);
 }
 
 /* ============ Rename dialog form ============ */

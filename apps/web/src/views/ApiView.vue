@@ -180,8 +180,8 @@ function fieldsOf(id: string): Array<{ key: string; def: FieldDef }> {
 onMounted(async () => {
   void refreshTokens();
   try {
-    // 服务端分页后 /templates 返 { items, total, ... }；API 参考页取首页（上限 100）即可
-    const res = await apiFetch<{ items: TemplateListItem[] }>('/templates?pageSize=100');
+    // 服务端分页后 /templates 返 { items, total, ... }；API 参考页取首段（上限 100）即可
+    const res = await apiFetch<{ items: TemplateListItem[] }>('/templates?limit=100');
     templates.value = res.items;
   } finally {
     loading.value = false;

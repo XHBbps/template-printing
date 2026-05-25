@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /* eslint-disable import/no-unresolved */
-import { ElDialog, ElMessage, ElPagination } from 'element-plus';
+import { ElDialog, ElMessage } from 'element-plus';
 import { ShieldAlert, RefreshCw, Copy } from 'lucide-vue-next';
 /* eslint-enable import/no-unresolved */
 import { ref, onMounted, watch, computed } from 'vue';
 
 import BrandDatePicker from '../../components/BrandDatePicker.vue';
+import BrandPagination from '../../components/BrandPagination.vue';
 import { apiFetch } from '../../lib/api';
 
 interface AuditEntry {
@@ -297,14 +298,8 @@ onMounted(() => {
           </div>
 
           <!-- 分页 -->
-          <div v-if="total > pageSize" class="pagination">
-            <ElPagination
-              v-model:current-page="page"
-              :page-size="pageSize"
-              :total="total"
-              background
-              layout="prev, pager, next, total"
-            />
+          <div class="pagination">
+            <BrandPagination v-model:current-page="page" :total="total" :page-size="pageSize" />
           </div>
         </div>
       </div>
