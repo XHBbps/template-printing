@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -24,6 +25,7 @@ export interface EnqueueArgs {
   data: Record<string, unknown>;
   formats?: ('pdf' | 'png')[];
   callbackUrl?: string;
+  version?: number;
 }
 
 @Injectable()
@@ -48,8 +50,27 @@ export class RenderService {
   ): Promise<{ jobId: string; status: string }> {
     // 校验 template 存在 + ownership（ownerId=null 表示系统调用，跳过 ownership 检查）
     const where = ownerId ? { id: args.templateId, ownerId } : { id: args.templateId };
-    const tpl = await this.prisma.template.findFirst({ where });
+    const tpl = await this.prisma.template.findFirst({
+      where,
+      select: { id: true, publishedVersion: true },
+    });
     if (!tpl) throw new NotFoundException('template_not_found');
+
+    // 解析渲染版本：传了用指定版本，否则用最新已发布版
+    let resolvedVersion: number;
+    if (args.version != null) {
+      const ver = await this.prisma.templateVersion.findUnique({
+        where: { templateId_version: { templateId: args.templateId, version: args.version } },
+        select: { version: true },
+      });
+      if (!ver) throw new NotFoundException('template_version_not_found');
+      resolvedVersion = ver.version;
+    } else {
+      if (tpl.publishedVersion == null) {
+        throw new BadRequestException('no_published_version');
+      }
+      resolvedVersion = tpl.publishedVersion;
+    }
 
     // iter 31 T4：用户日配额（系统调用 ownerId=null 不计入任何用户配额）
     if (ownerId) {
@@ -64,6 +85,7 @@ export class RenderService {
         formats: [...formats],
         status: 'pending',
         callbackUrl: args.callbackUrl ?? null,
+        templateVersion: resolvedVersion,
       },
     });
     await this.queue.add(
@@ -107,6 +129,7 @@ export class RenderService {
     createdAt: Date;
     completedAt: Date | null;
     cleanedAt: Date | null;
+    templateVersion: number | null;
   }> {
     const job = await this.prisma.renderJob.findUnique({ where: { id: jobId } });
     if (!job) throw new NotFoundException('job_not_found');
@@ -119,6 +142,7 @@ export class RenderService {
       createdAt: job.createdAt,
       completedAt: job.completedAt,
       cleanedAt: job.cleanedAt,
+      templateVersion: job.templateVersion,
     };
   }
 

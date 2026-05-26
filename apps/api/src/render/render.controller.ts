@@ -32,6 +32,7 @@ const EnqueueDto = z.object({
   data: z.record(z.unknown()).default({}),
   formats: z.array(z.enum(['pdf', 'png'])).optional(),
   callbackUrl: z.string().url().optional(),
+  version: z.coerce.number().int().min(1).optional(),
 });
 
 // @Public() 跳过全局 JwtAuthGuard + CsrfGuard；ApiAuthGuard 接管鉴权
@@ -86,6 +87,7 @@ export class RenderController {
     errorMsg: string | null;
     createdAt: Date;
     completedAt: Date | null;
+    templateVersion: number | null;
   }> {
     return this.svc.get(jobId);
   }
