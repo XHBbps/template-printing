@@ -31,6 +31,7 @@ model User {
   localUsername       String?   @unique @map("local_username")
   localPasswordHash   String?   @map("local_password_hash")
   mustChangePassword  Boolean   @default(false) @map("must_change_password")
+  disabledAt          DateTime? @map("disabled_at")
 
   lastLoginAt         DateTime? @map("last_login_at")
   createdAt           DateTime  @default(now()) @map("created_at")
