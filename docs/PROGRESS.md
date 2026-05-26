@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-26（模板版本：草稿/发布/回滚/版本化渲染）
+**最近更新**：2026-05-26（用户管理 CRUD + 禁用/角色即时生效 + 本地登录打通）
 
 ---
 
@@ -30,8 +30,8 @@
 | **生产就绪三件套（Signed URL / 重试 + 限流 / Quota + 清理）** | ✅ 已完成 | iter 31 |
 | **观测性 + 审计日志（Sentry / Prometheus / audit_log）** | ✅ 已完成 | iter 32（最新） |
 | 部署：阿里云 ACR + ECS + GitHub Actions | 🟡 框架就绪 | iter 19，待外部条件（域名 / 备案 / 飞书应用） |
-| Admin 用户管理后台（CRUD） | 🟡 仅占位页 | `apps/web/src/views/admin/UsersAdminView.vue` 已存在，后端 CRUD 未补 |
-| 渲染任务历史 / 我的渲染任务 | ⏳ 待开始 | 见第 5 节 |
+| **Admin 用户管理后台（CRUD + 禁用 + 角色）** | ✅ 已完成 | iter 33（最新）：`apps/api/src/users/` + 真实 `UsersAdminView` |
+| 渲染任务历史 / 我的渲染任务 | ✅ 已实现 `/logs` | admin 看全部 / 用户看自己 |
 
 ---
 
@@ -40,8 +40,9 @@
 ### 2.1 鉴权与用户
 
 - **飞书 SSO 登录**：`/auth/lark/start` → 飞书授权 → `/auth/lark/callback` → 写 JWT cookie；首次登录自动建用户（随机密码 + 飞书 IM 通知）
-- **本地 emergency_admin 登录**：`/auth/local/login`（username + password）；首次登录强制改密
+- **本地账号登录**：`/auth/local/login`（username + password）——任意未禁用、有本地密码的用户均可登录，按真实 role 签发；首次登录强制改密
 - **角色体系**：`admin` / `emergency_admin` / `user`；前两者路径权限等同
+- **用户管理（admin）**：`/admin/users` CRUD —— 新建本地账号（一次性密码）/ 改角色 / 重置密码 / 禁用启用；禁用或降级经 `UserStateService` 缓存 evict **下一请求即生效**（吊销 refresh + API token），守卫每请求用 DB 最新 role 覆盖 JWT；安全规则（不能动自己 / emergency_admin 受保护 / 保留最后一个活跃 admin，FOR UPDATE 事务）
 - **Token 链路**：access cookie（短） + refresh cookie（长，DB 哈希存储） + CSRF；`apiFetch` 自动 401 retry
 - **Logout**：硬跳 `/login`（避免 bfcache 复活）+ 幂等清 cookie 端点
 - **个人中心**：`/me` 显示当前用户 + 改密码 + 解绑飞书（已实现 80%）
@@ -316,6 +317,27 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-26
 
+- **用户管理（CRUD + 禁用/角色即时生效 + 本地登录打通）**（spec+plan：`docs/superpowers/{specs,plans}/2026-05-26-user-management*`）
+  - 新增 `apps/api/src/users/` 模块（admin 守卫 `@Roles('admin','emergency_admin')`）：`GET /admin/users`
+    （服务端分页 + 搜索 name/localUsername/email/larkUserId + 过滤 role/status/type；每行带 `can{disable,
+    changeRole,resetPassword}` + `disabledReason`，前端仅据此置灰，后端权威校验）、`POST /admin/users`
+    （新建本地账号，系统一次性密码 + `mustChangePassword`，撞名 409）、`PATCH :id/role`、
+    `POST :id/reset-password`（仅本地账号）、`POST :id/disable|enable`。审计 dot 命名 `user.create/role.change/
+    password.reset/disable/enable`。
+  - **禁用/降级即时生效**：新增 `UserStateService`（进程内 TTL 10s 缓存 `{role,disabledAt}`，主动 `evict`）；
+    `JwtAuthGuard` 改 async + `ApiAuthGuard` cookie 路径复用同一校验：用户不存在/被禁用→401，用 DB 最新 role
+    覆盖 JWT role；禁用时吊销该用户全部 refresh + API token（`revokeAllForUser`）并 evict → 下一请求即生效
+    （cookie / refresh / Bearer 三路径均拦截）。Bearer 路径在 `ApiTokenService.verify()` 查 `owner.disabledAt`。
+  - **本地登录打通**：`/auth/local/login` 放开 emergency_admin 限制，任意未禁用 + 有 `localPasswordHash` 的用户
+    均可登录、按**真实 role** 签发；禁用拒绝。
+  - **安全规则（service 权威 + 事务）**：不能操作自己 / emergency_admin 受保护 / 不能降级或禁用最后一个活跃
+    `role==='admin'`（`SELECT … FOR UPDATE` 行锁事务，真并发测试验证不归零）/ 角色仅 `user↔admin`。
+  - **飞书与 localUsername 解耦**：飞书 SSO 建号不再写 `localUsername=user_id`（迁移清理历史 dev 数据）；
+    `/users/me/password` 去掉 `larkUserId` 兜底（无 localUsername 返回 `local_username_required`，保留已有的不破坏 emergency_admin 改密）。
+  - 前端 `UsersAdminView` 占位 → 真实页（过滤/分页/能力位置灰/新建+重置一次性密码弹框/禁用启用确认）；
+    `MustChangePasswordDialog` 文案中性化（初始/临时密码）。
+  - 验证：jest e2e 真实 DB **24 suites / 114 tests 全绿**（含 user-state、本地登录、users 列表/新建/改角色并发/重置/禁用三路径拦截）；
+    Playwright：能力位后端驱动置灰（emergency 禁用灰 vs 新建用户可用）、新建→一次性密码、A3↔A4 cookie 路径一致禁用 401。
 - **模板版本系统：草稿 / 发布 / 回滚 / 版本化渲染**（spec+plan：`docs/superpowers/{specs,plans}/2026-05-26-template-versioning*`）
   - 模型：一份可变草稿（`Template.data`，autosave PATCH）+ N 个不可变已发布快照（新表 `TemplateVersion`：
     templateId/version/data/publishedAt/publishedBy/restoredFrom，`@@unique([templateId,version])`）。
@@ -554,7 +576,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 | ~~Signed URL~~ | ✅ iter 31（HMAC 签名 + 过期，`FileSigService`） | `apps/api/src/uploads/` |
 | ~~渲染 quota 与磁盘清理~~ | ✅ iter 31（user 日配额 + cron 清理过期输出；"计费"未做也未必需要） | `render.service.ts` + cleanup service |
 | ~~渲染任务历史~~ | ✅ 已实现 `/logs`（admin 看全部 / 用户看自己；含下载） | `RenderLogsView.vue` + `/render/jobs` |
-| **Admin 用户管理 CRUD** | 列表 / 新建（本地账号） / 改角色 / 重置密码 / 启用禁用。当前 `UsersAdminView` 仍是占位、无后端模块 | `apps/api/src/users/` 新模块 + `views/admin/UsersAdminView.vue` |
+| ~~Admin 用户管理 CRUD~~ | ✅ 已完成（见下方 2026-05-26 近期变更）：列表/新建本地/改角色/重置密码/禁用启用 + 禁用降级即时生效 | `apps/api/src/users/` + `views/admin/UsersAdminView.vue` |
 | **生产 render Dockerfile 优化** | 改用多阶段 Alpine 或国内镜像，将镜像缩到 < 1GB | `docker/render.Dockerfile` |
 | **模板分享 / 公共模板库** | 模板支持公开 / 团队共享；公共模板复制到自己账号 | DB 加 `visibility` 字段 + 列表 view 增 tab |
 | **首次生产部署 / 验证** | 项目尚未部署过；需在类生产环境跑通 compose / CI deploy，验证迁移、worker、飞书回调 | `docker-compose` + `.github/workflows/deploy.yml` |

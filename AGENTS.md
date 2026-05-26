@@ -39,7 +39,8 @@ template_printing/
 ├── apps/
 │   ├── api/                       # NestJS 后端（auth / templates / render / lark / uploads）
 │   │   ├── src/
-│   │   │   ├── auth/              # JWT + refresh token + 飞书 SSO + 本地 emergency_admin
+│   │   │   ├── auth/              # JWT + refresh token + 飞书 SSO + 本地登录 + UserStateService
+│   │   │   ├── users/             # 用户管理 CRUD（admin）：列表/新建本地/改角色/重置密码/禁用启用
 │   │   │   ├── templates/         # 模板 CRUD
 │   │   │   ├── render/            # 渲染任务入队 + 状态查询
 │   │   │   ├── uploads/           # 图片上传（multer + 白名单）
