@@ -182,6 +182,8 @@ export const useDesignerStore = defineStore('designer', {
     saveStatus: 'idle' as 'idle' | 'pending' | 'saving' | 'saved' | 'error',
     lastSavedAt: null as number | null,
     saveError: null as string | null,
+    publishedVersion: null as number | null,
+    hasUnpublishedChanges: false,
   }),
   getters: {
     canUndo: (s): boolean => s.historyIndex > 0,
@@ -548,10 +550,30 @@ export const useDesignerStore = defineStore('designer', {
         this.saveStatus = 'saved';
         this.lastSavedAt = Date.now();
         this.dirty = false;
+        this.hasUnpublishedChanges = true;
       } catch (e) {
         this.saveStatus = 'error';
         this.saveError = (e as Error).message ?? '保存失败';
       }
+    },
+    setVersionState(publishedVersion: number | null, hasUnpublishedChanges: boolean): void {
+      this.publishedVersion = publishedVersion;
+      this.hasUnpublishedChanges = hasUnpublishedChanges;
+    },
+    async publish(): Promise<{ version: number } | null> {
+      if (!this.templateId) return null;
+      // 发布前确保草稿已落库（autosave 可能还在 debounce 中）
+      if (this.saveStatus === 'pending' || this.dirty) {
+        await this.saveToBackend();
+      }
+      const { apiFetch } = await import('../lib/api');
+      const r = await apiFetch<{ version: number; publishedAt: string }>(
+        `/templates/${this.templateId}/publish`,
+        { method: 'POST' },
+      );
+      this.publishedVersion = r.version;
+      this.hasUnpublishedChanges = false;
+      return { version: r.version };
     },
     markPendingSave(): void {
       if (this.templateId && this.saveStatus !== 'saving') {
