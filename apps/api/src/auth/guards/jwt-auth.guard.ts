@@ -9,15 +9,18 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { ACCESS_COOKIE } from '../jwt/jwt-cookie.helper.js';
 // eslint-disable-next-line import/no-unresolved
 import { JwtAuthService } from '../jwt/jwt.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { UserStateService } from '../user-state.service.js';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly jwt: JwtAuthService,
+    private readonly userState: UserStateService,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -29,11 +32,18 @@ export class JwtAuthGuard implements CanActivate {
     const token = cookies[ACCESS_COOKIE];
     if (!token) throw new UnauthorizedException('No access token');
 
+    let claims;
     try {
-      req.user = this.jwt.verify(token);
-      return true;
+      claims = this.jwt.verify(token);
     } catch {
       throw new UnauthorizedException('Invalid or expired access token');
     }
+
+    const state = await this.userState.get(claims.sub);
+    if (!state || state.disabledAt) {
+      throw new UnauthorizedException('account_disabled_or_missing');
+    }
+    req.user = { ...claims, role: state.role };
+    return true;
   }
 }
