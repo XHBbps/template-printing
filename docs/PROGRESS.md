@@ -318,6 +318,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-26
 
+- **fix(test)：refresh-token-service.spec 不再清空全表** —— 该 spec 原在 beforeAll/afterAll 无条件 `prisma.user.deleteMany({})`,对 dev/共享库跑 e2e 会连真实 `admin` 一起删除,随后被 emergency-admin bootstrap 以 `INITIAL_ADMIN_LOCAL_PASSWORD` 默认密码重建(导致此前用密码失效、登录 401)。改为只创建/清理本测试自己的用户(按 `userId` 范围删除)。
 - **style(web)：页面表头红线全站统一** —— 红色签名线收进全局 `.page-bar .page-title`(`border-top` + `align-self:stretch` 落顶边;`.page-bar` 去左 padding + `gap:0` 使标题区左缘贴侧边栏、右缘抵灰色分隔线;`.page-title` 左右等距 padding 使「图标+页面名」相对红线水平居中),删除 ApiView/UsersAdminView/AuditLogView 三处重复的 `.page-bar::before`。此前三页有红线、三页无,且为定宽 96px 短线。
 - **feat：个人中心可编辑邮箱** —— 「账号信息」卡用户名下方新增「邮箱 · Email」行(行内编辑,与用户名一致的笔形按钮 + 保存/取消);后端 `PATCH /users/me/profile` 的 DTO 扩为 `name`/`email` 均可选(至少一项),`email` 空字符串→清空(null)、非空校验合法格式,审计 details 记录新旧邮箱。
 - **feat(web)：首登改密弹窗扬力品牌改造** —— `MustChangePasswordDialog` 由 Element Plus `ElDialog`(通用蓝 + 灰边框)改为自绘 Teleport 模态(`handoff/target-first-password.html` 目标稿):480px paper-white 容器 + 2px 红签名线 + ink 遮罩;mono eyebrow / han 标题层次;42px 输入框红色 focus(无蓝 ring)+ lucide eye 显隐切换;新密码强度计(4 段 红/琥珀/绿)+ 校验清单(≥8/字母/数字/符号)+ 再次输入不一致内联红字;强制改密故移除"稍后再说"。颜色/字体/radius 全走 `colors_and_type.css` 变量。

@@ -10,8 +10,8 @@ describe('RefreshTokenService', () => {
   let userId: string;
 
   beforeAll(async () => {
-    await prisma.refreshToken.deleteMany({});
-    await prisma.user.deleteMany({});
+    // 仅创建本测试自己的用户;切勿无条件 deleteMany 清空全表 ——
+    // 对 dev/共享库跑 e2e 会连真实 admin 一起删掉(随后被 bootstrap 以默认密码重建)。
     const u = await prisma.user.create({
       data: { role: 'user', name: 'Test', larkOpenId: 'ou_test_' + Date.now() },
     });
@@ -19,8 +19,9 @@ describe('RefreshTokenService', () => {
   });
 
   afterAll(async () => {
-    await prisma.refreshToken.deleteMany({});
-    await prisma.user.deleteMany({});
+    // 只清理本测试范围内的数据(按 userId),不动其它用户。
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+    await prisma.user.deleteMany({ where: { id: userId } });
     await prisma.$disconnect();
   });
 
