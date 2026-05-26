@@ -17,11 +17,15 @@ import { z } from 'zod';
 // eslint-disable-next-line import/no-unresolved
 import { AuditLogService } from '../audit/audit-log.service.js';
 // eslint-disable-next-line import/no-unresolved
+import { ApiTokenService } from '../auth/api-token/api-token.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 // eslint-disable-next-line import/no-unresolved
 import { Roles } from '../auth/guards/roles.guard.js';
 // eslint-disable-next-line import/no-unresolved
 import type { JwtClaims } from '../auth/jwt/jwt.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { RefreshTokenService } from '../auth/jwt/refresh-token.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { UserStateService } from '../auth/user-state.service.js';
 
@@ -51,6 +55,8 @@ export class UsersController {
     private readonly svc: UsersService,
     private readonly audit: AuditLogService,
     private readonly userState: UserStateService,
+    private readonly refresh: RefreshTokenService,
+    private readonly apiTokens: ApiTokenService,
   ) {}
 
   @Get()
@@ -87,6 +93,36 @@ export class UsersController {
       request: req,
     });
     return result;
+  }
+
+  @Post(':id/disable')
+  async disable(@CurrentUser() me: JwtClaims, @Param('id') id: string, @Req() req: Request) {
+    const r = await this.svc.setDisabled(me.sub, id, true);
+    await this.refresh.revokeAllForUser(id);
+    await this.apiTokens.revokeAllForUser(id);
+    this.userState.evict(id);
+    void this.audit.log({
+      actor: { id: me.sub, name: null },
+      action: 'user.disable',
+      resourceType: 'user',
+      resourceId: id,
+      request: req,
+    });
+    return r;
+  }
+
+  @Post(':id/enable')
+  async enable(@CurrentUser() me: JwtClaims, @Param('id') id: string, @Req() req: Request) {
+    const r = await this.svc.setDisabled(me.sub, id, false);
+    this.userState.evict(id);
+    void this.audit.log({
+      actor: { id: me.sub, name: null },
+      action: 'user.enable',
+      resourceType: 'user',
+      resourceId: id,
+      request: req,
+    });
+    return r;
   }
 
   @Patch(':id/role')

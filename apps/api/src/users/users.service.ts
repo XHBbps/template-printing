@@ -135,6 +135,30 @@ export class UsersService {
     return { id: targetId, role };
   }
 
+  async setDisabled(meId: string, targetId: string, disabled: boolean) {
+    if (disabled && targetId === meId) throw new ForbiddenException('cannot_modify_self');
+    const t = await this.prisma.user.findUnique({
+      where: { id: targetId },
+      select: { id: true, role: true, disabledAt: true },
+    });
+    if (!t) throw new ForbiddenException('user_not_found');
+    if (disabled && t.role === 'emergency_admin')
+      throw new ForbiddenException('emergency_admin_protected');
+    await this.prisma.$transaction(async (tx) => {
+      if (disabled && t.role === 'admin' && t.disabledAt == null) {
+        const admins = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM users WHERE role = 'admin' AND disabled_at IS NULL FOR UPDATE`;
+        if (admins.filter((a) => a.id !== targetId).length < 1)
+          throw new ConflictException('last_admin_protected');
+      }
+      await tx.user.update({
+        where: { id: targetId },
+        data: { disabledAt: disabled ? new Date() : null },
+      });
+    });
+    return { id: targetId, disabled };
+  }
+
   async resetPassword(targetId: string) {
     const u = await this.prisma.user.findUnique({
       where: { id: targetId },
