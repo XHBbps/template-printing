@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-26（API 页 v2 重构 — tab 化 + 手风琴）
+**最近更新**：2026-05-26（404 品牌错误页 + API 页 v2 重构）
 
 ---
 
@@ -316,6 +316,23 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-26
 
+- **404 页品牌叙事改造（`errors/NotFoundView.vue`）——"打印失败"概念**
+  - 从"灰 404 + 蓝按钮"换成品牌空态：3 行 grid（64 顶栏 + 1fr 主体 + 80 底栏）+ mist 底
+    + 14px 极淡圆点底纹；顶栏品牌锁定 + 右上 mono 版本戳 + 2px×96px 红签名线；底栏 mono
+    链接 + `REQ · {id}`（无则省略）+ © 版权
+  - 左栏几何："模板叠纸"——底层 #2A2A2C(-5°)/中层红(2°,5s 浮动)/顶层白纸(-8°)，白纸内
+    正常行 + 灰行 + 「打印失败」虚线行（repeating-linear-gradient）混排，右上盖一枚 VOID
+    双线红印章（600ms 从 -30°/scale2.5 弹入 -12°），点缀红方块 pulse + stone 方框 24s 慢转
+  - 右栏编辑级文案：mono eyebrow（前置 36px 红线）+ 巨号 `4 □ 4`（144px mono，中间 0 换 96×96
+    红方块 + 白边小装饰）+ CN/EN 双标题 + body 文 + 请求收据卡（左 2px 红边条 / URL 标签 /
+    实际路径 ellipsis / 红 `HTTP 404`）+ 双按钮（红 primary 箭头 hover 右移 / outline secondary hover 反白）
+  - 行为：路径占位读 `window.location.pathname`；请求 ID 尽力读后端 `X-Request-Id` 响应头，
+    没有就省略；「回到模板中心」直链 `/templates`，「返回上一页」`history.back()` 无历史降级首页
+  - **router**：catch-all `/:pathMatch(.*)*` 从 `redirect:'/404'` 改为直接渲染 NotFoundView，
+    保留用户输入的原始 URL（否则 pathname 永远是 /404，收据卡无法显示真实路径）
+  - 全程纯 CSS `@keyframes` 动画无 JS 依赖、无 box-shadow（VOID 用半透明白底）、禁蓝、禁居中孤字
+  - 验证：Playwright — bogus URL 保留、收据真实路径 + `HTTP 404`、primary 红 `rgb(211,45,39)`、
+    VOID 印章、3 叠纸 + 3 虚线行、双按钮跳转（均 → /templates）、req-id 省略、typecheck 通过
 - **API 页 v2 重构（`ApiView.vue`）——消除"一屏喷射所有信息"**
   - 顶部拆 3 个 tab（page-bar 下方，padding 0 32px，下边线 1px stone，每个 44px 高，
     active 态 2px 红下边线 + ink 字 + mono 副标转红，禁蓝/禁胶囊）：
