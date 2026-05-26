@@ -159,7 +159,22 @@ model RenderJob {
 - 新增 `GET /templates/:id/versions/:version` → 单版本快照（含 data），供弹窗右栏只读预览。
 - `GET /templates`（列表）返回项增加 `publishedVersion` / `hasUnpublishedChanges`，供列表徽章。
 - 审计（沿用 iter 32 AuditLog）：`template.publish`、`template.rollback` 记审计。
-- API 文档页（`ApiView.vue`，刚重构的 v2）：`POST /api/render` 的「请求」栏字段表补 `version` 行（可选，说明默认最新已发布版）。
+
+#### 3.5.1 API 文档页（`ApiView.vue` v2）必须同步的内容
+
+文档页接口区是数据驱动的 `endpoints[]`（每个接口含 intro/headers/body/resp/callback/errors/samples 多语言）。版本化要改动以下处：
+
+- **概览（Overview）**：补一句"渲染针对模板的**已发布版本**：默认最新已发布版，可在请求里指定 `version` 渲染历史版本"。
+- **`POST /api/render` · 请求体 Body**：新增字段行
+  - `version` · `number` · 可选 · "指定渲染的已发布版本号；不传=最新已发布版"
+  - 同时把 `data` 行说明改为"业务字段 map，key 对应**该版本**模板 `schema.fields`"（变量随版本走）。
+- **`POST /api/render` · 错误栏**：新增两条
+  - `400 · no_published_version` · "该模板尚无已发布版本（请先在设计器发布）"
+  - `404 · template_version_not_found` · "指定的 version 不存在或不属于该模板"
+- **`POST /api/render` · 示例栏**（cURL / Node.js / Python）：至少一处示例体现可选 `version`（如注释或追加一行 `"version": 2`）。
+- **`GET /api/render/:jobId` · 响应栏**：响应体补 `templateVersion` 字段（本次渲染锁定的版本号；草稿渲染为 null），便于排障/复现。
+- **`POST /lark/print-trigger` · 请求体 Body**：同样新增可选 `version` 行（语义一致）。
+- 其余（凭证 Tokens / 模板字段 Schemas 两个 tab）无需改动。
 
 ### 3.6 前端改动
 
@@ -199,5 +214,6 @@ model RenderJob {
 - `apps/api/src/lark/lark-bitable.controller.ts`（webhook version 透传）
 - `apps/render/src/main.ts`（worker 按 templateVersion 加载快照 / 草稿）
 - `apps/web/src/stores/designer.ts`、`designer/DesignerHeader.vue`、新增 `designer/VersionDialog.vue`
-- `apps/web/src/views/TemplatesView.vue`（列表徽章 + 面包屑入口）、`ApiView.vue`（文档补 version）
+- `apps/web/src/views/TemplatesView.vue`（列表徽章 + 面包屑入口）
+- `apps/web/src/views/ApiView.vue`（文档页按 §3.5.1 同步：概览 / render 请求体 version / 错误栏两条 / 示例 / jobId 响应 templateVersion / lark version）
 - `apps/web/src/stores/templates.ts`（列表项 publishedVersion/hasUnpublishedChanges）
