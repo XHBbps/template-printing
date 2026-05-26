@@ -45,19 +45,37 @@ model User {
 }
 
 model Template {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  data        Json     // 整个 Template JSON（包含 canvas / elements / schema）
-  ownerId     String   @map("owner_id")
-  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(uuid())
+  name                  String
+  description           String?
+  data                  Json     // 整个 Template JSON（包含 canvas / elements / schema）
+  ownerId               String   @map("owner_id")
+  owner                 User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  publishedVersion      Int?     @map("published_version")
+  hasUnpublishedChanges Boolean  @default(false) @map("has_unpublished_changes")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
-  renderJobs  RenderJob[]
+  renderJobs RenderJob[]
+  versions   TemplateVersion[]
 
   @@index([ownerId, updatedAt(sort: Desc)])
   @@map("templates")
+}
+
+model TemplateVersion {
+  id           String   @id @default(uuid())
+  templateId   String   @map("template_id")
+  template     Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version      Int
+  data         Json
+  publishedAt  DateTime @default(now()) @map("published_at")
+  publishedBy  String?  @map("published_by")
+  restoredFrom Int?     @map("restored_from")
+
+  @@unique([templateId, version])
+  @@index([templateId, version(sort: Desc)])
+  @@map("template_versions")
 }
 
 model RenderJob {
@@ -73,8 +91,9 @@ model RenderJob {
   callbackUrl    String?   @map("callback_url")
   callbackStatus String?   @map("callback_status")                 // sent / failed / null (no callback)
   attemptsMade   Int       @default(1) @map("attempts_made")       // iter 31: bullmq retry 第几次尝试
-  cleanedAt      DateTime? @map("cleaned_at")                      // iter 31: 输出文件已被 cron 清理时间
-  createdAt      DateTime  @default(now()) @map("created_at")
+  cleanedAt       DateTime? @map("cleaned_at")                      // iter 31: 输出文件已被 cron 清理时间
+  templateVersion Int?      @map("template_version")
+  createdAt       DateTime  @default(now()) @map("created_at")
   startedAt      DateTime? @map("started_at")
   completedAt   DateTime? @map("completed_at")
 
