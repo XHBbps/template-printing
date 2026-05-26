@@ -1,7 +1,5 @@
 // eslint-disable-next-line import/no-unresolved
-import type { TemplateElement } from '@template-printing/schema';
-// eslint-disable-next-line import/no-unresolved
-import type { FieldDefSchema } from '@template-printing/schema';
+import type { TemplateElement, FieldDefSchema } from '@template-printing/schema';
 // eslint-disable-next-line import/no-unresolved
 import type { z } from 'zod';
 

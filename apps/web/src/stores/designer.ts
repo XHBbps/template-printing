@@ -1,6 +1,5 @@
 // eslint-disable-next-line import/no-unresolved
 import type { Template, TemplateElement, FieldDefSchema, Anchor } from '@template-printing/schema';
-
 // eslint-disable-next-line import/no-unresolved
 import { ElMessage } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved

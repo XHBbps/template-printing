@@ -9,6 +9,13 @@ import request from 'supertest';
 // eslint-disable-next-line import/no-unresolved
 import { AppModule } from '../src/app.module.js';
 
+interface UserRow {
+  localUsername: string | null;
+  accountType: string;
+  disabledReason: string | null;
+  can: { disable: boolean; changeRole: boolean; resetPassword: boolean };
+}
+
 describe('GET /admin/users', () => {
   let app: INestApplication;
   const prisma = new PrismaClient();
@@ -49,12 +56,12 @@ describe('GET /admin/users', () => {
     expect(res.body).toHaveProperty('items');
     expect(res.body).toHaveProperty('total');
     expect(res.body.page).toBe(1);
-    const me = res.body.items.find((u: any) => u.localUsername === ADMIN);
+    const me = (res.body.items as UserRow[]).find((u) => u.localUsername === ADMIN);
     expect(me).toBeTruthy();
-    expect(me.accountType).toBe('local');
-    expect(me.can.disable).toBe(false); // emergency_admin 不可禁用
-    expect(me.can.changeRole).toBe(false);
-    expect(me.disabledReason).toBe('emergency_admin_protected');
+    expect(me?.accountType).toBe('local');
+    expect(me?.can.disable).toBe(false); // emergency_admin 不可禁用
+    expect(me?.can.changeRole).toBe(false);
+    expect(me?.disabledReason).toBe('emergency_admin_protected');
   });
 
   it('rejects unauthenticated with 401', async () => {
