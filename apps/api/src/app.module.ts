@@ -34,6 +34,8 @@ import { PrismaModule } from './prisma/prisma.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { RenderModule } from './render/render.module.js';
 // eslint-disable-next-line import/no-unresolved
+import { StatsModule } from './stats/stats.module.js';
+// eslint-disable-next-line import/no-unresolved
 import { TemplatesModule } from './templates/templates.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { UploadsModule } from './uploads/uploads.module.js';
@@ -64,6 +66,7 @@ import { UsersModule } from './users/users.module.js';
     TemplatesModule,
     RenderModule,
     UsersModule,
+    StatsModule,
   ],
   providers: [
     // iter 31 T3：全局应用 throttler（限流），tracker 用 user.sub 优先 IP fallback
