@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* eslint-disable import/no-unresolved */
 import { ElMessage } from 'element-plus';
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 /* eslint-enable import/no-unresolved */
 
@@ -17,6 +17,40 @@ const password = ref('');
 const remember = ref(true);
 const submitting = ref(false);
 const lang = ref<'cn' | 'en'>('cn');
+
+interface StatsOverview {
+  windowDays: number;
+  monthlyRenders: number;
+  p50LatencyMs: number | null;
+  successRate: number | null;
+}
+
+const stats = ref<StatsOverview | null>(null);
+
+onMounted(async () => {
+  try {
+    stats.value = await apiFetch<StatsOverview>('/stats/overview');
+  } catch {
+    // 静默失败:保持 stats=null → 三指标显示 —,绝不回退硬编码旧数字
+    stats.value = null;
+  }
+});
+
+function fmtRenders(n: number | null | undefined): { value: string; unit: string } {
+  if (n == null) return { value: '—', unit: '' };
+  if (n >= 1000) return { value: (n / 1000).toFixed(n >= 10000 ? 0 : 1), unit: 'k' };
+  return { value: String(n), unit: '' };
+}
+
+const rendersStat = computed(() => fmtRenders(stats.value?.monthlyRenders));
+const p50Stat = computed(() => {
+  const ms = stats.value?.p50LatencyMs;
+  return ms == null ? { value: '—', unit: '' } : { value: (ms / 1000).toFixed(1), unit: 's' };
+});
+const successStat = computed(() => {
+  const r = stats.value?.successRate;
+  return r == null ? { value: '—', unit: '' } : { value: (r * 100).toFixed(2), unit: '%' };
+});
 
 async function goLark(): Promise<void> {
   const continueTo = (router.currentRoute.value.query.continue as string | undefined) ?? '/';
@@ -113,15 +147,23 @@ async function submitLocal(): Promise<void> {
 
       <div class="tp-l-stats">
         <div class="tp-l-stat">
-          <div class="tp-l-num">128<span class="tp-l-unit">k+</span></div>
+          <div class="tp-l-num">
+            {{ rendersStat.value
+            }}<span v-if="rendersStat.unit" class="tp-l-unit">{{ rendersStat.unit }}</span>
+          </div>
           <div class="tp-l-lbl">月渲染量 <span class="tp-l-lbl-en">RENDERS / MO</span></div>
         </div>
         <div class="tp-l-stat">
-          <div class="tp-l-num">1.2<span class="tp-l-unit">s</span></div>
+          <div class="tp-l-num">
+            {{ p50Stat.value }}<span v-if="p50Stat.unit" class="tp-l-unit">{{ p50Stat.unit }}</span>
+          </div>
           <div class="tp-l-lbl">P50 延迟 <span class="tp-l-lbl-en">P50 LATENCY</span></div>
         </div>
         <div class="tp-l-stat">
-          <div class="tp-l-num">99.97<span class="tp-l-unit">%</span></div>
+          <div class="tp-l-num">
+            {{ successStat.value
+            }}<span v-if="successStat.unit" class="tp-l-unit">{{ successStat.unit }}</span>
+          </div>
           <div class="tp-l-lbl">渲染成功率 <span class="tp-l-lbl-en">SUCCESS RATE</span></div>
         </div>
       </div>
