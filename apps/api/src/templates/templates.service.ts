@@ -129,6 +129,44 @@ export class TemplatesService {
     return { version: row.version, publishedAt: row.publishedAt, data: row.data };
   }
 
+  /** 一键回滚并发布：把 Vk 内容追加为新版 V(n+1)，restoredFrom=k；不改草稿。 */
+  async rollback(
+    ownerId: string,
+    id: string,
+    fromVersion: number,
+  ): Promise<{ version: number; restoredFrom: number }> {
+    const tpl = await this.prisma.template.findFirst({
+      where: { id, ownerId },
+      select: { id: true },
+    });
+    if (!tpl) throw new NotFoundException('template_not_found');
+    return this.prisma.$transaction(async (tx) => {
+      const src = await tx.templateVersion.findUnique({
+        where: { templateId_version: { templateId: id, version: fromVersion } },
+      });
+      if (!src) throw new NotFoundException('template_version_not_found');
+      const max = await tx.templateVersion.aggregate({
+        where: { templateId: id },
+        _max: { version: true },
+      });
+      const nextVersion = (max._max.version ?? 0) + 1;
+      const created = await tx.templateVersion.create({
+        data: {
+          templateId: id,
+          version: nextVersion,
+          data: src.data as object,
+          publishedBy: ownerId,
+          restoredFrom: fromVersion,
+        },
+      });
+      await tx.template.update({
+        where: { id },
+        data: { publishedVersion: nextVersion, hasUnpublishedChanges: true },
+      });
+      return { version: created.version, restoredFrom: fromVersion };
+    });
+  }
+
   async update(
     ownerId: string,
     id: string,

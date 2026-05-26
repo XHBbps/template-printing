@@ -136,6 +136,27 @@ export class TemplatesController {
     return result;
   }
 
+  @Post(':id/rollback')
+  async rollback(
+    @CurrentUser() me: JwtClaims,
+    @Param('id') id: string,
+    @Body() rawBody: unknown,
+    @Req() req: Request,
+  ) {
+    const parsed = z.object({ version: z.coerce.number().int().min(1) }).safeParse(rawBody);
+    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
+    const result = await this.svc.rollback(me.sub, id, parsed.data.version);
+    void this.audit.log({
+      actor: { id: me.sub, name: null },
+      action: 'template.rollback',
+      resourceType: 'template',
+      resourceId: id,
+      details: { version: result.version, restoredFrom: result.restoredFrom },
+      request: req,
+    });
+    return result;
+  }
+
   @Delete(':id')
   async remove(
     @CurrentUser() me: JwtClaims,
