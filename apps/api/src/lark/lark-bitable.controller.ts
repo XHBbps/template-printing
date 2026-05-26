@@ -30,6 +30,7 @@ const PrintTriggerDto = z.object({
   verificationToken: z.string(),
   templateId: z.string(),
   data: z.record(z.unknown()).default({}),
+  version: z.coerce.number().int().min(1).optional(),
   lark: z.object({
     appToken: z.string(),
     tableId: z.string(),
@@ -85,6 +86,7 @@ export class LarkBitableController {
       data: dto.data,
       formats: ['pdf'],
       callbackUrl,
+      version: dto.version,
     });
 
     // 2. 落 LarkPrintRequest
