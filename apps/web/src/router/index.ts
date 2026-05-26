@@ -103,6 +103,12 @@ const router = createRouter({
       component: () => import('../views/errors/NotFoundView.vue'),
     },
     {
+      path: '/500',
+      name: 'server-error',
+      meta: { requiresAuth: false, fullscreen: true },
+      component: () => import('../views/errors/ServerErrorView.vue'),
+    },
+    {
       // 直接渲染 404 视图（不 redirect 到 /404），保留用户输入的原始 URL，
       // 便于错误页用 window.location.pathname 显示实际访问路径
       path: '/:pathMatch(.*)*',

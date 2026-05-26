@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-26（404 品牌错误页 + API 页 v2 重构）
+**最近更新**：2026-05-26（404/403/500 品牌错误页 + API 页 v2 重构）
 
 ---
 
@@ -331,8 +331,16 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
   - **router**：catch-all `/:pathMatch(.*)*` 从 `redirect:'/404'` 改为直接渲染 NotFoundView，
     保留用户输入的原始 URL（否则 pathname 永远是 /404，收据卡无法显示真实路径）
   - 全程纯 CSS `@keyframes` 动画无 JS 依赖、无 box-shadow（VOID 用半透明白底）、禁蓝、禁居中孤字
-  - 验证：Playwright — bogus URL 保留、收据真实路径 + `HTTP 404`、primary 红 `rgb(211,45,39)`、
-    VOID 印章、3 叠纸 + 3 虚线行、双按钮跳转（均 → /templates）、req-id 省略、typecheck 通过
+  - **抽出共享骨架 `errors/ErrorStage.vue`**（props：numLeft/numRight/stamp/eyebrow/titleCn/
+    titleEn/bodyLines/status），404 / 403 / 500 三页共用同一版面，仅数字 / 印章字 / 文案 / HTTP
+    code 不同：404=4□4·VOID、403=4□3·DENIED「你没有这台机器的权限」、500=5□0·ERROR
+    「这一版没印出来」；新增 `/500` 路由 + `ServerErrorView.vue`，403 改用同款模版（原灰字+按钮废弃）
+  - **修复顶栏空缺**：品牌文字原用 `class="app"`，撞上全局 `.app{display:grid;...min-height:100vh}`
+    容器类 → lockup 被撑成 364×900 溢出、顶栏看着缺一块。改用约定的 `.app-name` 类后顶栏恢复
+    满宽白条（lockup 177×21 正常居中）
+  - 印章框改 `min-width:110 + padding` 以容纳 DENIED/ERROR 等更长印章字
+  - 验证：Playwright — 三页 num/stamp/status/title 正确、顶栏满宽 lockup 归位、bogus URL 保留、
+    收据真实路径、primary 红 `rgb(211,45,39)`、typecheck 通过
 - **API 页 v2 重构（`ApiView.vue`）——消除"一屏喷射所有信息"**
   - 顶部拆 3 个 tab（page-bar 下方，padding 0 32px，下边线 1px stone，每个 44px 高，
     active 态 2px 红下边线 + ink 字 + mono 副标转红，禁蓝/禁胶囊）：
