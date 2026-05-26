@@ -22,6 +22,7 @@ import { apiFetch } from '../lib/api';
 import { defaultTemplate } from '../stores/designer';
 import { useTemplatesStore, type TemplateListItem } from '../stores/templates';
 import DesignerView from './DesignerView.vue';
+import TemplateThumb from './TemplateThumb.vue';
 
 const templates = useTemplatesStore();
 const route = useRoute();
@@ -414,6 +415,11 @@ const countLabel = computed(() => {
             >
               <div class="tpl-thumb">
                 <span class="stamp">{{ paperLabel() }}</span>
+                <TemplateThumb
+                  v-if="t.publishedVersion != null"
+                  :template-id="t.id"
+                  :version="t.publishedVersion"
+                />
               </div>
               <div class="tpl-actions">
                 <button type="button" title="复制" @click.stop="duplicateTemplate(t)">
@@ -462,6 +468,11 @@ const countLabel = computed(() => {
               >
                 <div class="row-thumb">
                   <span class="stamp">{{ paperLabel() }}</span>
+                  <TemplateThumb
+                    v-if="t.publishedVersion != null"
+                    :template-id="t.id"
+                    :version="t.publishedVersion"
+                  />
                 </div>
                 <div class="row-meta">
                   <div class="name">{{ t.name }}</div>
