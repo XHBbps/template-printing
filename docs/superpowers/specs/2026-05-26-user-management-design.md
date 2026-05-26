@@ -60,6 +60,7 @@ model User {
 - 正例缓存 TTL **10s**（兜底，防遗漏失效）；可缓存"不存在"短哨兵避免击穿，但以正确性优先——失效永远以**主动 evict** 为准。
 - `evict(userId)`：删除该用户缓存。
 - 抽象成接口（`UserStateStore`），当前实现为进程内 `Map`+时间戳；多实例部署时可换 Redis（已在技术栈），不改调用方。
+- **模块装配**：`UserStateService` 由 `AuthModule` `providers` 提供并**加入 `exports`**（当前只 export `JwtAuthService/RefreshTokenService/ApiTokenService`，见 `auth.module.ts:108`）；`UsersModule` `imports: [AuthModule]` 以调用 `evict()` 与 `revokeAllForUser()`。（AuthModule 内的 APP_GUARD 守卫直接注入即可。）
 
 > **"及时生效"定义**：禁用 / 改角色时**主动 `evict(userId)`**，因此**同进程下一请求即生效**（不是等 TTL）。TTL 只是兜底窗口，不是预期延迟。
 
@@ -83,6 +84,7 @@ model User {
 Controller 只做 DTO（zod）校验 + 调 service；service 调 Prisma（遵守分层）。
 
 - **`GET /admin/users`** query：`page`(默认1) / `pageSize`(默认20, ≤100) / `search`(name/localUsername/email) / `role`(user|admin|emergency_admin) / `status`(active|disabled) / `type`(lark|local|both)。
+  `search` 覆盖 `name / localUsername / email / larkUserId`（账号列会显示飞书标识，故搜索需含 larkUserId）。
   响应：`{ items, total, page, pageSize }`（与审计页 / `BrandPagination` 对齐）。
   item：
   ```ts
@@ -96,9 +98,17 @@ Controller 只做 DTO（zod）校验 + 调 service；service 调 Prisma（遵守
     accountType,                // 'lark' | 'local' | 'both'（后端按 has* 推导）
     accountLabel,               // 展示串：飞书 / 本地 / 飞书+本地（后端算好）
     disabled,                   // disabledAt != null
+    // 每行操作可用性 —— 后端按 §3.5 同一套规则算好（服务端分页下前端无法可靠判断"最后一个 admin"等全局条件）
+    can: {
+      disable: boolean,         // 自己 / emergency_admin / 最后一个活跃 admin → false
+      changeRole: boolean,
+      resetPassword: boolean,   // 仅 hasLocalPassword 且非 emergency_admin
+    },
+    disabledReason,             // string | null（按钮置灰时的悬浮说明，如 last_admin_protected）
     lastLoginAt, createdAt
   }
   ```
+  > 前端仅据 `can.*` 置灰；**后端在各 mutation 接口仍权威校验**（前端能力位只是 UX，不可信）。
 - **`POST /admin/users`** body `{ localUsername, name, role: 'user'|'admin', email? }` → 系统随机一次性密码 + `mustChangePassword=true`，返回 `{ plaintext, user }`；`localUsername` 撞 unique → **409**。
 - **`PATCH /admin/users/:id/role`** body `{ role: 'user'|'admin' }`。
 - **`POST /admin/users/:id/reset-password`**（**仅本地账号**，即 `hasLocalPassword`；否则 400）→ 新随机一次性密码 + `mustChangePassword=true`。
@@ -108,13 +118,18 @@ Controller 只做 DTO（zod）校验 + 调 service；service 调 Prisma（遵守
 
 - **不能操作自己**：`:id === me.sub` 的 disable / role-降级 → 拒绝（`cannot_modify_self`）。
 - **emergency_admin 不可被动**：目标 `role==='emergency_admin'` 的 disable / role / reset → 拒绝（`emergency_admin_protected`）。
-- **保留最后一个活跃 admin**：disable 或把 `admin`→`user` 前，在**同一 Prisma transaction** 内 `count(role==='admin' AND disabledAt IS NULL)`（**不计 emergency_admin**）；若该操作会使其归零 → 拒绝（`last_admin_protected`）。
+- **保留最后一个活跃 admin**：disable 或把 `admin`→`user` 前，必须**并发安全**地校验 `count(role==='admin' AND disabledAt IS NULL)`（**不计 emergency_admin**），归零则拒绝（`last_admin_protected`）。
+  - ⚠️ 仅"事务内 count 再 update"在 PostgreSQL 默认 **Read Committed** 下不够：两个并发降级/禁用可能都 count 到 2 再各自 update → 归零。**必须用以下之一**：
+    1. `$transaction(fn, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })` + 捕获序列化失败（PG `40001` / Prisma `P2034`）→ 返回冲突重试错误；**或**
+    2. 事务内对候选 admin 行加行锁（`SELECT id FROM users WHERE role='admin' AND disabled_at IS NULL FOR UPDATE` via `$queryRaw`）后再 count+update；**或**
+    3. 条件式原子更新（`UPDATE ... WHERE ... AND (SELECT count(*) ...) > 1`，受影响行数=0 视为被保护）。
+  - 计划阶段从中选定一种并在测试里跑**真并发**用例（两请求同时降级/禁用最后两个 admin，断言最终仍 ≥1 活跃 admin）。
 - 改角色枚举仅 `user|admin`（DTO 层就拒绝 `emergency_admin`）。
 
 ### 3.6 前端（真实 `UsersAdminView.vue`）
 
 - 列：名称 / 账号（`accountLabel` + `localUsername`或飞书标识）/ 角色徽章 / 类型 / 状态（活跃·已禁用）/ 最近登录。
-- 行操作：改角色下拉、重置密码（仅 `hasLocalPassword`）、禁用/启用。被安全规则禁止的操作按钮置灰（自己、emergency_admin、最后一个 admin）。
+- 行操作：改角色下拉、重置密码、禁用/启用 —— 按响应里每行 `can.*` 置灰，`disabledReason` 作悬浮说明（不在前端重算全局规则）。
 - 顶部「新建本地账号」→ dialog（localUsername/name/role/email?）→ 成功后一次性明文密码 dialog（复用 ApiToken 一次性明文组件模式）。
 - 服务端分页复用 `BrandPagination`；搜索/过滤栏；破坏性操作走 `ConfirmDialog`。
 - 强制改密：复用 `MustChangePasswordDialog` + `/me/password`，文案去 emergency-admin 化，改为通用「初始/临时密码」。
@@ -136,7 +151,8 @@ Controller 只做 DTO（zod）校验 + 调 service；service 调 Prisma（遵守
 - 本地**普通**账号（admin 新建、role=user/admin）能登录，JWT 带真实 role。
 - 禁用后：**下一请求**（非等 TTL）登录 / refresh / 受保护接口 / Bearer API token **全部拒绝**。
 - 角色 `admin→user` 后：**下一请求** admin 接口即 403（缓存已 evict + role 覆盖）。
-- 安全：不能禁用/降级自己；不能操作 emergency_admin；不能降级/禁用最后一个活跃 admin（并发下事务保证）。
+- 安全：不能禁用/降级自己；不能操作 emergency_admin；不能降级/禁用最后一个活跃 admin。**并发用例**：两请求同时降级/禁用仅剩的两个 admin，断言最终仍 ≥1 活跃 admin（验证 §3.5 选定的并发安全方案，非伪保证）。
+- 列表 `can.*` 能力位与后端权威校验一致（前端置灰处后端也拒绝）。
 - 新建本地账号 localUsername 撞名 → 409。
 - UserStateService：用户不存在 → 401。
 - 飞书新建用户 `localUsername` 为 null；`hasLocalPassword=false` 的飞书用户调 `/me/password` → `local_username_required`；已有 localUsername 的 emergency_admin 改密正常。
@@ -146,7 +162,7 @@ Controller 只做 DTO（zod）校验 + 调 service；service 调 Prisma（遵守
 ## 6. 文档同步
 
 - `docs/PROGRESS.md`：第 3 节近期变更 + 顶部日期；第 2 节"已交付能力"补用户管理。
-- `AGENTS.md`：第 3/目录结构补 `apps/api/src/users/`；若鉴权流程描述涉及，按第 9 节触发映射同步。
+- `AGENTS.md`：第 2 节目录结构补 `apps/api/src/users/`；若鉴权流程描述涉及，按第 9 节触发映射同步。
 
 ---
 
