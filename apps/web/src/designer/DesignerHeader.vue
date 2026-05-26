@@ -7,6 +7,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { useDesignerStore } from '../stores/designer';
 import CustomPaperDialog from './CustomPaperDialog.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
 import PreviewView from '../views/PreviewView.vue';
 
 const store = useDesignerStore();
@@ -119,11 +120,21 @@ function retrySave(): void {
 }
 
 const publishing = ref(false);
+const publishConfirmOpen = ref(false);
+
+// 待发布的目标版本号（已发布版 +1；从未发布则为 V1）
+const nextVersion = computed(() => (store.publishedVersion ?? 0) + 1);
+const publishConfirmBody = computed(
+  () =>
+    `将把当前草稿发布为正式版本 V${nextVersion.value}。\n模板：「${store.template.meta.name}」\n发布后 API 默认调用此版本。`,
+);
+
 async function doPublish(): Promise<void> {
   publishing.value = true;
   try {
     const r = await store.publish();
     if (r) ElMessage.success(`已发布 V${r.version}`);
+    publishConfirmOpen.value = false;
   } catch (e) {
     ElMessage.error(`发布失败：${(e as Error).message}`);
   } finally {
@@ -196,7 +207,7 @@ async function doPublish(): Promise<void> {
       class="tt-btn-secondary"
       type="button"
       :disabled="publishing || (store.publishedVersion != null && !store.hasUnpublishedChanges)"
-      @click="doPublish"
+      @click="publishConfirmOpen = true"
     >
       <Save :size="14" :stroke-width="1.5" />
       {{ publishing ? '发布中…' : '发布' }}
@@ -209,6 +220,15 @@ async function doPublish(): Promise<void> {
     <CustomPaperDialog v-model="customDialogOpen" @confirm="onCustomPaperConfirm" />
   </div>
   <PreviewView v-model="previewOpen" />
+  <ConfirmDialog
+    v-model="publishConfirmOpen"
+    title="发布版本"
+    cap="PUBLISH VERSION"
+    :body="publishConfirmBody"
+    confirm-text="确认发布"
+    :loading="publishing"
+    @confirm="doPublish"
+  />
 </template>
 
 <style scoped>

@@ -80,14 +80,6 @@ async function confirmLogout(): Promise<void> {
         <span class="ico"><FileText :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">模板中心</span>
       </RouterLink>
-      <RouterLink to="/logs" active-class="active">
-        <span class="ico"><History :size="16" :stroke-width="1.5" /></span>
-        <span v-if="!collapsed">渲染日志</span>
-      </RouterLink>
-      <RouterLink to="/me" active-class="active">
-        <span class="ico"><User :size="16" :stroke-width="1.5" /></span>
-        <span v-if="!collapsed">个人中心</span>
-      </RouterLink>
     </nav>
 
     <div v-if="!collapsed" class="sidebar-section-label">Integration · 集成</div>
@@ -96,13 +88,29 @@ async function confirmLogout(): Promise<void> {
         <span class="ico"><Key :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">API</span>
       </RouterLink>
-      <RouterLink v-if="isAdmin()" to="/admin/users" active-class="active">
-        <span class="ico"><Users :size="16" :stroke-width="1.5" /></span>
-        <span v-if="!collapsed">用户管理</span>
+    </nav>
+
+    <div v-if="!collapsed" class="sidebar-section-label">Logs · 日志</div>
+    <nav class="nav">
+      <RouterLink to="/logs" active-class="active">
+        <span class="ico"><History :size="16" :stroke-width="1.5" /></span>
+        <span v-if="!collapsed">渲染日志</span>
       </RouterLink>
       <RouterLink v-if="isAdmin()" to="/admin/audit" active-class="active">
         <span class="ico"><ShieldAlert :size="16" :stroke-width="1.5" /></span>
         <span v-if="!collapsed">审计日志</span>
+      </RouterLink>
+    </nav>
+
+    <div v-if="!collapsed" class="sidebar-section-label">Settings · 设置</div>
+    <nav class="nav">
+      <RouterLink to="/me" active-class="active">
+        <span class="ico"><User :size="16" :stroke-width="1.5" /></span>
+        <span v-if="!collapsed">个人中心</span>
+      </RouterLink>
+      <RouterLink v-if="isAdmin()" to="/admin/users" active-class="active">
+        <span class="ico"><Users :size="16" :stroke-width="1.5" /></span>
+        <span v-if="!collapsed">用户管理</span>
       </RouterLink>
     </nav>
 

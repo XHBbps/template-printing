@@ -244,7 +244,7 @@ onMounted(refresh);
                 </thead>
                 <tbody>
                   <tr v-for="job in items" :key="job.id">
-                    <td class="mono id" :title="job.id">{{ job.id.slice(0, 8) }}…</td>
+                    <td class="mono id" :title="job.id">{{ job.id }}</td>
                     <td>{{ job.templateName }}</td>
                     <td>
                       <span class="pill" :class="statusPill(job.status)">
@@ -262,7 +262,7 @@ onMounted(refresh);
                           :href="job.pdfUrl"
                           target="_blank"
                           rel="noopener"
-                          >下载 PDF</a
+                          >下载</a
                         >
                         <span v-if="job.cleanedAt" class="cleaned-mark" title="输出已自动清理">
                           已清理
@@ -475,6 +475,7 @@ table.log .mono {
 }
 table.log .id {
   color: var(--fg-3);
+  white-space: nowrap;
 }
 
 .row-actions {

@@ -28,8 +28,8 @@ const snapshotTpl = ref<Template | null>(null);
 const sampleData = ref<Record<string, unknown>>({});
 const previewLoading = ref(false);
 
-const PANE_W = 420;
-const PANE_H = 360;
+const PANE_W = 600;
+const PANE_H = 440;
 const previewScale = computed(() => {
   const t = snapshotTpl.value;
   if (!t) return 1;
@@ -97,11 +97,11 @@ async function doRollback(version: number): Promise<void> {
       `/templates/${props.templateId}/rollback`,
       { method: 'POST', body: JSON.stringify({ version }) },
     );
-    ElMessage.success(`已回滚：V${r.restoredFrom} → 新版 V${r.version}`);
+    ElMessage.success(`已回溯至 V${r.restoredFrom}（新版 V${r.version}）`);
     store.setVersionState(r.version, true);
     await load();
   } catch (e) {
-    ElMessage.error(`回滚失败：${(e as Error).message}`);
+    ElMessage.error(`回溯失败：${(e as Error).message}`);
   } finally {
     rolling.value = false;
   }
@@ -112,7 +112,7 @@ async function doRollback(version: number): Promise<void> {
   <ElDialog
     :model-value="modelValue"
     title="版本管理"
-    width="720px"
+    width="980px"
     :append-to-body="true"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -154,7 +154,7 @@ async function doRollback(version: number): Promise<void> {
             :disabled="rolling"
             @click="doRollback(selected)"
           >
-            {{ rolling ? '回滚中…' : `回滚并发布（基于 V${selected}）` }}
+            {{ rolling ? '回溯中…' : `回溯至 V${selected}` }}
           </button>
           <p v-else class="vd-note">这是当前发布版本。</p>
         </template>
@@ -253,8 +253,8 @@ async function doRollback(version: number): Promise<void> {
   color: var(--fg-3);
 }
 .vd-preview {
-  width: 420px;
-  height: 360px;
+  width: 600px;
+  height: 440px;
   margin-bottom: 16px;
   border: 1px solid var(--stone);
   background: var(--mist);

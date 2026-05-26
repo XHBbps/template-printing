@@ -281,7 +281,7 @@ onMounted(() => {
                     </td>
                     <td>
                       <span v-if="e.actorName" class="name-cell">{{ e.actorName }}</span>
-                      <span v-else class="name-cell sys">— · 系统</span>
+                      <span v-else class="name-cell sys">系统</span>
                     </td>
                     <td>
                       <span v-if="e.resourceType" class="name-cell">{{ e.resourceType }}</span>
