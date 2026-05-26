@@ -53,9 +53,9 @@ async function submit(): Promise<void> {
     </p>
     <ElForm label-position="top">
       <ElFormItem label="当前密码">
-        <ElInput v-model="current" type="password" placeholder="即刚才登录使用的密码" />
+        <ElInput v-model="current" type="password" placeholder="即本次登录使用的初始/临时密码" />
         <div style="font-size: 11px; color: #aaa; margin-top: 4px">
-          应急管理员默认密码请咨询系统部署者（来自后端 .env 的 INITIAL_ADMIN_LOCAL_PASSWORD）
+          初始/临时密码：管理员新建账号时下发的一次性密码；应急管理员为部署时设置的密码。
         </div>
       </ElFormItem>
       <ElFormItem label="新密码（至少 8 位）">
