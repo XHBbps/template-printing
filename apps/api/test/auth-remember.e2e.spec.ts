@@ -79,4 +79,52 @@ describe('Remember-me cookie semantics e2e', () => {
     }
     expect(find(arr, 'tp_remember=')).toMatch(/tp_remember=0/);
   });
+
+  it('refresh continues session semantics when tp_remember=0', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/auth/local/login')
+      .send({ username: USER, password: PW, remember: false })
+      .expect(200);
+    const cookies = (login.headers['set-cookie'] as unknown as string[]).join('; ');
+    const res = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', cookies)
+      .expect(200);
+    const arr = res.headers['set-cookie'] as unknown as string[];
+    const refresh = arr.find((x) => x.startsWith('tp_refresh='))!;
+    expect(refresh).not.toMatch(/Max-Age=/i);
+    expect(refresh).not.toMatch(/Expires=/i);
+  });
+
+  it('refresh continues persistent semantics when tp_remember=1', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/auth/local/login')
+      .send({ username: USER, password: PW, remember: true })
+      .expect(200);
+    const cookies = (login.headers['set-cookie'] as unknown as string[]).join('; ');
+    const res = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', cookies)
+      .expect(200);
+    const refresh = (res.headers['set-cookie'] as unknown as string[]).find((x) =>
+      x.startsWith('tp_refresh='),
+    )!;
+    expect(refresh).toMatch(/Max-Age=2592000/i);
+  });
+
+  it('logout clears tp_remember', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/auth/local/login')
+      .send({ username: USER, password: PW, remember: true })
+      .expect(200);
+    const cookies = (login.headers['set-cookie'] as unknown as string[]).join('; ');
+    const csrf = login.body.csrf as string;
+    const res = await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Cookie', cookies)
+      .set('X-CSRF-Token', csrf)
+      .expect(204);
+    const cleared = (res.headers['set-cookie'] as unknown as string[]).join(';');
+    expect(cleared).toMatch(/tp_remember=;/);
+  });
 });

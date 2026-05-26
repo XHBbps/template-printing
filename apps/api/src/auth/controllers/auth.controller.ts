@@ -20,6 +20,7 @@ import { Public } from '../decorators/public.decorator.js';
 /* eslint-disable import/no-unresolved */
 import {
   REFRESH_COOKIE,
+  REMEMBER_COOKIE,
   clearAuthCookies,
   setAuthCookies,
   type CookieEnv,
@@ -100,7 +101,9 @@ export class AuthController {
       sub: user.id,
       role: user.role as 'admin' | 'user' | 'emergency_admin',
     });
-    setAuthCookies(res, this.cookieEnv, { access: newAccess, refresh: newRefresh });
+    // 续签时延续登录时的 remember 选择:tp_remember='0' → session;'1' 或缺失 → 持久(兼容存量会话)
+    const remember = cookies[REMEMBER_COOKIE] !== '0';
+    setAuthCookies(res, this.cookieEnv, { access: newAccess, refresh: newRefresh }, { remember });
     return { ok: true, csrf };
   }
 }
