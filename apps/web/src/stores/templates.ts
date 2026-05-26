@@ -9,6 +9,8 @@ export interface TemplateListItem {
   description: string | null;
   createdAt: string;
   updatedAt: string;
+  publishedVersion: number | null;
+  hasUnpublishedChanges: boolean;
 }
 
 export interface TemplateSliceParams {
