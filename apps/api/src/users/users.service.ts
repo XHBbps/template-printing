@@ -1,7 +1,10 @@
+import { randomBytes } from 'node:crypto';
+
 // eslint-disable-next-line import/no-unresolved
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { Prisma } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -102,5 +105,31 @@ export class UsersService {
       };
     });
     return { items, total, page, pageSize };
+  }
+
+  async createLocal(input: {
+    localUsername: string;
+    name: string;
+    role: 'user' | 'admin';
+    email?: string;
+  }) {
+    const exists = await this.prisma.user.findUnique({
+      where: { localUsername: input.localUsername },
+      select: { id: true },
+    });
+    if (exists) throw new ConflictException('username_taken');
+    const plaintext = randomBytes(9).toString('base64url'); // ~12 chars
+    const user = await this.prisma.user.create({
+      data: {
+        localUsername: input.localUsername,
+        name: input.name,
+        email: input.email ?? null,
+        role: input.role,
+        localPasswordHash: await bcrypt.hash(plaintext, 12),
+        mustChangePassword: true,
+      },
+      select: { id: true, localUsername: true, name: true, role: true, email: true },
+    });
+    return { plaintext, user };
   }
 }
