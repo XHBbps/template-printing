@@ -8,6 +8,7 @@ export const pool = new pg.Pool({ connectionString: url });
 export interface JobRow {
   id: string;
   template_id: string;
+  template_version: number | null;
   data: Record<string, unknown>;
   formats: string[];
   status: string;
@@ -25,7 +26,7 @@ export interface TemplateRow {
 
 export async function fetchJob(id: string): Promise<JobRow | null> {
   const r = await pool.query<JobRow>(
-    'SELECT id, template_id, data, formats, status, pdf_url, png_url, error_msg, callback_url FROM render_jobs WHERE id = $1',
+    'SELECT id, template_id, template_version, data, formats, status, pdf_url, png_url, error_msg, callback_url FROM render_jobs WHERE id = $1',
     [id],
   );
   return r.rows[0] ?? null;
@@ -35,6 +36,17 @@ export async function fetchTemplate(id: string): Promise<TemplateRow | null> {
   const r = await pool.query<TemplateRow>('SELECT id, name, data FROM templates WHERE id = $1', [
     id,
   ]);
+  return r.rows[0] ?? null;
+}
+
+export async function fetchTemplateVersion(
+  templateId: string,
+  version: number,
+): Promise<TemplateRow | null> {
+  const r = await pool.query<TemplateRow>(
+    'SELECT t.id, t.name, tv.data FROM template_versions tv JOIN templates t ON t.id = tv.template_id WHERE tv.template_id = $1 AND tv.version = $2',
+    [templateId, version],
+  );
   return r.rows[0] ?? null;
 }
 

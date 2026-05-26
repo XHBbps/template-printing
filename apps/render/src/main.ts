@@ -4,7 +4,14 @@ import { UnrecoverableError, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 
 // eslint-disable-next-line import/no-unresolved
-import { fetchJob, fetchTemplate, markDone, markFailed, markProcessing } from './db.js';
+import {
+  fetchJob,
+  fetchTemplate,
+  fetchTemplateVersion,
+  markDone,
+  markFailed,
+  markProcessing,
+} from './db.js';
 // eslint-disable-next-line import/no-unresolved
 import { PuppeteerPool } from './puppeteer-pool.js';
 // eslint-disable-next-line import/no-unresolved
@@ -41,7 +48,10 @@ async function main(): Promise<void> {
         console.warn(`[render] job ${jobId} not found in db — permanent failure`);
         throw new UnrecoverableError(`job ${jobId} not found in db`);
       }
-      const tpl = await fetchTemplate(job.template_id);
+      const tpl =
+        job.template_version != null
+          ? await fetchTemplateVersion(job.template_id, job.template_version)
+          : await fetchTemplate(job.template_id);
       if (!tpl) {
         // template_not_found 永久失败 — 跳过剩余 attempts
         await markFailed(jobId, 'template_not_found', attemptNo);
