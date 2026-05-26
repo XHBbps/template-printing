@@ -46,7 +46,15 @@ export class TemplatesService {
         orderBy,
         skip: offset,
         take: limit,
-        select: { id: true, name: true, description: true, createdAt: true, updatedAt: true },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true,
+          publishedVersion: true,
+          hasUnpublishedChanges: true,
+        },
       }),
       this.prisma.template.count({ where }),
     ]);
@@ -178,7 +186,10 @@ export class TemplatesService {
       data: {
         ...(payload.name !== undefined && { name: payload.name }),
         ...(payload.description !== undefined && { description: payload.description }),
-        ...(payload.data !== undefined && { data: payload.data as object }),
+        ...(payload.data !== undefined && {
+          data: payload.data as object,
+          hasUnpublishedChanges: true,
+        }),
       },
     });
   }
