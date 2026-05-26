@@ -3,7 +3,6 @@ import { UnrecoverableError, Worker } from 'bullmq';
 // eslint-disable-next-line import/no-unresolved
 import IORedis from 'ioredis';
 
-// eslint-disable-next-line import/no-unresolved
 import {
   fetchJob,
   fetchTemplate,
@@ -11,6 +10,7 @@ import {
   markDone,
   markFailed,
   markProcessing,
+  // eslint-disable-next-line import/no-unresolved
 } from './db.js';
 // eslint-disable-next-line import/no-unresolved
 import { PuppeteerPool } from './puppeteer-pool.js';
