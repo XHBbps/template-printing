@@ -194,7 +194,9 @@ model RenderJob {
 
 ## 4. 非目标（YAGNI）
 
-不做：版本 diff/对比、版本命名/标签/备注、分支、定时发布、跨模板版本共享、版本删除/压缩、"恢复旧版到草稿再编辑"（仅一键回滚并发布）。`meta.version` 死字段删除。
+不做：版本 diff/对比、版本命名/标签/备注、分支、定时发布、跨模板版本共享、版本删除/压缩、"恢复旧版到草稿再编辑"（仅一键回滚并发布）。
+
+**关于 `meta.version`**：原计划删除，但 `DesignerView.isCompleteTemplate()` 用 `typeof t.meta?.version === 'number'` 作模板结构完整性校验标记，删除会牵动 `@template-printing/schema` 类型 + 校验逻辑。改为**保留 `meta.version` 作为 schema 结构标记**（不再用于展示），真实版本号全部走 DB（`TemplateVersion.version` / `Template.publishedVersion`）。
 
 ---
 
