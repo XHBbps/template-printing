@@ -305,10 +305,16 @@ const endpoints: Endpoint[] = [
         code: 'data',
         type: 'object',
         req: false,
-        desc: '业务字段 map，key 对应模板 schema.fields；默认 {}',
+        desc: '业务字段 map，key 对应该版本模板 schema.fields；默认 {}',
       },
       { code: 'formats', type: 'string[]', req: false, desc: '导出格式，默认 ["pdf"]，可加 "png"' },
       { code: 'callbackUrl', type: 'string', req: false, desc: '完成时回调地址' },
+      {
+        code: 'version',
+        type: 'number',
+        req: false,
+        desc: '指定渲染的已发布版本号；不传=最新已发布版',
+      },
     ],
     respRows: [
       { code: 'jobId', type: 'string (UUID)', desc: '渲染任务 ID，后续查询 / callback 中关联' },
@@ -334,12 +340,22 @@ const endpoints: Endpoint[] = [
       },
       { http: '401', code: 'UNAUTHORIZED', reason: '无 Bearer / token 失效 / cookie 无效' },
       { http: '404', code: 'template_not_found', reason: 'templateId 不存在或当前用户无权限' },
+      {
+        http: '400',
+        code: 'no_published_version',
+        reason: '该模板尚无已发布版本（请先在设计器发布）',
+      },
+      {
+        http: '404',
+        code: 'template_version_not_found',
+        reason: '指定的 version 不存在或不属于该模板',
+      },
     ],
     samples: {
       curl: `curl 'https://api.yangli.local/api/render' \\
   -H 'Authorization: Bearer tpkn_a1b2c3d4...' \\
   -H 'Content-Type: application/json' \\
-  -d '{"templateId":"e0798b17-...","data":{"group":"扬机"},"formats":["pdf"]}'`,
+  -d '{"templateId":"e0798b17-...","data":{"group":"扬机"},"formats":["pdf"],"version":2}'`,
       node: `const res = await fetch('https://api.yangli.local/api/render', {
   method: 'POST',
   headers: {
@@ -351,6 +367,7 @@ const endpoints: Endpoint[] = [
     data: { group: '扬机', material_num: '10100' },
     formats: ['pdf'],
     callbackUrl: 'https://your-server.com/print-callback',
+    version: 2,
   }),
 });
 const { jobId } = await res.json();`,
@@ -364,6 +381,7 @@ res = requests.post(
         'data': {'group': '扬机', 'material_num': '10100'},
         'formats': ['pdf'],
         'callbackUrl': 'https://your-server.com/print-callback',
+        'version': 2,
     },
 )
 print(res.json()['jobId'])`,
@@ -382,6 +400,11 @@ print(res.json()['jobId'])`,
       { code: 'status', type: 'string', desc: 'pending / processing / done / failed' },
       { code: 'pdfUrl', type: 'string | null', desc: '完成后才有，相对路径 /uploads/render/...' },
       { code: 'errorMsg', type: 'string | null', desc: '失败时含错误描述' },
+      {
+        code: 'templateVersion',
+        type: 'number | null',
+        desc: '本次渲染锁定的版本号（草稿渲染为 null）',
+      },
     ],
     respExample: `{
   "jobId": "abc-123-...",
@@ -389,6 +412,7 @@ print(res.json()['jobId'])`,
   "pdfUrl": "/uploads/render/abc-123.pdf",
   "pngUrl": null,
   "errorMsg": null,
+  "templateVersion": 2,
   "createdAt": "2026-05-24T10:30:00Z",
   "completedAt": "2026-05-24T10:30:02Z"
 }`,
@@ -437,6 +461,12 @@ print(job['status'], job['pdfUrl'])`,
       { code: 'lark.recordId', type: 'string', req: true, desc: '当前行 record_id' },
       { code: 'lark.statusField', type: 'string', req: true, desc: '"打印状态" 单选列的列名' },
       { code: 'lark.attachmentField', type: 'string', req: true, desc: '"PDF 附件" 附件列的列名' },
+      {
+        code: 'version',
+        type: 'number',
+        req: false,
+        desc: '指定渲染的已发布版本号；不传=最新已发布版',
+      },
     ],
     behavior: [
       '立即落 LarkPrintRequest 记录 + 入队渲染',
@@ -584,6 +614,8 @@ function copySample(ep: Endpoint): void {
             <p>
               以 REST 调用 <code>/api/render</code> 把渲染任务入队，完成时通过 callbackUrl 收
               webhook 或主动轮询。所有接口默认 JSON。
+              渲染针对模板的已发布版本：默认最新已发布版，可在请求里指定
+              <code>version</code> 渲染历史版本。
             </p>
           </section>
 
