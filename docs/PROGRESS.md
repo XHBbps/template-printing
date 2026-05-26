@@ -316,6 +316,18 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-26
 
+- **模板中心默认排序改为「创建时间·最新在前」（修复保存后列表重排）**
+  - 现象：默认排序是「最近编辑」(`updatedAt desc`)，每次保存模板会 bump `updatedAt`，
+    返回列表（`reloadActive` 重新拉取）时该模板跳到顶部 → 用户每次保存都看到列表重排
+  - 改动：后端 `TemplatesService.list` sort 新增 `'created'`（`createdAt desc`），controller
+    zod enum 加 `'created'` 且**默认值从 `updated` 改为 `created`**；前端 store/视图 sort 类型
+    加 `'created'`，`sortBy` 默认 `'created'`，下拉框新增「创建时间」选项（「最近编辑」「名称 A→Z」保留）
+  - 稳定性：三种排序均加 `id` 二级排序键，避免同毫秒/同名记录顺序漂移
+  - 「最近编辑」红框标识不受影响：`refreshRecentId` 独立查询 `sort=updated&limit=1`，仍精确
+    标记最近保存的那张（即便它在列表里不挪位）
+  - 验证：API 级 — 默认 createdAt desc；PATCH 某模板 bump updatedAt 后 created-sort 顺序**不变**，
+    而 updated-sort 仍把它排首（红框仍跟踪）；浏览器 — 下拉默认「创建时间」、open→return 顺序一致；
+    前后端 typecheck 通过
 - **404 页品牌叙事改造（`errors/NotFoundView.vue`）——"打印失败"概念**
   - 从"灰 404 + 蓝按钮"换成品牌空态：3 行 grid（64 顶栏 + 1fr 主体 + 80 底栏）+ mist 底
     + 14px 极淡圆点底纹；顶栏品牌锁定 + 右上 mono 版本戳 + 2px×96px 红签名线；底栏 mono

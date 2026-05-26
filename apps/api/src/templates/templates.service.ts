@@ -1,5 +1,6 @@
 // eslint-disable-next-line import/no-unresolved
 import { Injectable, NotFoundException } from '@nestjs/common';
+// eslint-disable-next-line import/no-unresolved
 import { Prisma } from '@prisma/client';
 
 // eslint-disable-next-line import/no-unresolved
@@ -9,7 +10,7 @@ export interface TemplateListArgs {
   offset: number;
   limit: number;
   search?: string | null;
-  sort?: 'updated' | 'name';
+  sort?: 'updated' | 'name' | 'created';
 }
 
 @Injectable()
@@ -31,8 +32,13 @@ export class TemplatesService {
         ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { id: { contains: q } }] }
         : {}),
     };
-    const orderBy: Prisma.TemplateOrderByWithRelationInput =
-      args.sort === 'name' ? { name: 'asc' } : { updatedAt: 'desc' };
+    // 稳定排序加 id 二级键，避免同毫秒/同名记录顺序漂移导致保存后列表重排
+    const orderBy: Prisma.TemplateOrderByWithRelationInput[] =
+      args.sort === 'name'
+        ? [{ name: 'asc' }, { id: 'asc' }]
+        : args.sort === 'created'
+          ? [{ createdAt: 'desc' }, { id: 'asc' }]
+          : [{ updatedAt: 'desc' }, { id: 'asc' }];
 
     const [items, total] = await Promise.all([
       this.prisma.template.findMany({

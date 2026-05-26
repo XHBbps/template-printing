@@ -41,7 +41,7 @@ const ListQuery = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   limit: z.coerce.number().int().min(1).max(100).default(15),
   search: z.string().trim().max(120).optional(),
-  sort: z.enum(['updated', 'name']).default('updated'),
+  sort: z.enum(['updated', 'name', 'created']).default('created'),
 });
 
 @Controller('templates')

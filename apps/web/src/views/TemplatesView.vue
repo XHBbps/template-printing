@@ -42,7 +42,9 @@ const currentTemplateName = computed(() => {
 // Filter / sort / 视图状态
 const searchQuery = ref('');
 const categoryFilter = ref<string>('');
-const sortBy = ref<'updated' | 'name'>('updated');
+// 默认按创建时间倒序（稳定顺序）：保存模板不会改变其位置，避免每次保存后列表重排。
+// 「最近编辑」(updated) 仍保留为可选项；红框「最近编辑」标识独立计算，不依赖列表排序。
+const sortBy = ref<'updated' | 'name' | 'created'>('created');
 const viewMode = ref<'grid' | 'list'>('grid');
 const total = ref(0);
 
@@ -347,6 +349,7 @@ const countLabel = computed(() => {
             </select>
 
             <select v-model="sortBy">
+              <option value="created">创建时间</option>
               <option value="updated">最近编辑</option>
               <option value="name">名称 A → Z</option>
             </select>

@@ -15,7 +15,7 @@ export interface TemplateSliceParams {
   offset: number;
   limit: number;
   search: string;
-  sort: 'updated' | 'name';
+  sort: 'updated' | 'name' | 'created';
 }
 
 interface TemplateSliceResponse {
