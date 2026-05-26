@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
-import { ElDropdown, ElDropdownItem, ElDropdownMenu } from 'element-plus';
+import { ElDropdown, ElDropdownItem, ElDropdownMenu, ElMessage } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import { FileText, Grid3x3, RotateCw, Eye, Save, Printer, Plus } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
@@ -117,6 +117,19 @@ const saveStateClass = computed(() => {
 function retrySave(): void {
   if (store.saveStatus === 'error') void store.saveToBackend();
 }
+
+const publishing = ref(false);
+async function doPublish(): Promise<void> {
+  publishing.value = true;
+  try {
+    const r = await store.publish();
+    if (r) ElMessage.success(`已发布 V${r.version}`);
+  } catch (e) {
+    ElMessage.error(`发布失败：${(e as Error).message}`);
+  } finally {
+    publishing.value = false;
+  }
+}
 </script>
 
 <template>
@@ -182,11 +195,11 @@ function retrySave(): void {
     <button
       class="tt-btn-secondary"
       type="button"
-      :disabled="store.saveStatus === 'saving'"
-      @click="store.saveToBackend"
+      :disabled="publishing || (store.publishedVersion != null && !store.hasUnpublishedChanges)"
+      @click="doPublish"
     >
       <Save :size="14" :stroke-width="1.5" />
-      保存
+      {{ publishing ? '发布中…' : '发布' }}
     </button>
     <button class="tt-btn-primary" type="button" @click="doPrint">
       <Printer :size="14" :stroke-width="1.5" />

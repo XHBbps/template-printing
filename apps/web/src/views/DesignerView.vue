@@ -23,17 +23,18 @@ const route = useRoute();
 const store = useDesignerStore();
 
 const saveCaption = computed<{ cap: string; han: string }>(() => {
-  switch (store.saveStatus) {
-    case 'saving':
-      return { cap: 'SAVING', han: '保存中…' };
-    case 'pending':
-      return { cap: 'UNSAVED', han: '未保存' };
-    case 'error':
-      return { cap: 'SAVE FAILED', han: '保存失败' };
-    case 'saved':
-    default:
-      return { cap: 'DRAFT SAVED', han: '草稿已保存' };
-  }
+  if (store.saveStatus === 'saving') return { cap: 'SAVING', han: '保存中…' };
+  if (store.saveStatus === 'error') return { cap: 'SAVE FAILED', han: '保存失败' };
+  if (store.publishedVersion == null) return { cap: 'UNPUBLISHED', han: '未发布' };
+  if (store.hasUnpublishedChanges)
+    return {
+      cap: `V${store.publishedVersion} · UNPUBLISHED CHANGES`,
+      han: `V${store.publishedVersion} · 有未发布改动`,
+    };
+  return {
+    cap: `V${store.publishedVersion} · PUBLISHED`,
+    han: `V${store.publishedVersion} · 已发布`,
+  };
 });
 
 // Resolve the effective template ID: prop takes precedence; fall back to route param.
@@ -57,7 +58,13 @@ function isCompleteTemplate(data: unknown): data is Template {
 
 async function loadById(id: string): Promise<void> {
   try {
-    const record = await apiFetch<{ id: string; name: string; data: unknown }>(`/templates/${id}`);
+    const record = await apiFetch<{
+      id: string;
+      name: string;
+      data: unknown;
+      publishedVersion: number | null;
+      hasUnpublishedChanges: boolean;
+    }>(`/templates/${id}`);
     let data: Template;
     if (isCompleteTemplate(record.data)) {
       data = record.data;
@@ -77,6 +84,7 @@ async function loadById(id: string): Promise<void> {
     }
     store.loadTemplate(data);
     store.setTemplateId(id);
+    store.setVersionState(record.publishedVersion, record.hasUnpublishedChanges);
   } catch {
     // If fetch fails (network / 401 / 404), fall back to a fresh template.
     store.reset();
