@@ -24,20 +24,20 @@
 
 ### 2.1 现状
 
-`apps/api/src/auth/jwt/jwt-cookie.helper.ts` 的 `setAuthCookies` **已实现** `remember` 语义:
+`apps/api/src/auth/jwt/jwt-cookie.helper.ts` 当前**尚未实现** `remember` 语义(已核对代码 `jwt-cookie.helper.ts:26-44`):
 
-- `remember: true` → access / refresh / `tp_remember` 三个 cookie 带 `maxAge`(持久 cookie)。
-- `remember: false` → 三个 cookie 省略 `maxAge`(session cookie,关浏览器即失效)。
-- `clearAuthCookies` 已清理含 `tp_remember` 在内的三个 cookie。
+- 只导出 `ACCESS_COOKIE` / `REFRESH_COOKIE`,**没有** `REMEMBER_COOKIE`。
+- `setAuthCookies(res, env, tokens)` **不接收 options**,恒为 access/refresh 两个 cookie 带固定 `maxAge`(持久),无法表达 session-cookie。
+- `clearAuthCookies` 只清 access/refresh 两个 cookie。
 
-缺口:登录控制器调用 `setAuthCookies` 时不传 `remember`(恒默认 `true`);前端不发 `remember`;`/auth/refresh` 续签时不读 `tp_remember`,会把 session 登录误升级为持久登录。
+因此本迭代需:**在 helper 中实现 remember 语义**(新增 `REMEMBER_COOKIE`、给 `setAuthCookies` 加 `options.remember`、`clearAuthCookies` 同步清理),再把开关从前端一路接到 helper,并让 `/auth/refresh` 续签时延续。
 
 ### 2.2 目标语义
 
 - **勾选(默认)**:access cookie 24h,refresh cookie + `tp_remember` 30d `maxAge` —— 持久,关浏览器仍登录。
 - **不勾选**:三个 cookie 均为 session cookie(无 `maxAge`)—— 关闭浏览器即登出。DB 中 refresh token 行仍是 30d 过期,**不改 `RefreshTokenService`**(标准 remember-me 语义:服务端 token 有效,但客户端 cookie 在会话结束时被浏览器丢弃)。
 - **续签时延续**:`/auth/refresh` 读取 `tp_remember` cookie,以相同 `remember` 语义重新下发 cookie。session 登录续签后仍是 session,持久登录续签后仍是持久。
-- **登出时清理**:`/auth/logout` 清理 `tp_remember`(`clearAuthCookies` 已覆盖,本次仅加测试验证)。
+- **登出时清理**:`clearAuthCookies` 增加清理 `tp_remember`,`/auth/logout` 复用之 + 测试验证。
 
 ### 2.3 改动点
 
@@ -52,8 +52,13 @@
    - `setAuthCookies(res, this.cookieEnv, { access: newAccess, refresh: newRefresh }, { remember })`。
    - 需 import `REMEMBER_COOKIE`(同文件已 import 其它 helper 符号)。
 
-3. `apps/api/src/auth/jwt/jwt-cookie.helper.ts`
-   - 现有 `remember` 实现已满足语义,**本次不改逻辑**,仅纳入迭代范围接受复核与测试覆盖。若复核发现 `remember: false` 时 `tp_remember` cookie 仍带 `maxAge` 之外的问题再修(目前实现:`remember:false` 时三个 cookie 都不带 `maxAge`,符合预期)。
+3. `apps/api/src/auth/jwt/jwt-cookie.helper.ts`(**本迭代实现 remember 语义**)
+   - 新增 `export const REMEMBER_COOKIE = 'tp_remember';`。
+   - `setAuthCookies` 增加第四参 `options: { remember?: boolean } = {}`,`const remember = options.remember ?? true;`:
+     - `remember === true` → access cookie 带 `maxAge: accessTtlSeconds*1000`,refresh + `tp_remember` 带 `maxAge: refreshTtlSeconds*1000`。
+     - `remember === false` → 三个 cookie 均**省略** `maxAge`(session cookie)。
+     - `tp_remember` 值为 `'1'`(remember)或 `'0'`,与 access/refresh 同 `baseOptions`(注意 `httpOnly:true` —— refresh 端在服务端读 cookie,无需 JS 访问)。
+   - `clearAuthCookies` 增加 `res.clearCookie(REMEMBER_COOKIE, baseOptions(env));`。
 
 **前端**
 
@@ -91,7 +96,7 @@
 
 - `stats.module.ts` —— 注册 controller + service,导入 Prisma(沿用项目现有 PrismaClient/PrismaService 注入方式,与 `users.module` 对齐)。
 - `stats.service.ts` —— 计算 + 60s 内存缓存。
-- `stats.controller.ts` —— `@Public() @Get()` 于 `@Controller('stats')`,路径 `GET /stats/overview`(`/metrics` 已被 Prometheus 占用,故另起 `stats`)。
+- `stats.controller.ts` —— `@Controller('stats')` 上的 `@Public() @Get('overview')`,即路径 `GET /stats/overview`(`@Get()` 无参会落在 `/stats`,务必带 `'overview'`;`/metrics` 已被 Prometheus 占用,故另起 `stats`)。
 - 在 `app.module.ts` 的 `imports` 注册 `StatsModule`。
 
 ### 3.3 端点契约
