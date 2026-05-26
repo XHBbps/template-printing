@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import { ElDialog, ElScrollbar, ElMessage } from 'element-plus';
+// eslint-disable-next-line import/no-unresolved
+import { TemplateRenderer } from '@template-printing/template-renderer';
+import type { Template } from '@template-printing/schema';
 import { apiFetch } from '../lib/api';
 import { useDesignerStore } from '../stores/designer';
 
@@ -20,6 +23,39 @@ const publishedVersion = ref<number | null>(null);
 const selected = ref<number | null>(null);
 const loading = ref(false);
 const rolling = ref(false);
+
+const snapshotTpl = ref<Template | null>(null);
+const sampleData = ref<Record<string, unknown>>({});
+const previewLoading = ref(false);
+
+const PANE_W = 420;
+const PANE_H = 360;
+const previewScale = computed(() => {
+  const t = snapshotTpl.value;
+  if (!t) return 1;
+  const canvasW = t.canvas.cell.w * t.canvas.cols;
+  const canvasH = t.canvas.cell.h * t.canvas.rows;
+  if (!canvasW || !canvasH) return 1;
+  return Math.max(0.1, Math.min(PANE_W / canvasW, PANE_H / canvasH, 1));
+});
+
+async function loadSnapshot(version: number): Promise<void> {
+  previewLoading.value = true;
+  snapshotTpl.value = null;
+  try {
+    const r = await apiFetch<{ version: number; data: Template }>(
+      `/templates/${props.templateId}/versions/${version}`,
+    );
+    snapshotTpl.value = r.data;
+    const sample: Record<string, unknown> = {};
+    for (const [key, def] of Object.entries(r.data.schema ?? {})) {
+      sample[key] = (def as { example?: unknown }).example ?? '';
+    }
+    sampleData.value = sample;
+  } finally {
+    previewLoading.value = false;
+  }
+}
 
 async function load(): Promise<void> {
   loading.value = true;
@@ -41,6 +77,10 @@ watch(
     if (open) void load();
   },
 );
+
+watch(selected, (v) => {
+  if (v != null) void loadSnapshot(v);
+});
 
 function fmt(iso: string): string {
   const d = new Date(iso);
@@ -95,6 +135,16 @@ async function doRollback(version: number): Promise<void> {
       <div class="vd-detail">
         <template v-if="selected != null">
           <div class="vd-detail-head">版本 V{{ selected }}</div>
+          <div class="vd-preview">
+            <div v-if="previewLoading" class="vd-preview-empty">加载中…</div>
+            <div
+              v-else-if="snapshotTpl"
+              class="vd-preview-scale"
+              :style="{ transform: `scale(${previewScale})` }"
+            >
+              <TemplateRenderer :template="snapshotTpl" :data="sampleData" />
+            </div>
+          </div>
           <button
             v-if="publishedVersion != null && selected !== publishedVersion"
             class="vd-rollback"
@@ -199,5 +249,26 @@ async function doRollback(version: number): Promise<void> {
   font-family: var(--font-han);
   font-size: 13px;
   color: var(--fg-3);
+}
+.vd-preview {
+  width: 420px;
+  height: 360px;
+  margin-bottom: 16px;
+  border: 1px solid var(--stone);
+  background: var(--mist);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.vd-preview-scale {
+  transform-origin: top left;
+  background: var(--paper-white);
+}
+.vd-preview-empty {
+  margin: auto;
+  color: var(--fg-3);
+  font-family: var(--font-han);
+  font-size: 13px;
 }
 </style>
