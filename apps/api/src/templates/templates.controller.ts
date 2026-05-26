@@ -64,6 +64,22 @@ export class TemplatesController {
     });
   }
 
+  @Get(':id/versions')
+  async listVersions(@CurrentUser() me: JwtClaims, @Param('id') id: string) {
+    return this.svc.listVersions(me.sub, id);
+  }
+
+  @Get(':id/versions/:version')
+  async getVersion(
+    @CurrentUser() me: JwtClaims,
+    @Param('id') id: string,
+    @Param('version') version: string,
+  ) {
+    const v = Number(version);
+    if (!Number.isInteger(v) || v < 1) throw new BadRequestException('invalid_version');
+    return this.svc.getVersion(me.sub, id, v);
+  }
+
   @Get(':id')
   async get(@CurrentUser() me: JwtClaims, @Param('id') id: string) {
     return this.svc.get(me.sub, id);

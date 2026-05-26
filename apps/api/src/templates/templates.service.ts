@@ -98,6 +98,37 @@ export class TemplatesService {
     });
   }
 
+  async listVersions(ownerId: string, id: string) {
+    const tpl = await this.prisma.template.findFirst({
+      where: { id, ownerId },
+      select: { publishedVersion: true, hasUnpublishedChanges: true },
+    });
+    if (!tpl) throw new NotFoundException('template_not_found');
+    const versions = await this.prisma.templateVersion.findMany({
+      where: { templateId: id },
+      orderBy: { version: 'desc' },
+      select: { version: true, publishedAt: true, publishedBy: true, restoredFrom: true },
+    });
+    return {
+      publishedVersion: tpl.publishedVersion,
+      hasUnpublishedChanges: tpl.hasUnpublishedChanges,
+      items: versions.map((v) => ({ ...v, isCurrent: v.version === tpl.publishedVersion })),
+    };
+  }
+
+  async getVersion(ownerId: string, id: string, version: number) {
+    const tpl = await this.prisma.template.findFirst({
+      where: { id, ownerId },
+      select: { id: true },
+    });
+    if (!tpl) throw new NotFoundException('template_not_found');
+    const row = await this.prisma.templateVersion.findUnique({
+      where: { templateId_version: { templateId: id, version } },
+    });
+    if (!row) throw new NotFoundException('template_version_not_found');
+    return { version: row.version, publishedAt: row.publishedAt, data: row.data };
+  }
+
   async update(
     ownerId: string,
     id: string,
