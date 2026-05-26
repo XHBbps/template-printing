@@ -38,6 +38,8 @@ import { LarkController } from './lark/lark.controller.js';
 import { LarkService } from './lark/lark.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { LocalController } from './local/local.controller.js';
+// eslint-disable-next-line import/no-unresolved
+import { UserStateService } from './user-state.service.js';
 
 const env = validateEnv();
 
@@ -100,11 +102,12 @@ const providers: Provider[] = [
   { provide: APP_GUARD, useClass: JwtAuthGuard },
   { provide: APP_GUARD, useClass: CsrfGuard },
   { provide: APP_GUARD, useClass: RolesGuard },
+  UserStateService,
 ];
 
 @Module({
   providers,
   controllers: [LarkController, LocalController, AuthController, MeController, ApiTokenController],
-  exports: [JwtAuthService, RefreshTokenService, ApiTokenService],
+  exports: [JwtAuthService, RefreshTokenService, ApiTokenService, UserStateService],
 })
 export class AuthModule {}
