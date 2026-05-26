@@ -109,6 +109,9 @@ export class MeController {
     if (!user) throw new UnauthorizedException();
 
     const wasSet = Boolean(user.localPasswordHash);
+    if (!wasSet && !user.localUsername) {
+      throw new BadRequestException('local_username_required');
+    }
     if (wasSet) {
       if (!dto.currentPassword) throw new BadRequestException('current_password_required');
       const ok = await bcrypt.compare(dto.currentPassword, user.localPasswordHash!);
@@ -117,12 +120,7 @@ export class MeController {
     const hash = await bcrypt.hash(dto.newPassword, 12);
     await this.prisma.user.update({
       where: { id: jwt.sub },
-      data: {
-        localPasswordHash: hash,
-        mustChangePassword: false,
-        // Ensure localUsername set (in case it was somehow null)
-        localUsername: user.localUsername ?? user.larkUserId ?? user.id,
-      },
+      data: { localPasswordHash: hash, mustChangePassword: false },
     });
     void this.audit.log({
       actor: { id: user.id, name: user.name },

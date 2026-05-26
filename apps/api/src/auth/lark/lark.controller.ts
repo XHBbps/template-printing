@@ -1,7 +1,16 @@
 import { randomBytes } from 'node:crypto';
 
 // eslint-disable-next-line import/no-unresolved
-import { BadRequestException, Controller, Get, Inject, Query, Req, Res } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Inject,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { PrismaClient } from '@prisma/client';
 // eslint-disable-next-line import/no-unresolved
@@ -122,9 +131,6 @@ export class LarkController {
           email: info.email ?? null,
           avatarUrl: info.avatar_url,
           role: shouldBeAdmin ? 'admin' : 'user',
-          // Pre-populate localUsername with larkUserId so user can later set
-          // a local password and login via username/password if needed.
-          localUsername: info.user_id,
           lastLoginAt: new Date(),
         },
       });
@@ -132,12 +138,12 @@ export class LarkController {
       this.larkIm
         .sendTextToUser(
           info.open_id,
-          `欢迎使用模板打印平台！您的账号已自动创建。\n` +
-            `用户名：${info.user_id}\n` +
-            `如需用户名密码登录方式，请在「个人中心 → 设置密码」中设置密码。`,
+          `欢迎使用模板打印平台！您的账号已自动创建，可直接用飞书登录。`,
         )
         .catch(() => {});
     }
+
+    if (user.disabledAt) throw new UnauthorizedException('account_disabled');
 
     const { token: access, csrf } = this.jwt.sign({
       sub: user.id,
