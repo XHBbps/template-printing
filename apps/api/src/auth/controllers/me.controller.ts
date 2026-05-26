@@ -43,9 +43,15 @@ const SetPasswordDtoSchema = z.object({
   currentPassword: z.string().optional(),
 });
 
-const UpdateProfileDtoSchema = z.object({
-  name: z.string().trim().min(1).max(64),
-});
+const UpdateProfileDtoSchema = z
+  .object({
+    name: z.string().trim().min(1).max(64).optional(),
+    // 空字符串 → 清空邮箱(null);非空须为合法 email
+    email: z.union([z.literal(''), z.string().trim().email().max(254)]).optional(),
+  })
+  .refine((d) => d.name !== undefined || d.email !== undefined, {
+    message: 'no_fields_to_update',
+  });
 
 @Controller('users')
 export class MeController {
@@ -83,16 +89,19 @@ export class MeController {
     const dto = UpdateProfileDtoSchema.parse(rawBody);
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
     if (!user) throw new UnauthorizedException();
-    await this.prisma.user.update({
-      where: { id: jwt.sub },
-      data: { name: dto.name },
-    });
+    const data: { name?: string; email?: string | null } = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.email !== undefined) data.email = dto.email === '' ? null : dto.email;
+    await this.prisma.user.update({ where: { id: jwt.sub }, data });
     void this.audit.log({
       actor: { id: user.id, name: user.name },
       action: 'user.profile.update',
       resourceType: 'user',
       resourceId: user.id,
-      details: { oldName: user.name, newName: dto.name },
+      details: {
+        ...(dto.name !== undefined ? { oldName: user.name, newName: dto.name } : {}),
+        ...(dto.email !== undefined ? { oldEmail: user.email, newEmail: data.email } : {}),
+      },
       request: req,
     });
     return { ok: true };

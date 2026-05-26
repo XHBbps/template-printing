@@ -60,6 +60,47 @@ async function saveName(): Promise<void> {
   }
 }
 
+// ---- Email inline edit ----
+const emailEditing = ref(false);
+const emailInput = ref('');
+const emailSubmitting = ref(false);
+const emailInputRef = ref<HTMLInputElement | null>(null);
+
+function startEditEmail(): void {
+  emailInput.value = auth.user?.email ?? '';
+  emailEditing.value = true;
+  void nextTick(() => emailInputRef.value?.focus());
+}
+function cancelEditEmail(): void {
+  emailEditing.value = false;
+}
+async function saveEmail(): Promise<void> {
+  const nextEmail = emailInput.value.trim();
+  if (nextEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+    ElMessage.warning('邮箱格式不正确');
+    return;
+  }
+  if (nextEmail === (auth.user?.email ?? '')) {
+    emailEditing.value = false;
+    return;
+  }
+  emailSubmitting.value = true;
+  try {
+    // 空字符串 → 后端清空邮箱(null)
+    await apiFetch<{ ok: true }>('/users/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ email: nextEmail }),
+    });
+    ElMessage.success('已保存');
+    emailEditing.value = false;
+    await auth.hydrate();
+  } catch (e) {
+    ElMessage.error(e instanceof ApiClientError ? e.message : '保存失败');
+  } finally {
+    emailSubmitting.value = false;
+  }
+}
+
 function openPwdDialog(): void {
   pwdCurrent.value = '';
   pwdNew.value = '';
@@ -185,6 +226,50 @@ function rebindLark(): void {
                       type="button"
                       :disabled="nameSubmitting"
                       @click="cancelEditName"
+                    >
+                      取消
+                    </button>
+                  </template>
+                </span>
+              </div>
+              <div class="row">
+                <span class="k">邮箱 · Email</span>
+                <span class="v">
+                  <template v-if="!emailEditing">
+                    <span class="name-text">{{ auth.user?.email ?? '—' }}</span>
+                    <button
+                      class="name-edit-btn"
+                      type="button"
+                      title="编辑邮箱"
+                      @click="startEditEmail"
+                    >
+                      <Pencil :size="12" :stroke-width="1.6" />
+                    </button>
+                  </template>
+                  <template v-else>
+                    <input
+                      ref="emailInputRef"
+                      v-model="emailInput"
+                      class="name-input"
+                      type="email"
+                      maxlength="254"
+                      placeholder="留空可清除邮箱"
+                      @keyup.enter="saveEmail"
+                      @keyup.esc="cancelEditEmail"
+                    />
+                    <button
+                      class="btn btn-primary sm"
+                      type="button"
+                      :disabled="emailSubmitting"
+                      @click="saveEmail"
+                    >
+                      保存
+                    </button>
+                    <button
+                      class="btn btn-secondary sm"
+                      type="button"
+                      :disabled="emailSubmitting"
+                      @click="cancelEditEmail"
                     >
                       取消
                     </button>

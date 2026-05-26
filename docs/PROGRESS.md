@@ -318,6 +318,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-26
 
+- **feat：个人中心可编辑邮箱** —— 「账号信息」卡用户名下方新增「邮箱 · Email」行(行内编辑,与用户名一致的笔形按钮 + 保存/取消);后端 `PATCH /users/me/profile` 的 DTO 扩为 `name`/`email` 均可选(至少一项),`email` 空字符串→清空(null)、非空校验合法格式,审计 details 记录新旧邮箱。
 - **feat(web)：首登改密弹窗扬力品牌改造** —— `MustChangePasswordDialog` 由 Element Plus `ElDialog`(通用蓝 + 灰边框)改为自绘 Teleport 模态(`handoff/target-first-password.html` 目标稿):480px paper-white 容器 + 2px 红签名线 + ink 遮罩;mono eyebrow / han 标题层次;42px 输入框红色 focus(无蓝 ring)+ lucide eye 显隐切换;新密码强度计(4 段 红/琥珀/绿)+ 校验清单(≥8/字母/数字/符号)+ 再次输入不一致内联红字;强制改密故移除"稍后再说"。颜色/字体/radius 全走 `colors_and_type.css` 变量。
 - **fix(web)：首登改密弹窗不再浮在错误页上** —— `AppShell` 仅在非全屏路由(排除登录/回调/打印及 401/403/404/500)渲染 `MustChangePasswordDialog`;此前 must-change 用户手输错误 URL 进 404 时改密表单仍叠加在错误页上。改密入口在真实页面保留(错误页点"回到模板中心"即恢复)。
 - **登录页"假控件/假数据"转真实** —— ①"保持登录 30 天"接通：cookie helper 实现 remember 语义（不勾 = session cookie、勾 = 30d 持久 + `tp_remember`），`/auth/refresh` 读 `tp_remember` 延续、`/auth/logout` 清理；②新增 `@Public` 端点 `GET /stats/overview`（近 30 天全部 render_jobs 计数 / done 任务 P50 渲染耗时 / 成功率，60s 内存缓存），登录页三指标改为真实拉取，失败或无数据显示 `—`。
