@@ -318,6 +318,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-26
 
+- **fix(web)：首登改密弹窗不再浮在错误页上** —— `AppShell` 仅在非全屏路由(排除登录/回调/打印及 401/403/404/500)渲染 `MustChangePasswordDialog`;此前 must-change 用户手输错误 URL 进 404 时改密表单仍叠加在错误页上。改密入口在真实页面保留(错误页点"回到模板中心"即恢复)。
 - **登录页"假控件/假数据"转真实** —— ①"保持登录 30 天"接通：cookie helper 实现 remember 语义（不勾 = session cookie、勾 = 30d 持久 + `tp_remember`），`/auth/refresh` 读 `tp_remember` 延续、`/auth/logout` 清理；②新增 `@Public` 端点 `GET /stats/overview`（近 30 天全部 render_jobs 计数 / done 任务 P50 渲染耗时 / 成功率，60s 内存缓存），登录页三指标改为真实拉取，失败或无数据显示 `—`。
 - **用户管理（CRUD + 禁用/角色即时生效 + 本地登录打通）**（spec+plan：`docs/superpowers/{specs,plans}/2026-05-26-user-management*`）
   - 新增 `apps/api/src/users/` 模块（admin 守卫 `@Roles('admin','emergency_admin')`）：`GET /admin/users`

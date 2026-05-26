@@ -40,7 +40,9 @@ onBeforeUnmount(() => window.removeEventListener('pageshow', onPageShow));
     <main class="app-main" :class="{ 'app-main--full': isFullscreen }">
       <RouterView />
     </main>
-    <MustChangePasswordDialog />
+    <!-- 仅在常规应用页(非全屏:登录/回调/打印/401/403/404/500)上叠加首登改密弹窗;
+         否则会浮在 404 等错误页上。改密入口在真实页面保留,错误页点"回到模板中心"即恢复。 -->
+    <MustChangePasswordDialog v-if="!isFullscreen" />
   </div>
 </template>
 
