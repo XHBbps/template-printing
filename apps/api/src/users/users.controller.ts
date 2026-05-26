@@ -76,6 +76,19 @@ export class UsersController {
     return result;
   }
 
+  @Post(':id/reset-password')
+  async resetPassword(@CurrentUser() me: JwtClaims, @Param('id') id: string, @Req() req: Request) {
+    const result = await this.svc.resetPassword(id);
+    void this.audit.log({
+      actor: { id: me.sub, name: null },
+      action: 'user.password.reset',
+      resourceType: 'user',
+      resourceId: id,
+      request: req,
+    });
+    return result;
+  }
+
   @Patch(':id/role')
   async changeRole(
     @CurrentUser() me: JwtClaims,

@@ -1,7 +1,12 @@
 import { randomBytes } from 'node:crypto';
 
 // eslint-disable-next-line import/no-unresolved
-import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -128,6 +133,22 @@ export class UsersService {
       await tx.user.update({ where: { id: targetId }, data: { role } });
     });
     return { id: targetId, role };
+  }
+
+  async resetPassword(targetId: string) {
+    const u = await this.prisma.user.findUnique({
+      where: { id: targetId },
+      select: { id: true, role: true, localPasswordHash: true },
+    });
+    if (!u) throw new ForbiddenException('user_not_found');
+    if (u.role === 'emergency_admin') throw new ForbiddenException('emergency_admin_protected');
+    if (!u.localPasswordHash) throw new BadRequestException('not_a_local_account');
+    const plaintext = randomBytes(9).toString('base64url');
+    await this.prisma.user.update({
+      where: { id: targetId },
+      data: { localPasswordHash: await bcrypt.hash(plaintext, 12), mustChangePassword: true },
+    });
+    return { plaintext };
   }
 
   async createLocal(input: {
