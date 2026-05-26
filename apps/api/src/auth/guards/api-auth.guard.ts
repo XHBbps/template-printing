@@ -15,6 +15,8 @@ import type { AuthenticatedRequest } from '../decorators/current-user.decorator.
 import { ACCESS_COOKIE } from '../jwt/jwt-cookie.helper.js';
 // eslint-disable-next-line import/no-unresolved
 import { JwtAuthService } from '../jwt/jwt.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { UserStateService } from '../user-state.service.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -32,6 +34,7 @@ export class ApiAuthGuard implements CanActivate {
   constructor(
     private readonly tokens: ApiTokenService,
     private readonly jwt: JwtAuthService,
+    private readonly userState: UserStateService,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -60,11 +63,17 @@ export class ApiAuthGuard implements CanActivate {
     if (!cookieToken) {
       throw new UnauthorizedException('No credentials (need Bearer token or login cookie)');
     }
+    let claims;
     try {
-      req.user = this.jwt.verify(cookieToken);
+      claims = this.jwt.verify(cookieToken);
     } catch {
       throw new UnauthorizedException('Invalid or expired access token');
     }
+    const state = await this.userState.get(claims.sub);
+    if (!state || state.disabledAt) {
+      throw new UnauthorizedException('account_disabled_or_missing');
+    }
+    req.user = { ...claims, role: state.role };
 
     // CSRF double-submit for unsafe methods on cookie path
     if (!SAFE_METHODS.has(req.method)) {

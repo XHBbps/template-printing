@@ -94,10 +94,11 @@ export class ApiTokenService {
 
     const row = await this.prisma.apiToken.findUnique({
       where: { tokenHash },
-      include: { user: { select: { id: true, role: true } } },
+      include: { user: { select: { id: true, role: true, disabledAt: true } } },
     });
     if (!row) return null;
     if (row.revokedAt) return null;
+    if (row.user.disabledAt) return null; // owner 被禁用 → 拒绝
 
     // 异步更新 lastUsedAt（fire-and-forget）— 不影响响应时延
     this.prisma.apiToken
@@ -105,6 +106,13 @@ export class ApiTokenService {
       .catch((e) => this.logger.warn(`failed to update lastUsedAt: ${(e as Error).message}`));
 
     return { id: row.user.id, role: row.user.role };
+  }
+
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.prisma.apiToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 
   /** 软删（设 revokedAt）。检查 userId 拥有该 token */
