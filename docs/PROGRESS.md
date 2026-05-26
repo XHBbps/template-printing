@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-26（404/403/500 品牌错误页 + API 页 v2 重构）
+**最近更新**：2026-05-26（模板版本：草稿/发布/回滚/版本化渲染）
 
 ---
 
@@ -316,6 +316,26 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-26
 
+- **模板版本系统：草稿 / 发布 / 回滚 / 版本化渲染**（spec+plan：`docs/superpowers/{specs,plans}/2026-05-26-template-versioning*`）
+  - 模型：一份可变草稿（`Template.data`，autosave PATCH）+ N 个不可变已发布快照（新表 `TemplateVersion`：
+    templateId/version/data/publishedAt/publishedBy/restoredFrom，`@@unique([templateId,version])`）。
+    "当前已发布版" = `max(version)`，冗余存 `Template.publishedVersion`；`Template.hasUnpublishedChanges`
+    标记草稿是否偏离已发布版。`RenderJob.templateVersion` 锁定本次渲染的版本。纯增量迁移，存量 dev 模板已清空。
+  - 发布/版本接口（`templates.service/controller`）：`POST /templates/:id/publish`（草稿快照成自增版本）、
+    `GET /templates/:id/versions`、`GET /templates/:id/versions/:version`、`POST /templates/:id/rollback`
+    （一键回滚 Vk → 追加 V(n+1)，restoredFrom=k）；publish/rollback 记审计；`update()` data 变更置
+    `hasUnpublishedChanges=true`；`list()` 返回版本字段。
+  - 版本化渲染（`render.service` + `apps/render` worker）：`POST /api/render` 与飞书 `print-trigger` 新增可选
+    `version`；不传=最新已发布版（无则 **400 no_published_version**），传了校验存在（否则 **404
+    template_version_not_found**）；解析出的版本号落 `RenderJob.templateVersion`，worker 据此加载对应
+    `TemplateVersion` 快照渲染（历史可复现）。编辑器「预览/立即打印」是客户端 `window.print()`，渲染草稿、不受影响。
+  - 前端：设计器「保存」按钮 → **「发布」**（草稿==已发布版时置灰）；状态徽章三态（未发布 / V{n}·有未发布改动 /
+    V{n}·已发布），模板中心列表写死的 "V1 DRAFT" 改真实徽章；面包屑模板名点击打开**版本管理弹窗**
+    （`designer/VersionDialog.vue`：左侧版本列表可滚动、右侧只读快照预览复用 `TemplateRenderer`、一键回滚并发布）；
+    API 文档页 `ApiView` 同步 version 入参 / 错误码 / `jobId` 响应 templateVersion。`meta.version` 保留作结构标记。
+  - 验证：API 级 publish 自增/versions/rollback V(n+1)=Vk/render 默认+指定+400+404+落 templateVersion+完整模板
+    渲染 done；Playwright — 发布按钮三态、列表徽章、面包屑弹窗版本列表+预览+回滚（V2,V1→回滚 V1→V3 当前）；
+    前后端 typecheck 通过。
 - **模板中心默认排序改为「创建时间·最新在前」（修复保存后列表重排）**
   - 现象：默认排序是「最近编辑」(`updatedAt desc`)，每次保存模板会 bump `updatedAt`，
     返回列表（`reloadActive` 重新拉取）时该模板跳到顶部 → 用户每次保存都看到列表重排
