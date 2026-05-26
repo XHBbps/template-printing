@@ -37,6 +37,8 @@ import { RenderModule } from './render/render.module.js';
 import { TemplatesModule } from './templates/templates.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { UploadsModule } from './uploads/uploads.module.js';
+// eslint-disable-next-line import/no-unresolved
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -61,6 +63,7 @@ import { UploadsModule } from './uploads/uploads.module.js';
     LarkModule,
     TemplatesModule,
     RenderModule,
+    UsersModule,
   ],
   providers: [
     // iter 31 T3：全局应用 throttler（限流），tracker 用 user.sub 优先 IP fallback
