@@ -41,27 +41,27 @@ describe('jwt-cookie.helper remember semantics', () => {
     const res = fakeRes();
     setAuthCookies(res as never, ENV, { access: 'a', refresh: 'r' }, { remember: true });
     const byName = Object.fromEntries(res.set.map((c) => [c.name, c]));
-    expect(byName[ACCESS_COOKIE].opts.maxAge).toBe(86400 * 1000);
-    expect(byName[REFRESH_COOKIE].opts.maxAge).toBe(2592000 * 1000);
-    expect(byName[REMEMBER_COOKIE].opts.maxAge).toBe(2592000 * 1000);
-    expect(byName[REMEMBER_COOKIE].value).toBe('1');
+    expect(byName[ACCESS_COOKIE]!.opts.maxAge).toBe(86400 * 1000);
+    expect(byName[REFRESH_COOKIE]!.opts.maxAge).toBe(2592000 * 1000);
+    expect(byName[REMEMBER_COOKIE]!.opts.maxAge).toBe(2592000 * 1000);
+    expect(byName[REMEMBER_COOKIE]!.value).toBe('1');
   });
 
   it('remember=false omits maxAge (session cookies) and writes 0', () => {
     const res = fakeRes();
     setAuthCookies(res as never, ENV, { access: 'a', refresh: 'r' }, { remember: false });
     const byName = Object.fromEntries(res.set.map((c) => [c.name, c]));
-    expect(byName[ACCESS_COOKIE].opts.maxAge).toBeUndefined();
-    expect(byName[REFRESH_COOKIE].opts.maxAge).toBeUndefined();
-    expect(byName[REMEMBER_COOKIE].opts.maxAge).toBeUndefined();
-    expect(byName[REMEMBER_COOKIE].value).toBe('0');
+    expect(byName[ACCESS_COOKIE]!.opts.maxAge).toBeUndefined();
+    expect(byName[REFRESH_COOKIE]!.opts.maxAge).toBeUndefined();
+    expect(byName[REMEMBER_COOKIE]!.opts.maxAge).toBeUndefined();
+    expect(byName[REMEMBER_COOKIE]!.value).toBe('0');
   });
 
   it('defaults to remember=true when options omitted', () => {
     const res = fakeRes();
     setAuthCookies(res as never, ENV, { access: 'a', refresh: 'r' });
     const byName = Object.fromEntries(res.set.map((c) => [c.name, c]));
-    expect(byName[REFRESH_COOKIE].opts.maxAge).toBe(2592000 * 1000);
+    expect(byName[REFRESH_COOKIE]!.opts.maxAge).toBe(2592000 * 1000);
   });
 
   it('clearAuthCookies clears all three including tp_remember', () => {
