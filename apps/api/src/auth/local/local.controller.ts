@@ -30,6 +30,7 @@ import { RefreshTokenService } from '../jwt/refresh-token.service.js';
 const LoginBodySchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
+  remember: z.boolean().optional().default(true),
 });
 
 @Controller('auth/local')
@@ -69,7 +70,12 @@ export class LocalController {
       role: user.role as 'admin' | 'user' | 'emergency_admin',
     });
     const { plaintext: refreshTok } = await this.refresh.create(user.id);
-    setAuthCookies(res, this.cookieEnv, { access, refresh: refreshTok });
+    setAuthCookies(
+      res,
+      this.cookieEnv,
+      { access, refresh: refreshTok },
+      { remember: body.remember },
+    );
 
     void this.audit.log({
       actor: { id: user.id, name: user.name },
