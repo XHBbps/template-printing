@@ -1082,20 +1082,6 @@ function copySample(ep: Endpoint): void {
   overflow: hidden;
 }
 
-/* Page-bar 签名：左对齐 2px × 96px 红实线（与其它页一致） */
-.page-bar {
-  position: relative;
-}
-.page-bar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 2px;
-  width: 96px;
-  background: var(--yangli-red);
-}
-
 /* ============ 顶部 tab ============ */
 .api-tabs {
   display: flex;

@@ -377,20 +377,6 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Page-bar 签名：左对齐 2px × 96px 红实线（与模板中心 v2 一致） */
-.page-bar {
-  position: relative;
-}
-.page-bar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 2px;
-  width: 96px;
-  background: var(--yangli-red);
-}
-
 /* 过滤区 — 卡片化 */
 .filters {
   display: flex;

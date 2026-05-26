@@ -650,20 +650,6 @@ async function doCreate(): Promise<void> {
   overflow: hidden;
 }
 
-/* Page-bar 红签名线 */
-.page-bar {
-  position: relative;
-}
-.page-bar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 2px;
-  width: 96px;
-  background: var(--yangli-red);
-}
-
 /* 过滤区 */
 .filters {
   display: flex;

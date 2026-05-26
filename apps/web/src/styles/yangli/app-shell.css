@@ -137,11 +137,14 @@ body {
   display: flex; align-items: center;
   height: 64px;          /* 与 sidebar-head 同高 — 统一视觉锚线 */
   flex-shrink: 0;
-  padding: 0 32px;
-  gap: 16px;
+  padding: 0 32px 0 0;   /* 去左 padding:标题区左缘落在侧边栏边缘 x=0 */
+  gap: 0;                /* 标题区右缘抵住灰色分隔线(page-sub border-left) */
 }
 .page-bar .page-title {
+  align-self: stretch;                       /* 撑满 64px:红线(border-top)落在表头顶边 */
+  border-top: 2px solid var(--yangli-red);   /* 全站统一红色签名线 */
   display: flex; align-items: center; gap: 12px;
+  padding: 0 24px;                           /* 左右等距 → 图标+名在 [边缘→灰分隔线] 内水平居中 */
   font-family: var(--font-han);
   font-size: 18px; font-weight: 600;
   color: var(--ink);
