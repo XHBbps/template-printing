@@ -39,7 +39,11 @@ async function submitLocal(): Promise<void> {
       '/auth/local/login',
       {
         method: 'POST',
-        body: JSON.stringify({ username: username.value, password: password.value }),
+        body: JSON.stringify({
+          username: username.value,
+          password: password.value,
+          remember: remember.value,
+        }),
       },
     );
     await authStore.setLocalLoginResult(result);
