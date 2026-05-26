@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 // eslint-disable-next-line import/no-unresolved
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -105,6 +105,29 @@ export class UsersService {
       };
     });
     return { items, total, page, pageSize };
+  }
+
+  async changeRole(meId: string, targetId: string, role: 'user' | 'admin') {
+    if (targetId === meId) throw new ForbiddenException('cannot_modify_self');
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetId },
+      select: { id: true, role: true },
+    });
+    if (!target) throw new ForbiddenException('user_not_found');
+    if (target.role === 'emergency_admin')
+      throw new ForbiddenException('emergency_admin_protected');
+    if (target.role === role) return { id: targetId, role };
+
+    await this.prisma.$transaction(async (tx) => {
+      if (target.role === 'admin' && role === 'user') {
+        const admins = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM users WHERE role = 'admin' AND disabled_at IS NULL FOR UPDATE`;
+        const remaining = admins.filter((a) => a.id !== targetId).length;
+        if (remaining < 1) throw new ConflictException('last_admin_protected');
+      }
+      await tx.user.update({ where: { id: targetId }, data: { role } });
+    });
+    return { id: targetId, role };
   }
 
   async createLocal(input: {

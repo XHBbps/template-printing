@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -20,6 +22,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { Roles } from '../auth/guards/roles.guard.js';
 // eslint-disable-next-line import/no-unresolved
 import type { JwtClaims } from '../auth/jwt/jwt.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { UserStateService } from '../auth/user-state.service.js';
 
 // eslint-disable-next-line import/no-unresolved
 import { UsersService } from './users.service.js';
@@ -46,6 +50,7 @@ export class UsersController {
   constructor(
     private readonly svc: UsersService,
     private readonly audit: AuditLogService,
+    private readonly userState: UserStateService,
   ) {}
 
   @Get()
@@ -69,5 +74,27 @@ export class UsersController {
       request: req,
     });
     return result;
+  }
+
+  @Patch(':id/role')
+  async changeRole(
+    @CurrentUser() me: JwtClaims,
+    @Param('id') id: string,
+    @Body() rawBody: unknown,
+    @Req() req: Request,
+  ) {
+    const parsed = z.object({ role: z.enum(['user', 'admin']) }).safeParse(rawBody);
+    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
+    const r = await this.svc.changeRole(me.sub, id, parsed.data.role);
+    this.userState.evict(id);
+    void this.audit.log({
+      actor: { id: me.sub, name: null },
+      action: 'user.role.change',
+      resourceType: 'user',
+      resourceId: id,
+      details: { role: parsed.data.role },
+      request: req,
+    });
+    return r;
   }
 }
