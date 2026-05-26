@@ -148,7 +148,6 @@ async function submit(): Promise<void> {
                 </svg>
               </button>
             </div>
-            <p class="mcp-help">由管理员新建账号时下发；应急管理员为部署时设置。</p>
           </div>
 
           <!-- New password -->
@@ -464,15 +463,6 @@ async function submit(): Promise<void> {
 .mcp-toggle svg {
   width: 16px;
   height: 16px;
-}
-
-/* Helper text below input */
-.mcp-help {
-  font-family: var(--font-han);
-  font-size: 11.5px;
-  color: var(--fg-3);
-  line-height: 1.65;
-  margin: 0;
 }
 
 /* Password strength meter */
