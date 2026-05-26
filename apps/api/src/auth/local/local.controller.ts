@@ -52,9 +52,10 @@ export class LocalController {
   ): Promise<{ ok: true; csrf: string; mustChangePassword: boolean }> {
     const body = LoginBodySchema.parse(raw);
     const user = await this.prisma.user.findUnique({ where: { localUsername: body.username } });
-    if (!user || !user.localPasswordHash || user.role !== 'emergency_admin') {
+    if (!user || !user.localPasswordHash) {
       throw new UnauthorizedException('Invalid username or password');
     }
+    if (user.disabledAt) throw new UnauthorizedException('account_disabled');
     const valid = await bcrypt.compare(body.password, user.localPasswordHash);
     if (!valid) throw new UnauthorizedException('Invalid username or password');
 
@@ -63,7 +64,10 @@ export class LocalController {
       data: { lastLoginAt: new Date() },
     });
 
-    const { token: access, csrf } = this.jwt.sign({ sub: user.id, role: 'emergency_admin' });
+    const { token: access, csrf } = this.jwt.sign({
+      sub: user.id,
+      role: user.role as 'admin' | 'user' | 'emergency_admin',
+    });
     const { plaintext: refreshTok } = await this.refresh.create(user.id);
     setAuthCookies(res, this.cookieEnv, { access, refresh: refreshTok });
 
