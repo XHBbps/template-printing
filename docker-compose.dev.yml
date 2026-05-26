@@ -19,7 +19,8 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - '6379:6379'
+      # Host port 6479 avoids Windows-reserved ranges that can include 6379.
+      - '6479:6379'
     volumes:
       - ./.redisdata:/data
     healthcheck:
@@ -38,7 +39,15 @@ services:
       REDIS_URL: redis://redis:6379
     volumes:
       - ./:/workspace
+      # 容器私有 node_modules（根 + 各 workspace），避免容器的 Linux pnpm install
+      # 覆盖 host bind-mount 上的 apps/*/node_modules，破坏 host 侧 IDE / git hook。
       - /workspace/node_modules
+      - /workspace/apps/api/node_modules
+      - /workspace/apps/web/node_modules
+      - /workspace/apps/render/node_modules
+      - /workspace/packages/schema/node_modules
+      - /workspace/packages/types/node_modules
+      - /workspace/packages/template-renderer/node_modules
       - ./storage:/storage
     ports:
       - '3000:3000'
@@ -56,7 +65,14 @@ services:
       VITE_API_PROXY: http://api:3000
     volumes:
       - ./:/workspace
+      # 容器私有 node_modules（同 api 服务说明）
       - /workspace/node_modules
+      - /workspace/apps/api/node_modules
+      - /workspace/apps/web/node_modules
+      - /workspace/apps/render/node_modules
+      - /workspace/packages/schema/node_modules
+      - /workspace/packages/types/node_modules
+      - /workspace/packages/template-renderer/node_modules
     ports:
       - '5173:5173'
     depends_on:
@@ -74,7 +90,14 @@ services:
       STORAGE_ROOT: /storage
     volumes:
       - ./:/workspace
+      # 容器私有 node_modules（同 api 服务说明）
       - /workspace/node_modules
+      - /workspace/apps/api/node_modules
+      - /workspace/apps/web/node_modules
+      - /workspace/apps/render/node_modules
+      - /workspace/packages/schema/node_modules
+      - /workspace/packages/types/node_modules
+      - /workspace/packages/template-renderer/node_modules
       - ./storage:/storage
     depends_on:
       redis:

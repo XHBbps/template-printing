@@ -1,4 +1,6 @@
 FROM node:20-alpine
+# web 不渲染，无需 puppeteer 的 Chromium（全 workspace install 会拉它）；跳过下载，install 快得多
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /workspace
 EXPOSE 5173
