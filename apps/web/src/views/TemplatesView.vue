@@ -17,6 +17,7 @@ import { useRoute, useRouter } from 'vue-router';
 import BrandPagination from '../components/BrandPagination.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import DesignerHeader from '../designer/DesignerHeader.vue';
+import VersionDialog from '../designer/VersionDialog.vue';
 import { apiFetch } from '../lib/api';
 import { defaultTemplate } from '../stores/designer';
 import { useTemplatesStore, type TemplateListItem } from '../stores/templates';
@@ -219,6 +220,13 @@ async function createNew(): Promise<void> {
 async function returnToList(): Promise<void> {
   await transitionTo('list');
 }
+
+function versionLabel(t: TemplateListItem): string {
+  if (t.publishedVersion == null) return '未发布';
+  return t.hasUnpublishedChanges ? `V${t.publishedVersion} · 有改动` : `V${t.publishedVersion}`;
+}
+
+const versionDialogOpen = ref(false);
 
 // ---- Delete confirm dialog ----
 const deleteDialogOpen = ref(false);
@@ -428,7 +436,7 @@ const countLabel = computed(() => {
                 <span class="meta">
                   <span>{{ formatDate(t.updatedAt) }}</span>
                   <span class="sep">·</span>
-                  <span>V1 DRAFT</span>
+                  <span>{{ versionLabel(t) }}</span>
                 </span>
               </div>
             </div>
@@ -460,7 +468,7 @@ const countLabel = computed(() => {
                   <div class="meta">
                     <span>{{ formatDate(t.updatedAt) }}</span>
                     <span class="sep">·</span>
-                    <span>V1 DRAFT</span>
+                    <span>{{ versionLabel(t) }}</span>
                     <template v-if="t.id === recentId">
                       <span class="sep">·</span>
                       <span class="recent-text">最近编辑</span>
@@ -510,13 +518,20 @@ const countLabel = computed(() => {
       <header class="tv-breadcrumb">
         <button class="tv-back" type="button" @click="returnToList">← 返回模板中心</button>
         <span class="tv-bc-sep">/</span>
-        <span class="tv-bc-current">{{ currentTemplateName }}</span>
+        <button
+          class="tv-bc-current tv-bc-current--btn"
+          type="button"
+          @click="versionDialogOpen = true"
+        >
+          {{ currentTemplateName }}
+        </button>
         <div class="tv-bc-spacer"></div>
         <DesignerHeader v-if="currentId" />
       </header>
       <div class="tv-editor-host">
         <DesignerView v-if="currentId" :template-id="currentId" :embedded="true" />
       </div>
+      <VersionDialog v-if="currentId" v-model="versionDialogOpen" :template-id="currentId" />
     </div>
 
     <!-- ============ 删除模板 confirm ============ -->
@@ -1134,6 +1149,20 @@ const countLabel = computed(() => {
 .tv-bc-current {
   color: var(--ink);
   font-weight: 500;
+}
+.tv-bc-current--btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+  color: var(--ink);
+  border-bottom: 1px solid transparent;
+}
+.tv-bc-current--btn:hover {
+  color: var(--yangli-red);
+  border-bottom-color: var(--yangli-red);
 }
 .tv-editor-host {
   flex: 1;
