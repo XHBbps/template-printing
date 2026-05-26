@@ -413,6 +413,8 @@ export const useDesignerStore = defineStore('designer', {
       this.historyIndex = 0;
       this.selectedIds = [];
       this.dirty = false;
+      this.publishedVersion = null;
+      this.hasUnpublishedChanges = false;
       this.persist();
     },
     /**
@@ -565,6 +567,10 @@ export const useDesignerStore = defineStore('designer', {
       // 发布前确保草稿已落库（autosave 可能还在 debounce 中）
       if (this.saveStatus === 'pending' || this.dirty) {
         await this.saveToBackend();
+        // saveToBackend 内部吞异常并置 saveStatus='error'；若失败则不要发布过期草稿
+        if (this.saveStatus === 'error') {
+          throw new Error(this.saveError ?? '草稿保存失败，已取消发布');
+        }
       }
       const { apiFetch } = await import('../lib/api');
       const r = await apiFetch<{ version: number; publishedAt: string }>(

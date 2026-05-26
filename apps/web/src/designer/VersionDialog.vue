@@ -66,6 +66,8 @@ async function load(): Promise<void> {
     items.value = r.items;
     publishedVersion.value = r.publishedVersion;
     selected.value = r.items[0]?.version ?? null;
+  } catch (e) {
+    ElMessage.error(`加载版本列表失败：${(e as Error).message}`);
   } finally {
     loading.value = false;
   }

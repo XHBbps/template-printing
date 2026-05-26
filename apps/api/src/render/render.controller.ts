@@ -87,6 +87,7 @@ export class RenderController {
     errorMsg: string | null;
     createdAt: Date;
     completedAt: Date | null;
+    cleanedAt: Date | null;
     templateVersion: number | null;
   }> {
     return this.svc.get(jobId);

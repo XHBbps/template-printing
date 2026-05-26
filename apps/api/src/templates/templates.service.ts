@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-unresolved
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { Prisma } from '@prisma/client';
 
@@ -79,31 +79,39 @@ export class TemplatesService {
     });
   }
 
-  /** 把当前草稿(data)发布成新版本：version = max+1，事务内完成。 */
+  /** 把当前草稿(data)发布成新版本：version = max+1，整段在事务内（含草稿读取，避免并发 autosave 抢插旧草稿）。 */
   async publish(ownerId: string, id: string): Promise<{ version: number; publishedAt: Date }> {
-    const tpl = await this.prisma.template.findFirst({ where: { id, ownerId } });
-    if (!tpl) throw new NotFoundException('template_not_found');
-
-    return this.prisma.$transaction(async (tx) => {
-      const max = await tx.templateVersion.aggregate({
-        where: { templateId: id },
-        _max: { version: true },
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 在事务内读草稿，确保快照就是发布那一刻的 data
+        const tpl = await tx.template.findFirst({ where: { id, ownerId } });
+        if (!tpl) throw new NotFoundException('template_not_found');
+        const max = await tx.templateVersion.aggregate({
+          where: { templateId: id },
+          _max: { version: true },
+        });
+        const nextVersion = (max._max.version ?? 0) + 1;
+        const created = await tx.templateVersion.create({
+          data: {
+            templateId: id,
+            version: nextVersion,
+            data: tpl.data as object,
+            publishedBy: ownerId,
+          },
+        });
+        await tx.template.update({
+          where: { id },
+          data: { publishedVersion: nextVersion, hasUnpublishedChanges: false },
+        });
+        return { version: created.version, publishedAt: created.publishedAt };
       });
-      const nextVersion = (max._max.version ?? 0) + 1;
-      const created = await tx.templateVersion.create({
-        data: {
-          templateId: id,
-          version: nextVersion,
-          data: tpl.data as object,
-          publishedBy: ownerId,
-        },
-      });
-      await tx.template.update({
-        where: { id },
-        data: { publishedVersion: nextVersion, hasUnpublishedChanges: false },
-      });
-      return { version: created.version, publishedAt: created.publishedAt };
-    });
+    } catch (e) {
+      // 并发发布同一模板可能撞 @@unique([templateId,version])；转成 409 让调用方重试
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new ConflictException('version_conflict_retry');
+      }
+      throw e;
+    }
   }
 
   async listVersions(ownerId: string, id: string) {
@@ -148,31 +156,38 @@ export class TemplatesService {
       select: { id: true },
     });
     if (!tpl) throw new NotFoundException('template_not_found');
-    return this.prisma.$transaction(async (tx) => {
-      const src = await tx.templateVersion.findUnique({
-        where: { templateId_version: { templateId: id, version: fromVersion } },
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const src = await tx.templateVersion.findUnique({
+          where: { templateId_version: { templateId: id, version: fromVersion } },
+        });
+        if (!src) throw new NotFoundException('template_version_not_found');
+        const max = await tx.templateVersion.aggregate({
+          where: { templateId: id },
+          _max: { version: true },
+        });
+        const nextVersion = (max._max.version ?? 0) + 1;
+        const created = await tx.templateVersion.create({
+          data: {
+            templateId: id,
+            version: nextVersion,
+            data: src.data as object,
+            publishedBy: ownerId,
+            restoredFrom: fromVersion,
+          },
+        });
+        await tx.template.update({
+          where: { id },
+          data: { publishedVersion: nextVersion, hasUnpublishedChanges: true },
+        });
+        return { version: created.version, restoredFrom: fromVersion };
       });
-      if (!src) throw new NotFoundException('template_version_not_found');
-      const max = await tx.templateVersion.aggregate({
-        where: { templateId: id },
-        _max: { version: true },
-      });
-      const nextVersion = (max._max.version ?? 0) + 1;
-      const created = await tx.templateVersion.create({
-        data: {
-          templateId: id,
-          version: nextVersion,
-          data: src.data as object,
-          publishedBy: ownerId,
-          restoredFrom: fromVersion,
-        },
-      });
-      await tx.template.update({
-        where: { id },
-        data: { publishedVersion: nextVersion, hasUnpublishedChanges: true },
-      });
-      return { version: created.version, restoredFrom: fromVersion };
-    });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new ConflictException('version_conflict_retry');
+      }
+      throw e;
+    }
   }
 
   async update(
