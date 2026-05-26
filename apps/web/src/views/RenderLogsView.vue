@@ -213,9 +213,11 @@ onMounted(refresh);
 
         <!-- 结果区 -->
         <div class="results">
-          <div class="results-head">
-            <h2>任务列表</h2>
-            <span class="count">{{ countLabel }}</span>
+          <div class="sec-head">
+            <span class="num">01</span>
+            <span class="red-square"></span>
+            <span class="label">任务列表</span>
+            <span class="meta">{{ countLabel }} · JOBS</span>
             <span class="rule"></span>
           </div>
 
@@ -411,30 +413,44 @@ onMounted(refresh);
 .results {
   margin-top: 24px;
 }
-.results-head {
+/* Section 头：[mono 01] [红方块] [han 标题] [mono meta] [延展线] — 与审计日志统一 */
+.sec-head {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 14px;
 }
-.results-head h2 {
-  margin: 0;
-  font-size: 16px;
+.sec-head .num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--yangli-red);
+  letter-spacing: 0.1em;
+}
+.sec-head .red-square {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--yangli-red);
+  align-self: center;
+}
+.sec-head .label {
+  font-family: var(--font-han);
+  font-size: 14px;
   font-weight: 600;
   color: var(--ink);
-  font-family: var(--font-han);
 }
-.results-head .count {
+.sec-head .meta {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fg-3);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.results-head .rule {
+.sec-head .rule {
   flex: 1;
   height: 1px;
   background: var(--stone);
+  align-self: center;
 }
 
 /* Log table */
