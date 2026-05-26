@@ -71,6 +71,33 @@ export class TemplatesService {
     });
   }
 
+  /** 把当前草稿(data)发布成新版本：version = max+1，事务内完成。 */
+  async publish(ownerId: string, id: string): Promise<{ version: number; publishedAt: Date }> {
+    const tpl = await this.prisma.template.findFirst({ where: { id, ownerId } });
+    if (!tpl) throw new NotFoundException('template_not_found');
+
+    return this.prisma.$transaction(async (tx) => {
+      const max = await tx.templateVersion.aggregate({
+        where: { templateId: id },
+        _max: { version: true },
+      });
+      const nextVersion = (max._max.version ?? 0) + 1;
+      const created = await tx.templateVersion.create({
+        data: {
+          templateId: id,
+          version: nextVersion,
+          data: tpl.data as object,
+          publishedBy: ownerId,
+        },
+      });
+      await tx.template.update({
+        where: { id },
+        data: { publishedVersion: nextVersion, hasUnpublishedChanges: false },
+      });
+      return { version: created.version, publishedAt: created.publishedAt };
+    });
+  }
+
   async update(
     ownerId: string,
     id: string,

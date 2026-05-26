@@ -106,6 +106,20 @@ export class TemplatesController {
     return tpl;
   }
 
+  @Post(':id/publish')
+  async publish(@CurrentUser() me: JwtClaims, @Param('id') id: string, @Req() req: Request) {
+    const result = await this.svc.publish(me.sub, id);
+    void this.audit.log({
+      actor: { id: me.sub, name: null },
+      action: 'template.publish',
+      resourceType: 'template',
+      resourceId: id,
+      details: { version: result.version },
+      request: req,
+    });
+    return result;
+  }
+
   @Delete(':id')
   async remove(
     @CurrentUser() me: JwtClaims,
