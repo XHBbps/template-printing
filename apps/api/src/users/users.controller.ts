@@ -98,9 +98,13 @@ export class UsersController {
   @Post(':id/disable')
   async disable(@CurrentUser() me: JwtClaims, @Param('id') id: string, @Req() req: Request) {
     const r = await this.svc.setDisabled(me.sub, id, true);
-    await this.refresh.revokeAllForUser(id);
-    await this.apiTokens.revokeAllForUser(id);
-    this.userState.evict(id);
+    // evict 必须执行（即使吊销 token 抛错），否则缓存可能让被禁用用户在 TTL 内继续通过 cookie 路径
+    try {
+      await this.refresh.revokeAllForUser(id);
+      await this.apiTokens.revokeAllForUser(id);
+    } finally {
+      this.userState.evict(id);
+    }
     void this.audit.log({
       actor: { id: me.sub, name: null },
       action: 'user.disable',

@@ -109,6 +109,8 @@ export class LarkController {
 
     const shouldBeAdmin = this.cfg.initialAdminLarkUserIds.includes(info.user_id);
     let user = await this.prisma.user.findUnique({ where: { larkOpenId: info.open_id } });
+    // 被禁用的已有用户：在同步资料 / 更新 lastLoginAt 之前就拒绝（新建用户不可能被禁用）
+    if (user?.disabledAt) throw new UnauthorizedException('account_disabled');
     if (user) {
       user = await this.prisma.user.update({
         where: { larkOpenId: info.open_id },
@@ -142,8 +144,6 @@ export class LarkController {
         )
         .catch(() => {});
     }
-
-    if (user.disabledAt) throw new UnauthorizedException('account_disabled');
 
     const { token: access, csrf } = this.jwt.sign({
       sub: user.id,

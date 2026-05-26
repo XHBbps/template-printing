@@ -91,6 +91,8 @@ export class AuthController {
 
     const user = await this.prisma.user.findUnique({ where: { id: v.userId } });
     if (!user) throw new UnauthorizedException('User no longer exists');
+    // 禁用用户即使持有有效 refresh token 也不得续签（防御纵深；不止依赖 disable 时的 revokeAllForUser）
+    if (user.disabledAt) throw new UnauthorizedException('account_disabled');
 
     await this.refresh.revoke(v.id);
     const { plaintext: newRefresh } = await this.refresh.create(user.id);

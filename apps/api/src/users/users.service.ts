@@ -187,17 +187,25 @@ export class UsersService {
     });
     if (exists) throw new ConflictException('username_taken');
     const plaintext = randomBytes(9).toString('base64url'); // ~12 chars
-    const user = await this.prisma.user.create({
-      data: {
-        localUsername: input.localUsername,
-        name: input.name,
-        email: input.email ?? null,
-        role: input.role,
-        localPasswordHash: await bcrypt.hash(plaintext, 12),
-        mustChangePassword: true,
-      },
-      select: { id: true, localUsername: true, name: true, role: true, email: true },
-    });
-    return { plaintext, user };
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          localUsername: input.localUsername,
+          name: input.name,
+          email: input.email ?? null,
+          role: input.role,
+          localPasswordHash: await bcrypt.hash(plaintext, 12),
+          mustChangePassword: true,
+        },
+        select: { id: true, localUsername: true, name: true, role: true, email: true },
+      });
+      return { plaintext, user };
+    } catch (e) {
+      // 并发同名创建：unique 约束兜底 → 409（findUnique 检查存在 check-then-create 竞态）
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new ConflictException('username_taken');
+      }
+      throw e;
+    }
   }
 }
