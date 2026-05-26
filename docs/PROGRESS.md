@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-26（用户管理 CRUD + 禁用/角色即时生效 + 本地登录打通）
+**最近更新**：2026-05-26（用户管理 CRUD + 禁用/角色即时生效 + 本地登录打通；登录页"假控件/假数据"转真实接口）
 
 ---
 
@@ -46,6 +46,7 @@
 - **Token 链路**：access cookie（短） + refresh cookie（长，DB 哈希存储） + CSRF；`apiFetch` 自动 401 retry
 - **Logout**：硬跳 `/login`（避免 bfcache 复活）+ 幂等清 cookie 端点
 - **个人中心**：`/me` 显示当前用户 + 改密码 + 解绑飞书（已实现 80%）
+- **登录会话时长**：由"保持登录"开关控制（不勾 = session cookie；勾 = 30 天持久 + `tp_remember`）；登录页运营指标来自真实 `GET /stats/overview`
 
 ### 2.2 模板中心 + 设计器
 
@@ -317,6 +318,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-26
 
+- **登录页"假控件/假数据"转真实** —— ①"保持登录 30 天"接通：cookie helper 实现 remember 语义（不勾 = session cookie、勾 = 30d 持久 + `tp_remember`），`/auth/refresh` 读 `tp_remember` 延续、`/auth/logout` 清理；②新增 `@Public` 端点 `GET /stats/overview`（近 30 天全部 render_jobs 计数 / done 任务 P50 渲染耗时 / 成功率，60s 内存缓存），登录页三指标改为真实拉取，失败或无数据显示 `—`。
 - **用户管理（CRUD + 禁用/角色即时生效 + 本地登录打通）**（spec+plan：`docs/superpowers/{specs,plans}/2026-05-26-user-management*`）
   - 新增 `apps/api/src/users/` 模块（admin 守卫 `@Roles('admin','emergency_admin')`）：`GET /admin/users`
     （服务端分页 + 搜索 name/localUsername/email/larkUserId + 过滤 role/status/type；每行带 `can{disable,

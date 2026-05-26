@@ -43,6 +43,7 @@ template_printing/
 │   │   │   ├── users/             # 用户管理 CRUD（admin）：列表/新建本地/改角色/重置密码/禁用启用
 │   │   │   ├── templates/         # 模板 CRUD
 │   │   │   ├── render/            # 渲染任务入队 + 状态查询
+│   │   │   ├── stats/             # 公开运营指标聚合（GET /stats/overview，近30天渲染量/P50/成功率）
 │   │   │   ├── uploads/           # 图片上传（multer + 白名单）
 │   │   │   ├── lark/              # 飞书 IM 通知
 │   │   │   ├── common/            # logger / security headers / 公共中间件
