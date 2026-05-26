@@ -550,14 +550,14 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 |---|---|---|
 | ~~飞书多维表格按钮触发渲染回写附件~~ | ✅ iter 27 完成 | `apps/api/src/lark/` + `examples/lark-bitable/` |
 | ~~飞书机器人卡片交互渲染~~ | ✅ iter 28 完成 | `apps/api/src/lark/lark-bot.*` + `examples/lark-bot/` |
-| **Admin 用户管理 CRUD** | 列表 / 新建（本地账号） / 改角色 / 重置密码 / 禁用 | `apps/api/src/users/` 新模块 + `views/admin/UsersAdminView.vue` |
-| **渲染任务历史 / 我的渲染任务** | 用户在 `/me` 看自己发起的渲染任务列表 + 重新下载 | `apps/api/src/render/` 加 list 端点 + 新 view |
-| **渲染失败重试策略** | bullmq job options：`attempts: 3` + 指数退避；错误分类（暂时性 vs 永久性） | `apps/render/src/main.ts` + `render.service.ts` |
-| **Signed URL** | 渲染输出 URL 带 HMAC 签名 + 过期时间，防止猜测越权 | `apps/api/src/render/` + Nginx 配合 |
-| **渲染 quota 与计费** | user-level 月配额 + 磁盘清理策略（>30 天自动删） | DB schema + 定时 job |
+| ~~渲染失败重试策略~~ | ✅ iter 31（bullmq `attempts:3` + 指数退避 + 永久错误 UnrecoverableError） | `apps/render/src/main.ts` |
+| ~~Signed URL~~ | ✅ iter 31（HMAC 签名 + 过期，`FileSigService`） | `apps/api/src/uploads/` |
+| ~~渲染 quota 与磁盘清理~~ | ✅ iter 31（user 日配额 + cron 清理过期输出；"计费"未做也未必需要） | `render.service.ts` + cleanup service |
+| ~~渲染任务历史~~ | ✅ 已实现 `/logs`（admin 看全部 / 用户看自己；含下载） | `RenderLogsView.vue` + `/render/jobs` |
+| **Admin 用户管理 CRUD** | 列表 / 新建（本地账号） / 改角色 / 重置密码 / 启用禁用。当前 `UsersAdminView` 仍是占位、无后端模块 | `apps/api/src/users/` 新模块 + `views/admin/UsersAdminView.vue` |
 | **生产 render Dockerfile 优化** | 改用多阶段 Alpine 或国内镜像，将镜像缩到 < 1GB | `docker/render.Dockerfile` |
-| **多维表格回写示例** | 飞书 SDK 接入：上传文件到云空间 → 写附件字段 → 触发通知 | `apps/api/src/lark/` 增补 |
 | **模板分享 / 公共模板库** | 模板支持公开 / 团队共享；公共模板复制到自己账号 | DB 加 `visibility` 字段 + 列表 view 增 tab |
+| **首次生产部署 / 验证** | 项目尚未部署过；需在类生产环境跑通 compose / CI deploy，验证迁移、worker、飞书回调 | `docker-compose` + `.github/workflows/deploy.yml` |
 
 ---
 

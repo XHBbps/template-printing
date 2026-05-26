@@ -15,8 +15,10 @@ interface Props {
   titleEn: string;
   bodyLines: string[]; // CN 正文，按行渲染（行间 <br>）
   status: string; // 收据卡状态：'HTTP 404'
+  primaryText?: string; // 主按钮文案，默认"回到模板中心"
+  primaryTo?: string; // 主按钮目标路由，默认 /templates
 }
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const router = useRouter();
 
@@ -41,7 +43,7 @@ async function loadReqId(): Promise<void> {
 }
 
 function goHome(): void {
-  void router.push('/templates');
+  void router.push(props.primaryTo ?? '/templates');
 }
 
 function goBack(): void {
@@ -117,7 +119,7 @@ function goBack(): void {
 
         <div class="ctas">
           <button class="btn btn-primary" type="button" @click="goHome">
-            <span>回到模板中心</span>
+            <span>{{ primaryText ?? '回到模板中心' }}</span>
             <span class="arrow">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M5 12h14M13 6l6 6-6 6" />

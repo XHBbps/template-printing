@@ -1,9 +1,13 @@
+import { randomUUID } from 'node:crypto';
+
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import type { Request, Response, NextFunction } from 'express';
 
 @Injectable()
 export class SecurityHeadersMiddleware implements NestMiddleware {
   use(_req: Request, res: Response, next: NextFunction): void {
+    // 每个响应带一个请求 ID，供前端错误页 / 排障关联（X-Request-Id）
+    res.setHeader('X-Request-Id', randomUUID());
     res.setHeader(
       'Content-Security-Policy',
       [
