@@ -34,6 +34,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      // 上传图片回显 / 渲染产物直链:API 在 /uploads/* 提供静态文件(无 /api 前缀),
+      // 不 rewrite 直接转发,使 dev 与生产(SPA 与 API 同源)一致。
+      '/uploads/': {
+        target: apiTarget,
+        changeOrigin: true,
+      },
     },
   },
 });
