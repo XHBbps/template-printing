@@ -28,7 +28,7 @@ const nameSubmitting = ref(false);
 const nameInputRef = ref<HTMLInputElement | null>(null);
 
 function startEditName(): void {
-  nameInput.value = auth.user?.localUsername ?? '';
+  nameInput.value = auth.user?.name ?? '';
   nameEditing.value = true;
   void nextTick(() => nameInputRef.value?.focus());
 }
@@ -41,7 +41,7 @@ async function saveName(): Promise<void> {
     ElMessage.warning('用户名不能为空');
     return;
   }
-  if (next === (auth.user?.localUsername ?? '')) {
+  if (next === (auth.user?.name ?? '')) {
     nameEditing.value = false;
     return;
   }
@@ -49,7 +49,7 @@ async function saveName(): Promise<void> {
   try {
     await apiFetch<{ ok: true }>('/users/me', {
       method: 'PATCH',
-      body: JSON.stringify({ localUsername: next }),
+      body: JSON.stringify({ name: next }),
     });
     ElMessage.success('已保存');
     nameEditing.value = false;
@@ -166,10 +166,10 @@ async function submitPassword(): Promise<void> {
                   <template v-if="isInternal()">
                     <span class="name-text">{{ auth.user?.name ?? '—' }}</span>
                   </template>
-                  <!-- external: 显示 localUsername，可编辑 -->
+                  <!-- external: 显示 name，可编辑 -->
                   <template v-else>
                     <template v-if="!nameEditing">
-                      <span class="name-text">{{ auth.user?.localUsername ?? '—' }}</span>
+                      <span class="name-text">{{ auth.user?.name ?? '—' }}</span>
                       <button
                         class="name-edit-btn"
                         type="button"
@@ -207,6 +207,14 @@ async function submitPassword(): Promise<void> {
                       </button>
                     </template>
                   </template>
+                </span>
+              </div>
+
+              <!-- 登录账号：仅外部用户显示（只读） -->
+              <div v-if="!isInternal()" class="row">
+                <span class="k">登录账号 · Login</span>
+                <span class="v muted">
+                  <span class="name-text">{{ auth.user?.localUsername ?? '—' }}</span>
                 </span>
               </div>
 
