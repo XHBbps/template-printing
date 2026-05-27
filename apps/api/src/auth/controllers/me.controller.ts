@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
   NotFoundException,
   Patch,
@@ -21,6 +20,8 @@ import { z } from 'zod';
 // eslint-disable-next-line import/no-unresolved
 import { AuditLogService } from '../../audit/audit-log.service.js';
 // eslint-disable-next-line import/no-unresolved
+import { isInternal } from '../account-kind.js';
+// eslint-disable-next-line import/no-unresolved
 import { CurrentUser } from '../decorators/current-user.decorator.js';
 // eslint-disable-next-line import/no-unresolved
 import type { JwtClaims } from '../jwt/jwt.service.js';
@@ -34,6 +35,9 @@ export interface MeResponse {
   mustChangePassword: boolean;
   larkUserId: string | null;
   hasLocalPassword: boolean;
+  mobile: string | null;
+  externalCode: string | null;
+  isInternal: boolean;
   csrf: string;
 }
 
@@ -75,6 +79,9 @@ export class MeController {
         mustChangePassword: user.mustChangePassword,
         larkUserId: user.larkUserId,
         hasLocalPassword: Boolean(user.localPasswordHash),
+        mobile: user.mobile,
+        externalCode: user.externalCode,
+        isInternal: isInternal(user),
         csrf: jwt.csrf,
       },
     };
@@ -90,8 +97,14 @@ export class MeController {
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
     if (!user) throw new UnauthorizedException();
     const data: { name?: string; email?: string | null } = {};
-    if (dto.name !== undefined) data.name = dto.name;
-    if (dto.email !== undefined) data.email = dto.email === '' ? null : dto.email;
+    if (dto.name !== undefined) {
+      if (isInternal(user)) throw new BadRequestException('internal_profile_readonly');
+      data.name = dto.name;
+    }
+    if (dto.email !== undefined) {
+      if (isInternal(user)) throw new BadRequestException('internal_profile_readonly');
+      data.email = dto.email === '' ? null : dto.email;
+    }
     await this.prisma.user.update({ where: { id: jwt.sub }, data });
     void this.audit.log({
       actor: { id: user.id, name: user.name },
@@ -108,24 +121,14 @@ export class MeController {
   }
 
   @Patch('me/password')
-  async setPassword(
-    @CurrentUser() jwt: JwtClaims,
-    @Body() rawBody: unknown,
-    @Req() req: Request,
-  ): Promise<{ ok: true }> {
+  async setPassword(@CurrentUser() jwt: JwtClaims, @Body() rawBody: unknown, @Req() req: Request) {
     const dto = SetPasswordDtoSchema.parse(rawBody);
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
     if (!user) throw new UnauthorizedException();
-
-    const wasSet = Boolean(user.localPasswordHash);
-    if (!wasSet && !user.localUsername) {
-      throw new BadRequestException('local_username_required');
-    }
-    if (wasSet) {
-      if (!dto.currentPassword) throw new BadRequestException('current_password_required');
-      const ok = await bcrypt.compare(dto.currentPassword, user.localPasswordHash!);
-      if (!ok) throw new BadRequestException('current_password_incorrect');
-    }
+    if (!user.localPasswordHash) throw new BadRequestException('no_local_password');
+    if (!dto.currentPassword) throw new BadRequestException('current_password_required');
+    const ok = await bcrypt.compare(dto.currentPassword, user.localPasswordHash);
+    if (!ok) throw new BadRequestException('current_password_incorrect');
     const hash = await bcrypt.hash(dto.newPassword, 12);
     await this.prisma.user.update({
       where: { id: jwt.sub },
@@ -133,37 +136,9 @@ export class MeController {
     });
     void this.audit.log({
       actor: { id: user.id, name: user.name },
-      action: wasSet ? 'user.password.change' : 'user.password.set',
+      action: 'user.password.change',
       resourceType: 'user',
       resourceId: user.id,
-      request: req,
-    });
-    return { ok: true };
-  }
-
-  @Delete('me/lark-binding')
-  async unbindLark(@CurrentUser() jwt: JwtClaims, @Req() req: Request): Promise<{ ok: true }> {
-    const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
-    if (!user) throw new UnauthorizedException();
-    // Refuse if user would be left with NO way to log in
-    if (!user.localPasswordHash) {
-      throw new BadRequestException('set_password_before_unbinding_lark');
-    }
-    await this.prisma.user.update({
-      where: { id: jwt.sub },
-      data: {
-        larkOpenId: null,
-        larkUnionId: null,
-        larkUserId: null,
-        avatarUrl: null,
-      },
-    });
-    void this.audit.log({
-      actor: { id: user.id, name: user.name },
-      action: 'user.lark.unbind',
-      resourceType: 'user',
-      resourceId: user.id,
-      details: { previousLarkUserId: user.larkUserId },
       request: req,
     });
     return { ok: true };
