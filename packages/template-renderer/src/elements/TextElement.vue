@@ -14,10 +14,18 @@ const align = computed(() => props.element.style.textAlign ?? props.element.styl
 const isJustify = computed(() => align.value === 'justify');
 const letterSpacing = computed(() => props.element.style.letterSpacing ?? 0);
 const underline = computed(() => props.element.style.textDecoration === 'underline');
+const text = computed(() => props.element.content.static);
 
-// 容器只负责盒子（边框/背景/内边距）与对齐；文字排版（letter-spacing / 下划线）下沉到内层
-// run，这样:① center/right 时抵消尾部字距 → 真正左右对称;② 下划线可控间距;③ justify 走
-// 真·分散对齐而非无效的 flex space-between。
+// 有字间距且非分散对齐时拆分:把"除最后一字外"的部分加字间距,最后一字不带尾部字距。
+// 这样整段文字盒宽 = 真实字形范围(无尾部多余间距),居中/右对齐时字形与下划线一起左右对称。
+const useSplit = computed(
+  () => letterSpacing.value > 0 && !isJustify.value && text.value.length > 1,
+);
+const head = computed(() => (useSplit.value ? text.value.slice(0, -1) : ''));
+const tail = computed(() => (useSplit.value ? text.value.slice(-1) : text.value));
+const headStyle = computed(() => ({ letterSpacing: `${letterSpacing.value}px` }));
+
+// 容器只负责盒子与对齐;文字排版(字间距/下划线)下沉到内层 run。
 const containerStyle = computed(() => {
   const css = styleToCss(props.element.style);
   delete css.letterSpacing;
@@ -34,7 +42,7 @@ const containerStyle = computed(() => {
   };
 });
 
-// 内层文字 run 的排版样式。
+// 文字 run:下划线 + 间距;justify 走真·分散对齐。
 const runStyle = computed(() => {
   const s: Record<string, string> = {};
   if (underline.value) {
@@ -42,16 +50,11 @@ const runStyle = computed(() => {
     s.textUnderlineOffset = '0.15em'; // 下划线与字体留一点间距
   }
   if (isJustify.value) {
-    // 真·分散对齐:CJK 字符在框内等距铺满、首尾贴边 → 左右完全对称,下划线随之边到边对称。
-    // justify 模式下不再叠加 letter-spacing（间距由分散对齐分配）。
+    // 真·分散对齐:CJK 字符在框内等距铺满、首尾贴边 → 左右完全对称。
     s.display = 'block';
     s.width = '100%';
     s.textAlign = 'justify';
     s.textAlignLast = 'justify';
-  } else if (letterSpacing.value) {
-    s.letterSpacing = `${letterSpacing.value}px`;
-    // 抵消最后一个字之后的尾部字距,使 center/right 居中真正左右等距。
-    s.marginRight = `${-letterSpacing.value}px`;
   }
   return s;
 });
@@ -59,6 +62,9 @@ const runStyle = computed(() => {
 
 <template>
   <div :style="containerStyle">
-    <span :style="runStyle">{{ props.element.content.static }}</span>
+    <span :style="runStyle"
+      ><span v-if="useSplit" :style="headStyle">{{ head }}</span
+      ><span>{{ tail }}</span></span
+    >
   </div>
 </template>
