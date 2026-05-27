@@ -6,6 +6,8 @@ import type { Page } from 'puppeteer';
 
 const WEB_BASE = process.env.WEB_BASE ?? 'http://web:5173';
 const STORAGE_ROOT = process.env.STORAGE_ROOT ?? '/storage';
+// PNG 渲染倍率;降为 1 可省内存但降低输出清晰度/分辨率(非无损)。默认 2。
+const DEVICE_SCALE_FACTOR = Number(process.env.RENDER_DEVICE_SCALE_FACTOR ?? 2);
 
 export interface RenderOutput {
   pdfPath: string | null;
@@ -27,7 +29,11 @@ export async function renderJobOnPage(
   // 1. Set viewport to natural paper size first so the page lays out correctly.
   const widthPx = Math.round(args.paperMm.w * 4); // 4 px/mm canonical (matches PX_PER_MM)
   const heightPx = Math.round(args.paperMm.h * 4);
-  await page.setViewport({ width: widthPx, height: heightPx, deviceScaleFactor: 2 });
+  await page.setViewport({
+    width: widthPx,
+    height: heightPx,
+    deviceScaleFactor: DEVICE_SCALE_FACTOR,
+  });
 
   // Surface browser-side errors / warnings + diagnostic `[ph] ...` logs
   // from PrintHeadlessView to worker stdout. Other Vite HMR noise muted.
