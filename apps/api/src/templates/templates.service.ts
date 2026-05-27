@@ -139,11 +139,16 @@ export class TemplatesService {
   }
 
   async getVersion(ownerId: string, id: string, version: number) {
-    const tpl = await this.prisma.template.findFirst({
-      where: { id, ownerId },
-      select: { id: true },
+    // 允许读取:本人模板的任意版本;或「公共模板的已发布版本」(供公共模板库缩略图/预览跨 owner 读取)。
+    // 私有模板 / 公共模板的非发布版本对他人仍不可见(返回 404)。
+    const tpl = await this.prisma.template.findUnique({
+      where: { id },
+      select: { ownerId: true, visibility: true, publishedVersion: true },
     });
     if (!tpl) throw new NotFoundException('template_not_found');
+    const allowed =
+      tpl.ownerId === ownerId || (tpl.visibility === 'public' && tpl.publishedVersion === version);
+    if (!allowed) throw new NotFoundException('template_not_found');
     const row = await this.prisma.templateVersion.findUnique({
       where: { templateId_version: { templateId: id, version } },
     });

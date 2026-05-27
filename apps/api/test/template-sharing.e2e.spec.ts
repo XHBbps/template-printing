@@ -26,6 +26,7 @@ describe('Template sharing e2e', () => {
   let pubTplId: string;
   let unpubTplId: string;
   let nonameTplId: string;
+  let privPubTplId: string;
   const VER_DATA = {
     id: 'v',
     meta: { name: 'x', description: '', version: 1, tags: [] },
@@ -106,6 +107,14 @@ describe('Template sharing e2e', () => {
       data: { templateId: np.id, version: 1, data: VER_DATA },
     });
     nonameTplId = np.id;
+    // admin 的「已发布但私有」模板:用于验证他人读不到其版本(仅公共已发布版可跨 owner 读)
+    const privPub = await prisma.template.create({
+      data: { name: '私有已发布模板', data: VER_DATA, ownerId: adminU.id, publishedVersion: 1 },
+    });
+    await prisma.templateVersion.create({
+      data: { templateId: privPub.id, version: 1, data: VER_DATA },
+    });
+    privPubTplId = privPub.id;
 
     const m = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = m.createNestApplication();
@@ -205,5 +214,20 @@ describe('Template sharing e2e', () => {
       .expect(200);
     const ids = res.body.items.map((x: { id: string }) => x.id);
     expect(ids).not.toContain(pubTplId);
+  });
+
+  it('public published version is readable cross-owner (公共库缩略图/预览)', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/templates/${nonameTplId}/versions/1`)
+      .set('Cookie', userb.cookie)
+      .expect(200);
+    expect(res.body.data).toEqual(VER_DATA);
+  });
+
+  it("private template's published version is NOT readable by others → 404", async () => {
+    await request(app.getHttpServer())
+      .get(`/templates/${privPubTplId}/versions/1`)
+      .set('Cookie', userb.cookie)
+      .expect(404);
   });
 });
