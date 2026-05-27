@@ -51,6 +51,8 @@ where: { visibility: 'public', publishedVersion: { not: null }, ...(search ? { n
 - **搜索只按 `name`**(不照搬现有 `OR(name,id)` —— 对公共库用户搜 id 无意义)。
 - `include`/`select` 带 `owner: { select: { name: true } }`;响应 `ownerName = owner?.name ?? '—'`(`User.name` 可空,emergency_admin 无 Lark 身份时为 null,**必须 null 兜底**)。
 - 返回每项:`{ id, name, description, ownerName, publishedVersion, updatedAt }` + `{ total, offset, limit }`,复用现有偏移分页风格。
+- **不排除调用者自身的公共模板**(不要加 `ownerId: { not: meId }`):admin 把自己模板设公开后,「我的」与「公共库」两个 tab 都能看到它,是一致行为。
+- **公共库默认排序用 `updated`**(而非现有 `created` 默认),以命中 `[visibility, updatedAt]` 索引(注:`where` 含 `publishedVersion:{not:null}` 不在索引内,故为部分命中;当前数据量无碍)。
 
 ### 5.2 `setVisibility(id, visibility)` — service
 - 按 `{ id }` 查(无 ownerId,约束 A);不存在 → 404 `template_not_found`。
@@ -62,6 +64,7 @@ where: { visibility: 'public', publishedVersion: { not: null }, ...(search ? { n
 - 取发布版 data(约束 B:按 `publishedVersion` 列查 `templateId_version`)。
 - 新建模板:`{ name: \`${src.name} 副本\`, description: src.description, data: <发布版 data>, ownerId: meId, visibility: 'private', publishedVersion: null, hasUnpublishedChanges: true }`。
   - **`hasUnpublishedChanges: true`**(副本 data 全是未发布内容,应在新主人列表里显示草稿标记;Prisma 默认 false 不符语义)。
+- **允许复制任意公共模板,含调用者自己的**(不加 owner 限制;复制自己已公开的模板生成"X 副本"是无害的合法行为)。
 - 返回新模板(至少 `{ id, name }`)。
 
 ### 5.4 controller 端点
