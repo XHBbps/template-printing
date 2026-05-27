@@ -509,7 +509,14 @@ const countLabel = computed(() => {
                   <button
                     v-if="isAdmin"
                     type="button"
-                    :title="t.visibility === 'public' ? '取消公开' : '设为公开'"
+                    :disabled="t.publishedVersion == null"
+                    :title="
+                      t.publishedVersion == null
+                        ? '发布后才能设为公开'
+                        : t.visibility === 'public'
+                          ? '取消公开'
+                          : '设为公开'
+                    "
                     @click.stop="toggleVisibility(t)"
                   >
                     <Globe :size="12" :stroke-width="1.8" />
@@ -582,7 +589,14 @@ const countLabel = computed(() => {
                     <button
                       v-if="isAdmin"
                       type="button"
-                      :title="t.visibility === 'public' ? '取消公开' : '设为公开'"
+                      :disabled="t.publishedVersion == null"
+                      :title="
+                        t.publishedVersion == null
+                          ? '发布后才能设为公开'
+                          : t.visibility === 'public'
+                            ? '取消公开'
+                            : '设为公开'
+                      "
                       @click.stop="toggleVisibility(t)"
                     >
                       <Globe :size="12" :stroke-width="1.8" />
@@ -764,6 +778,12 @@ const countLabel = computed(() => {
 .tpl--public .copy-btn {
   margin-top: 8px;
   width: 100%;
+}
+/* 未发布模板的「设为公开」开关置灰(spec §6) */
+.tpl-actions button:disabled,
+.row-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ============ Toolbar ============ */

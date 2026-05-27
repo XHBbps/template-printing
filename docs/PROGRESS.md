@@ -52,6 +52,7 @@
 
 - **模板列表**：`/templates`（Hero 风格 header），inline 切到设计器（无独立路由，View Transitions 形变动画）
 - **CRUD**：`POST/GET/PATCH/DELETE /api/templates`；自愈机制（残缺模板 PATCH 回写）
+- **模板分享 / 公共模板库**：`visibility`(private/public)；admin 把已发布模板上架(`PATCH :id/visibility`)；公共库 `GET /templates/public`(跨 owner、只读)；任意用户 `POST :id/copy` 复制公共模板(取最新发布版)到自己名下的私有草稿；模板中心「我的/公共」tab
 - **栅格化设计器**：
   - 8 类元素：text / image / barcode / qr / rect / line / table / variable-text
   - mm-anchor schema（每元素含 `anchor: {x, y, w, h}` mm）
@@ -318,6 +319,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-27
 
+- **feat：模板分享 / 公共模板库** —— `Template` 加 `visibility`(private/public)。新增三端点(均不带 ownerId 过滤):`GET /templates/public`(列已发布的公开模板,跨 owner,作者名 `User.name` 可空时兜底 `—`,默认按 updatedAt;搜索仅 name)、`PATCH /templates/:id/visibility`(仅 `admin`/`emergency_admin`,设 public 要求已发布否则 400)、`POST /templates/:id/copy`(任意登录用户:取源最新发布版 data → 我名下私有新草稿 `publishedVersion=null`、`hasUnpublishedChanges=true`)。copy 取版本走 `publishedVersion` 列 + `templateId_version` 唯一键(非 max)。前端模板中心加「我的/公共」tab、公共库只读卡片 + 「复制到我的」、admin 🌐 公开开关(grid+list,未发布提示先发布)。e2e 8/8(含跨 owner 复制、403/400/404、作者名兜底)。
 - **perf(docker)：render 生产镜像 Alpine 瘦身** —— `docker/render.Dockerfile` 由 `node:20-bookworm-slim` 改为多阶段 `node:20-alpine` + 系统 Chromium(apk),`PUPPETEER_SKIP_DOWNLOAD` 不下载 puppeteer 自带 chromium。node_modules 改用 `pnpm deploy --prod` 产出**自包含、仅生产依赖**目录(修掉原先直接 copy pnpm 软链运行期断链的隐患 —— 旧镜像其实从未真正运行过)。字体只留 `font-noto-cjk`(去掉 emoji 与 `fonts-noto-cjk-extra` 生僻字);apk 源走 aliyun(`ARG APK_MIRROR` 可覆盖海外),顺带解掉「bookworm+aliyun apt 源 CI 易失败」。体积:解压 ~2.1GB → ~1.0GB、压缩拉取 ~429MB;本地已验证 Chromium 148 启动 + 中文 PDF/PNG 渲染(思源黑体不缺字)。
 
 ### 2026-05-26
@@ -589,7 +591,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 | ~~渲染任务历史~~ | ✅ 已实现 `/logs`（admin 看全部 / 用户看自己；含下载） | `RenderLogsView.vue` + `/render/jobs` |
 | ~~Admin 用户管理 CRUD~~ | ✅ 已完成（见下方 2026-05-26 近期变更）：列表/新建本地/改角色/重置密码/禁用启用 + 禁用降级即时生效 | `apps/api/src/users/` + `views/admin/UsersAdminView.vue` |
 | ~~生产 render Dockerfile 优化~~ | ✅ 2026-05-27：多阶段 Alpine + 系统 Chromium + `pnpm deploy`，解压 ~1.0GB / 压缩 ~429MB | `docker/render.Dockerfile` |
-| **模板分享 / 公共模板库** | 模板支持公开 / 团队共享；公共模板复制到自己账号 | DB 加 `visibility` 字段 + 列表 view 增 tab |
+| ~~模板分享 / 公共模板库~~ | ✅ 2026-05-27：`visibility` + `/templates/public`、`:id/visibility`(admin)、`:id/copy`；模板中心我的/公共 tab + 复制 + admin 开关 | `apps/api/src/templates/` + `TemplatesView.vue` |
 | **首次生产部署 / 验证** | 项目尚未部署过；需在类生产环境跑通 compose / CI deploy，验证迁移、worker、飞书回调 | `docker-compose` + `.github/workflows/deploy.yml` |
 
 ---
