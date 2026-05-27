@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-26（用户管理 CRUD + 禁用/角色即时生效 + 本地登录打通；登录页"假控件/假数据"转真实接口）
+**最近更新**：2026-05-27（render 生产镜像 Alpine 瘦身：~2.1GB → ~1.0GB 解压 / ~429MB 压缩，pnpm deploy 自包含 + 系统 Chromium）
 
 ---
 
@@ -316,6 +316,10 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 > 按时间倒序，最近 ~15 次重大变更。详细 commit 见 `git log --oneline`。
 
+### 2026-05-27
+
+- **perf(docker)：render 生产镜像 Alpine 瘦身** —— `docker/render.Dockerfile` 由 `node:20-bookworm-slim` 改为多阶段 `node:20-alpine` + 系统 Chromium(apk),`PUPPETEER_SKIP_DOWNLOAD` 不下载 puppeteer 自带 chromium。node_modules 改用 `pnpm deploy --prod` 产出**自包含、仅生产依赖**目录(修掉原先直接 copy pnpm 软链运行期断链的隐患 —— 旧镜像其实从未真正运行过)。字体只留 `font-noto-cjk`(去掉 emoji 与 `fonts-noto-cjk-extra` 生僻字);apk 源走 aliyun(`ARG APK_MIRROR` 可覆盖海外),顺带解掉「bookworm+aliyun apt 源 CI 易失败」。体积:解压 ~2.1GB → ~1.0GB、压缩拉取 ~429MB;本地已验证 Chromium 148 启动 + 中文 PDF/PNG 渲染(思源黑体不缺字)。
+
 ### 2026-05-26
 
 - **fix(test)：refresh-token-service.spec 不再清空全表** —— 该 spec 原在 beforeAll/afterAll 无条件 `prisma.user.deleteMany({})`,对 dev/共享库跑 e2e 会连真实 `admin` 一起删除,随后被 emergency-admin bootstrap 以 `INITIAL_ADMIN_LOCAL_PASSWORD` 默认密码重建(导致此前用密码失效、登录 401)。改为只创建/清理本测试自己的用户(按 `userId` 范围删除)。
@@ -561,8 +565,8 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 | 问题 | 状态 | 影响 / 备注 |
 |---|---|---|
-| Render 容器镜像 ~2.1GB | 🟡 体积偏大 | Alpine + chromium，生产用多阶段可缩到 ~800MB |
-| 生产 render Dockerfile 用 bookworm + aliyun mirror | 🔴 CI 网络可能失败 | 上线前需切回 Alpine 或换镜像源 |
+| ~~Render 容器镜像 ~2.1GB~~ | ✅ 已优化 | 改 Alpine 多阶段 + 系统 Chromium：解压 ~1.0GB / 压缩 ~429MB（2026-05-27） |
+| ~~生产 render Dockerfile 用 bookworm + aliyun mirror~~ | ✅ 已解决 | 改 Alpine + apk aliyun 源（`ARG APK_MIRROR` 可覆盖海外） |
 | 飞书未设密码用户解绑 | 🟡 未测 | iter 23 时遗留 |
 | 渲染任务无重试 | 🔴 失败即终态 | 后续迭代加策略 |
 | 渲染输出 URL 可猜测 | 🔴 无 signed URL | 待加 HMAC-signed URL 防越权 |
@@ -584,7 +588,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 | ~~渲染 quota 与磁盘清理~~ | ✅ iter 31（user 日配额 + cron 清理过期输出；"计费"未做也未必需要） | `render.service.ts` + cleanup service |
 | ~~渲染任务历史~~ | ✅ 已实现 `/logs`（admin 看全部 / 用户看自己；含下载） | `RenderLogsView.vue` + `/render/jobs` |
 | ~~Admin 用户管理 CRUD~~ | ✅ 已完成（见下方 2026-05-26 近期变更）：列表/新建本地/改角色/重置密码/禁用启用 + 禁用降级即时生效 | `apps/api/src/users/` + `views/admin/UsersAdminView.vue` |
-| **生产 render Dockerfile 优化** | 改用多阶段 Alpine 或国内镜像，将镜像缩到 < 1GB | `docker/render.Dockerfile` |
+| ~~生产 render Dockerfile 优化~~ | ✅ 2026-05-27：多阶段 Alpine + 系统 Chromium + `pnpm deploy`，解压 ~1.0GB / 压缩 ~429MB | `docker/render.Dockerfile` |
 | **模板分享 / 公共模板库** | 模板支持公开 / 团队共享；公共模板复制到自己账号 | DB 加 `visibility` 字段 + 列表 view 增 tab |
 | **首次生产部署 / 验证** | 项目尚未部署过；需在类生产环境跑通 compose / CI deploy，验证迁移、worker、飞书回调 | `docker-compose` + `.github/workflows/deploy.yml` |
 
