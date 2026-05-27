@@ -143,6 +143,8 @@ export class PuppeteerPool {
       this.uses.delete(page);
       return; // 陌生 / 已被重建移除的页 → 丢弃,不污染 idle
     }
+    // recycle(下面 maxPageUses 分支)内部也会 delete，但那是异步路径；
+    // 此处 delete 是正常归还路径的单一权威，两者互不重叠。
     slot.inUse.delete(page);
     const n = (this.uses.get(page) ?? 0) + 1;
     this.uses.set(page, n);
@@ -188,17 +190,19 @@ export class PuppeteerPool {
       return;
     }
     const run = (async () => {
-      // 1. 清掉该 slot 的所有旧页(idleQueue + uses),防 acquire 发出死页
-      const old = new Set(slot.pages);
-      this.idleQueue = this.idleQueue.filter((p) => !old.has(p));
-      for (const p of slot.pages) this.uses.delete(p);
-      // 2. 关旧浏览器
+      // 同步清空 slot.pages：重建期间任何并发 release 旧页都会落入 stranger-drop（findSlotByPage→null），
+      // 不会把死页 re-dispatch 给 waiter。
+      const old = slot.pages;
+      slot.pages = [];
+      const oldSet = new Set(old);
+      this.idleQueue = this.idleQueue.filter((p) => !oldSet.has(p));
+      for (const p of old) this.uses.delete(p);
       try {
         await slot.browser.close();
       } catch {
         /* ignore */
       }
-      // 3. 退避重试 launch
+      // 2. 退避重试 launch
       let browser: Browser | null = null;
       for (let attempt = 0; attempt < RELAUNCH_RETRIES; attempt += 1) {
         try {
@@ -208,9 +212,10 @@ export class PuppeteerPool {
           await delay(this.relaunchBackoffMs * 2 ** attempt);
         }
       }
-      // 4. 最终失败 → reject 对应数量的 waiter,容量缩水但不挂死
+      // 3. 最终失败 → reject 对应数量的 waiter,容量缩水但不挂死
+      // reject 至多 pagesPerBrowser 个 FIFO waiter 是降级状态下的 fail-fast 近似；
+      // acquireTimeoutMs 是终极保底，确保不会有 waiter 永久挂死。
       if (!browser) {
-        slot.pages = [];
         slot.inUse = new Set();
         for (let i = 0; i < this.pagesPerBrowser; i += 1) {
           const w = this.waitQueue.shift();
@@ -218,7 +223,7 @@ export class PuppeteerPool {
         }
         return;
       }
-      // 5. 成功 → 重建页并 dispatch(逐个唤醒 waiter)
+      // 4. 成功 → 重建页并 dispatch(逐个唤醒 waiter)
       slot.browser = browser;
       await this.populateSlot(slot, browser);
     })();

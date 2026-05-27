@@ -181,7 +181,15 @@ describe('PuppeteerPool', () => {
     const pool = new PuppeteerPool({ browsers: 1, pagesPerBrowser: 1, launch: l.fn });
     await pool.warmup();
     const stranger = makeFakePage() as unknown as import('puppeteer').Page;
+    // 先持有真实页,保证池容量为 0(无空闲)
+    const real = await pool.acquire();
+    // 释放陌生页:不应抛错,也不应污染池
     expect(() => pool.release(stranger)).not.toThrow();
+    // 把真实页归还
+    pool.release(real);
+    // 再次 acquire 必须取回真实页,而非陌生页
+    const again = await pool.acquire();
+    expect(again).toBe(real);
     await pool.shutdown();
   });
 
