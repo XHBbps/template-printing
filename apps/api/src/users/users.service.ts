@@ -25,7 +25,7 @@ export interface ListArgs {
   search?: string;
   role?: 'user' | 'admin' | 'emergency_admin';
   status?: 'active' | 'disabled';
-  type?: 'lark' | 'local' | 'both';
+  type?: 'internal' | 'external';
 }
 
 @Injectable()
@@ -48,10 +48,20 @@ export class UsersService {
     if (args.role) where.role = args.role;
     if (args.status === 'active') where.disabledAt = null;
     if (args.status === 'disabled') where.disabledAt = { not: null };
-    if (args.type === 'lark') where.larkOpenId = { not: null };
-    if (args.type === 'local') where.localPasswordHash = { not: null };
-    if (args.type === 'both')
-      where.AND = [{ larkOpenId: { not: null } }, { localPasswordHash: { not: null } }];
+    if (args.type === 'internal') {
+      // Use AND accumulation so an existing search OR is not clobbered
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : where.AND != null ? [where.AND] : []),
+        { OR: [{ larkOpenId: { not: null } }, { role: 'emergency_admin' }] },
+      ];
+    }
+    if (args.type === 'external') {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : where.AND != null ? [where.AND] : []),
+        { larkOpenId: null },
+        { role: { not: 'emergency_admin' } },
+      ];
+    }
 
     const [rows, total, activeAdminCount] = await this.prisma.$transaction([
       this.prisma.user.findMany({

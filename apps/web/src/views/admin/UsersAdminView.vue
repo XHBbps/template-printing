@@ -67,9 +67,8 @@ const STATUS_OPTIONS = [
 ];
 const TYPE_OPTIONS = [
   { value: '', label: '全部' },
-  { value: 'lark', label: '飞书' },
-  { value: 'local', label: '本地' },
-  { value: 'both', label: '飞书+本地' },
+  { value: 'internal', label: '内部' },
+  { value: 'external', label: '外部' },
 ];
 
 async function refresh(): Promise<void> {

@@ -45,7 +45,7 @@ const ListQuery = z.object({
   search: z.string().trim().max(120).optional(),
   role: z.enum(['user', 'admin', 'emergency_admin']).optional(),
   status: z.enum(['active', 'disabled']).optional(),
-  type: z.enum(['lark', 'local', 'both']).optional(),
+  type: z.enum(['internal', 'external']).optional(),
 });
 
 @Controller('admin/users')
