@@ -13,7 +13,7 @@ const props = defineProps<{
 const align = computed(() => props.element.style.textAlign ?? props.element.style.align ?? 'left');
 const isJustify = computed(() => align.value === 'justify');
 const letterSpacing = computed(() => props.element.style.letterSpacing ?? 0);
-const underline = computed(() => props.element.style.textDecoration === 'underline');
+const decoration = computed(() => props.element.style.textDecoration);
 const text = computed(() => props.element.content.static);
 
 // 有字间距且非分散对齐时拆分:把"除最后一字外"的部分加字间距,最后一字不带尾部字距。
@@ -45,12 +45,16 @@ const containerStyle = computed(() => {
 // 文字 run:下划线 + 间距;justify 走真·分散对齐。
 const runStyle = computed(() => {
   const s: Record<string, string> = {};
-  if (underline.value) {
+  if (decoration.value === 'underline') {
     // 下划线用 border-bottom 渲染(text-decoration 无法超出文字范围):
     // 左右各 0.5em padding = 等量延长;底部 0.15em padding = 与文字的间距。
     // run 被容器居中 → 下划线左右对称延长。
     s.borderBottom = '1px solid currentColor';
     s.padding = '0 0.5em 0.15em';
+  } else if (decoration.value === 'overline' || decoration.value === 'line-through') {
+    // 上划线/删除线不需超出文字范围,沿用原生 text-decoration
+    //(containerStyle 已统一删除 textDecoration,故在此 run 上重新应用)。
+    s.textDecoration = decoration.value;
   }
   if (isJustify.value) {
     // 真·分散对齐:CJK 字符在框内等距铺满、首尾贴边 → 左右完全对称。
