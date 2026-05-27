@@ -35,7 +35,7 @@ import { UsersService } from './users.service.js';
 const CreateDto = z.object({
   localUsername: z.string().trim().min(3).max(64),
   name: z.string().trim().min(1).max(120),
-  role: z.enum(['user', 'admin']),
+  role: z.enum(['user', 'admin']).optional(), // accepted but ignored; local accounts are always 'user'
   email: z.string().email().optional(),
 });
 
@@ -70,7 +70,8 @@ export class UsersController {
   async create(@CurrentUser() me: JwtClaims, @Body() rawBody: unknown, @Req() req: Request) {
     const parsed = CreateDto.safeParse(rawBody);
     if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
-    const result = await this.svc.createLocal(parsed.data);
+    const { localUsername, name, email } = parsed.data;
+    const result = await this.svc.createLocal({ localUsername, name, email });
     void this.audit.log({
       actor: { id: me.sub, name: null },
       action: 'user.create',

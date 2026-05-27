@@ -17,9 +17,23 @@ describe('POST /admin/users', () => {
   let cookies: string[];
   let csrf: string;
 
+  const createLocalUser = async (body: Record<string, unknown>) => {
+    const res = await request(app.getHttpServer())
+      .post('/admin/users')
+      .set('Cookie', cookies)
+      .set('X-CSRF-Token', csrf)
+      .send(body)
+      .expect(201);
+    return res.body as { plaintext: string; user: Record<string, unknown> };
+  };
+
   beforeAll(async () => {
     await prisma.user.deleteMany({
-      where: { localUsername: { in: [ADMIN, 'e2e_created_1', 'e2e_dup_1'] } },
+      where: {
+        localUsername: {
+          in: [ADMIN, 'e2e_created_1', 'e2e_dup_1', 'ext_a', 'ext_b', 'ext_c'],
+        },
+      },
     });
     await prisma.user.create({
       data: {
@@ -41,7 +55,11 @@ describe('POST /admin/users', () => {
   });
   afterAll(async () => {
     await prisma.user.deleteMany({
-      where: { localUsername: { in: [ADMIN, 'e2e_created_1', 'e2e_dup_1'] } },
+      where: {
+        localUsername: {
+          in: [ADMIN, 'e2e_created_1', 'e2e_dup_1', 'ext_a', 'ext_b', 'ext_c'],
+        },
+      },
     });
     await prisma.$disconnect();
     await app.close();
@@ -70,5 +88,17 @@ describe('POST /admin/users', () => {
       .set('X-CSRF-Token', csrf)
       .send({ localUsername: 'e2e_dup_1', name: 'x', role: 'user' })
       .expect(409);
+  });
+
+  it('外部建号分配递增 externalCode 且强制 role=user', async () => {
+    const a = await createLocalUser({ localUsername: 'ext_a', name: 'A', role: 'user' });
+    const b = await createLocalUser({ localUsername: 'ext_b', name: 'B', role: 'user' });
+    expect(a.user.externalCode).toMatch(/^W\d{8}$/);
+    expect(b.user.externalCode).toMatch(/^W\d{8}$/);
+    expect(Number((b.user.externalCode as string).slice(1))).toBe(
+      Number((a.user.externalCode as string).slice(1)) + 1,
+    );
+    const c = await createLocalUser({ localUsername: 'ext_c', name: 'C', role: 'admin' });
+    expect(c.user.role).toBe('user');
   });
 });

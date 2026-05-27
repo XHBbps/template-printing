@@ -175,12 +175,7 @@ export class UsersService {
     return { plaintext };
   }
 
-  async createLocal(input: {
-    localUsername: string;
-    name: string;
-    role: 'user' | 'admin';
-    email?: string;
-  }) {
+  async createLocal(input: { localUsername: string; name: string; email?: string }) {
     const exists = await this.prisma.user.findUnique({
       where: { localUsername: input.localUsername },
       select: { id: true },
@@ -188,16 +183,33 @@ export class UsersService {
     if (exists) throw new ConflictException('username_taken');
     const plaintext = randomBytes(9).toString('base64url'); // ~12 chars
     try {
-      const user = await this.prisma.user.create({
-        data: {
-          localUsername: input.localUsername,
-          name: input.name,
-          email: input.email ?? null,
-          role: input.role,
-          localPasswordHash: await bcrypt.hash(plaintext, 12),
-          mustChangePassword: true,
-        },
-        select: { id: true, localUsername: true, name: true, role: true, email: true },
+      const user = await this.prisma.$transaction(async (tx) => {
+        // 使用 advisory lock 避免并发时 MAX 聚合与 FOR UPDATE 冲突
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(1234567890)`;
+        const rows = await tx.$queryRaw<Array<{ max: number | null }>>`
+          SELECT MAX(CAST(SUBSTRING(external_code FROM 2) AS INTEGER)) AS max
+          FROM users WHERE external_code LIKE 'W%'`;
+        const next = (rows[0]?.max ?? 0) + 1;
+        const externalCode = `W${String(next).padStart(8, '0')}`;
+        return tx.user.create({
+          data: {
+            localUsername: input.localUsername,
+            name: input.name,
+            email: input.email ?? null,
+            role: 'user',
+            externalCode,
+            localPasswordHash: await bcrypt.hash(plaintext, 12),
+            mustChangePassword: true,
+          },
+          select: {
+            id: true,
+            localUsername: true,
+            name: true,
+            role: true,
+            email: true,
+            externalCode: true,
+          },
+        });
       });
       return { plaintext, user };
     } catch (e) {
