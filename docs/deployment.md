@@ -62,6 +62,34 @@ vi .env.prod   # 填入实际值（密钥、域名等）
 - 容器状态：`docker compose -f docker-compose.prod.yml ps`
 - 健康检查：`curl https://your-domain.com/api/healthz`
 
+## 渲染健壮性与并发（大批量）
+
+渲染 worker 采用双层防御:worker 进程内实时回收(坏页/坏浏览器)+ API 侧 cron 兜底(worker 被 kill 时复位僵尸任务)。相关 env(见 `.env.example`):
+
+| Env | 默认 | 说明 |
+|---|---|---|
+| `RENDER_BROWSERS` × `RENDER_PAGES_PER_BROWSER` | 2×2=4 | **并发渲染数**。按容器内存上限设:单 Chromium 实例约数百 MB,`deviceScaleFactor=2` 的大幅面 PNG 内存翻倍。内存吃紧先降并发或降 scale。 |
+| `RENDER_JOB_TIMEOUT_MS` | 60000 | 单 job 渲染硬超时,超时即失败并回收该页(释放池槽)。 |
+| `RENDER_ACQUIRE_TIMEOUT_MS` | 30000 | 取空闲页的等待超时;取不到即失败重试,防挂死。 |
+| `RENDER_LOCK_DURATION_MS` | 120000 | bullmq 任务锁时长。**不变量:必须 ≥ `RENDER_ACQUIRE_TIMEOUT_MS + RENDER_JOB_TIMEOUT_MS + 余量`**;否则跑超锁的 job 会被判 stalled 重复派发(双倍内存 + 重复产物)。改任一超时须同步保证此式。 |
+| `RENDER_PAGE_MAX_USES` | 200 | 单页服务 N 次后主动回收,防长批量 Chromium 内存蠕变。 |
+| `RENDER_STUCK_TIMEOUT_MIN` | 10 | `processing` 超 N 分钟由对账 cron(每 5 分钟)标 `stuck_timeout` 失败并补发回调。须 > bullmq 重试窗口,避免误杀重试中的 job。 |
+| `RENDER_DEVICE_SCALE_FACTOR` | 2 | PNG 渲染倍率。**画质/体积 vs 内存取舍,非无损**:降为 1 省内存但输出分辨率/清晰度下降。 |
+
+注意事项:
+- **跨进程一致性**:worker 与 API 的文件签名 HMAC secret env 必须一致 —— 否则 signed URL 与对账 cron 补发回调的链路验签失败。
+- **Chromium 省内存**:已默认带 `--disable-dev-shm-usage`、`--disable-extensions`;`--js-flags=--max-old-space-size` **谨慎可选**(截图 OOM 主因是光栅/GPU 缓冲,不在 V8 堆,限 old-space 压不住、反而可能让重模板提前 JS OOM),真正有效的是降并发 / 降 `deviceScaleFactor`。
+- 对账 cron **只标失败 + 补发通知,不自动重排**(渲染非幂等),调用方按需重试。
+
+## 本地开发端口约定
+
+`docker-compose.dev.yml` 为了避开 Windows 常见保留端口段，将基础服务映射到非默认宿主机端口：
+
+- Postgres：容器内 `postgres:5432`，宿主机 `localhost:6432`
+- Redis：容器内 `redis:6379`，宿主机 `localhost:6479`
+
+Compose 内部的 `api` / `render` 仍使用容器内地址；只有在宿主机直接运行迁移、测试或本地服务时才使用 `.env` 中的 `localhost:*` 地址。
+
 ## SSL 证书续期
 
 添加到 crontab：
