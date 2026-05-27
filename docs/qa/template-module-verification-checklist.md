@@ -37,8 +37,7 @@
 | `/templates/:id` | DELETE | 删除 |
 | `/uploads/image` | POST | 图片上传 |
 | `/users/me` | GET | 当前用户信息 |
-| `/users/me/password` | PATCH | 修改密码 |
-| `/users/me/lark-binding` | DELETE | 解绑飞书 |
+| `/users/me/password` | PATCH | 修改密码（仅改密，需当前密码）|
 
 ### 1.4 数据库
 
@@ -75,12 +74,12 @@
 - [ ] 退出后刷新页面 → 仍在 `/login`（auth 不残留）
 - [ ] 点飞书 SSO → 跳 lark passport → 取消返回 → 应停留在 `/login`（**iter 20 bug 1 修复**）
 
-### 2.3 个人中心（iter 18）
+### 2.3 个人中心（iter 18；账号双类型重构后）
 
-- [ ] 进 `/me` 看到三个卡片：账号信息 / 登录密码 / 飞书绑定
-- [ ] 修改密码 dialog 工作正常（输入旧 + 新两次 → 提示成功）
-- [ ] 飞书绑定状态正确显示（emergency admin 是「未绑定」）
-- [ ] 未设密码用户点解绑 → 阻止 + 提示先设密码
+- [ ] **内部账号**（飞书 SSO）：用户名/手机号/邮箱只读（随飞书同步），唯一ID 显示工号（larkUserId），**无密码区、无解绑入口**
+- [ ] **外部账号**（本地）：用户名（name）+ 邮箱可编辑，显示只读「登录账号」(localUsername) 与唯一ID(externalCode `W…`)，有「修改密码」
+- [ ] 超级管理员（emergency_admin）：资料只读，但有「修改密码」
+- [ ] 修改密码 dialog 工作正常（输入当前 + 新两次 → 提示成功）
 
 ### 2.4 模板中心 — 列表态（iter 20）
 

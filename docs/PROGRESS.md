@@ -319,6 +319,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-27
 
+- **feat：账号内部/外部双类型 + 身份展示 + 权限强制** —— 账号收敛为两类互斥(飞书SSO=内部 / 本地账号密码=外部,初始账号=内部超管);`isInternal` 纯派生(`larkOpenId != null || role==='emergency_admin'`,无新增分类列)。User 加 `mobile`(飞书登录同步)、`externalCode`(外部建号分配 `W`+8位、事务 advisory-lock max+1)两可空列(additive 迁移)。个人中心按类型展示:内部(SSO)用户名/手机/邮箱只读、唯一ID=工号,无密码区/无解绑;外部用户名(name)+邮箱可编辑、显示只读登录账号(localUsername)与唯一ID(externalCode),有改密。权限:外部禁签发 API token(`ApiTokenService` 403 + `ApiAuthGuard` 兜底)、禁被授权 admin(`changeRole` 403 `external_cannot_be_admin`);公共可见性仍仅 admin(create/update 不可设 public,已加回归测试)。"应急管理员"更名「超级管理员」(仅展示、不可经 UI 分配,外部账号禁选「管理员」);用户列表/类型筛选改为内部/外部。移除会死锁的「解绑飞书」(`DELETE /me/lark-binding` + 前端 UI),`setPassword` 改为仅改密(去 `local_username_required` 死分支)。
 - **chore：移除模板中心失效的「分类筛选」下拉** —— `TemplatesView` 的 `categoryFilter` 下拉是从未接通的死 UI(值从不被读取、`fetchSlice` 仅传 search/sort,模板亦无 category 字段,选项为写死猜测值)。删除 `categoryFilter` ref + `<select>`。如未来需要真正的分类,应做完整版(可查询的分类列/标签 + 设计器写入 + 服务端 where 过滤),而非保留占位。
 - **feat：字段缺省值默认改空 + 属性面板可编辑(通用)** —— 字段(field)的「缺省值 `fallback`」默认值由 `—` 改为空字符串(`packages/schema` + `elementFactory`),真实输出(预览/打印/渲染,`FieldElement` `designMode=false`)空数据时不再显示横线 `—`、改为留空;设计器画布(`designMode=true`)仍显示 `{{ binding }}` 占位。属性面板新增 field「缺省值」输入框(`setFallback`),可清空旧模板里残留的 `—` 或填自定义占位(如 N/A)。schema 补默认值断言测试。系统其他位置(模板列表/飞书卡片)的 `—` 占位不在此次范围。
 - **fix：上划线/删除线恢复 + 上传图片 dev 显示(通用)** —— ① 上一轮把下划线改 `border-bottom` 时,`TextElement` 的 `containerStyle` 统一 `delete textDecoration`,而 `runStyle` 只对 `underline` 补回 → `overline`/`line-through` 丢失。`runStyle` 改为按 `textDecoration` 分支:`underline` 仍走 border-bottom(需延长+间距),`overline`/`line-through` 重新用原生 `text-decoration`。② 上传图片回显"图片加载失败":上传产物 URL 为 `/uploads/<file>`,生产由 API `ServeStaticModule` 同源服务,但 dev 下 Vite 只代理 `/api/` → `/uploads/*` 落到 SPA fallback 返回 HTML。`vite.config.ts` proxy 增加 `/uploads/` 转发到 API(不 rewrite),使 dev 与生产一致(改 vite 配置需重启 web dev server 生效)。两者通用、不改后端/模板数据。
@@ -575,7 +576,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 |---|---|---|
 | ~~Render 容器镜像 ~2.1GB~~ | ✅ 已优化 | 改 Alpine 多阶段 + 系统 Chromium：解压 ~1.0GB / 压缩 ~429MB（2026-05-27） |
 | ~~生产 render Dockerfile 用 bookworm + aliyun mirror~~ | ✅ 已解决 | 改 Alpine + apk aliyun 源（`ARG APK_MIRROR` 可覆盖海外） |
-| 飞书未设密码用户解绑 | 🟡 未测 | iter 23 时遗留 |
+| ~~飞书未设密码用户解绑~~ | ✅ 已解决 | 2026-05-27 账号双类型重构:SSO=内部不再设本地密码,「解绑」语义消失、入口移除,死锁消除 |
 | ~~渲染任务无重试~~ | ✅ 已解决 | iter 31：bullmq `attempts:3` + 指数退避 + 永久错误 `UnrecoverableError` |
 | ~~渲染输出 URL 可猜测~~ | ✅ 已解决 | iter 31：HMAC signed URL + 过期（`FileSigService` / `/uploads/render/*`） |
 | ~~Admin 用户管理后台仅占位~~ | ✅ 已解决 | 2026-05-26：列表/新建本地/改角色/重置密码/禁用启用 + 降级即时生效 |
