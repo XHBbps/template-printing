@@ -46,8 +46,11 @@ const containerStyle = computed(() => {
 const runStyle = computed(() => {
   const s: Record<string, string> = {};
   if (underline.value) {
-    s.textDecoration = 'underline';
-    s.textUnderlineOffset = '0.15em'; // 下划线与字体留一点间距
+    // 下划线用 border-bottom 渲染(text-decoration 无法超出文字范围):
+    // 左右各 0.5em padding = 等量延长;底部 0.15em padding = 与文字的间距。
+    // run 被容器居中 → 下划线左右对称延长。
+    s.borderBottom = '1px solid currentColor';
+    s.padding = '0 0.5em 0.15em';
   }
   if (isJustify.value) {
     // 真·分散对齐:CJK 字符在框内等距铺满、首尾贴边 → 左右完全对称。
