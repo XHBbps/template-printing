@@ -5,9 +5,13 @@ import * as path from 'path';
 import { Injectable, Logger } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { Cron, CronExpression } from '@nestjs/schedule';
+// eslint-disable-next-line import/no-unresolved
+import { fetch } from 'undici';
 
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { FileSigService } from '../uploads/file-sig.service.js';
 
 const STORAGE_ROOT = process.env.STORAGE_ROOT ?? '/storage';
 const RENDER_DIR = path.join(STORAGE_ROOT, 'render');
@@ -25,7 +29,10 @@ const RENDER_DIR = path.join(STORAGE_ROOT, 'render');
 export class RenderCleanupService {
   private readonly log = new Logger(RenderCleanupService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fileSig: FileSigService,
+  ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async cleanupOldOutputs(): Promise<void> {
@@ -77,5 +84,61 @@ export class RenderCleanupService {
     this.log.log(
       `cleanup done: ${oldJobs.length} jobs marked cleaned, ${deletedFiles} files removed (cutoff: ${cutoff.toISOString()})`,
     );
+  }
+
+  /**
+   * iter 32 T4：僵尸 processing job 对账。
+   *
+   * 每 5 分钟扫一次：找所有 status='processing' 且 startedAt < cutoff 的行，
+   * 标记为 failed / stuck_timeout 并 best-effort 补发 webhook 回调。
+   * 阈值默认 10 min（RENDER_STUCK_TIMEOUT_MIN），远大于 bullmq 重试窗口，
+   * 不会误触正在合法重试中的 job（worker 每次 markProcessing 会刷 startedAt）。
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async reconcileStuckJobs(): Promise<void> {
+    const min = Number(process.env.RENDER_STUCK_TIMEOUT_MIN ?? 10);
+    if (!Number.isFinite(min) || min <= 0) return;
+    const cutoff = new Date(Date.now() - min * 60_000);
+    const stuck = await this.prisma.renderJob.findMany({
+      where: { status: 'processing', startedAt: { lt: cutoff } },
+      select: { id: true, callbackUrl: true },
+    });
+    if (stuck.length === 0) return;
+    this.log.warn(`reconcile: ${stuck.length} stuck job(s) → failed`);
+    for (const job of stuck) {
+      await this.prisma.renderJob.update({
+        where: { id: job.id },
+        data: { status: 'failed', errorMsg: 'stuck_timeout', completedAt: new Date() },
+      });
+      await this.sendStuckCallback(job.id, job.callbackUrl);
+    }
+  }
+
+  /** 与 worker webhook.ts 对齐：payload 形状 + callbackStatus + 10s 超时。 */
+  private async sendStuckCallback(jobId: string, callbackUrl: string | null): Promise<void> {
+    if (!callbackUrl) return;
+    const payload = {
+      jobId,
+      status: 'failed',
+      pdfUrl: this.fileSig.signUrl(null),
+      pngUrl: this.fileSig.signUrl(null),
+      errorMsg: 'stuck_timeout',
+    };
+    try {
+      const res = await fetch(callbackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10_000),
+      });
+      await this.prisma.renderJob.update({
+        where: { id: jobId },
+        data: { callbackStatus: res.ok ? 'sent' : 'failed' },
+      });
+    } catch {
+      await this.prisma.renderJob
+        .update({ where: { id: jobId }, data: { callbackStatus: 'failed' } })
+        .catch(() => {});
+    }
   }
 }
