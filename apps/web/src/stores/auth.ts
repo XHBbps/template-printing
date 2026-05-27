@@ -12,6 +12,10 @@ export interface AuthUser {
   mustChangePassword: boolean;
   larkUserId?: string | null;
   hasLocalPassword?: boolean;
+  localUsername?: string | null;
+  mobile?: string | null;
+  externalCode?: string | null;
+  isInternal?: boolean;
 }
 
 interface MeResponse {
