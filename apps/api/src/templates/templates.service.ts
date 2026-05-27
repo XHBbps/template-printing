@@ -59,6 +59,7 @@ export class TemplatesService {
           updatedAt: true,
           publishedVersion: true,
           hasUnpublishedChanges: true,
+          visibility: true,
         },
       }),
       this.prisma.template.count({ where }),

@@ -10,6 +10,7 @@ import {
   Trash2,
   LayoutGrid,
   List as ListIcon,
+  Globe,
 } from 'lucide-vue-next';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -20,11 +21,23 @@ import DesignerHeader from '../designer/DesignerHeader.vue';
 import VersionDialog from '../designer/VersionDialog.vue';
 import { apiFetch } from '../lib/api';
 import { defaultTemplate } from '../stores/designer';
-import { useTemplatesStore, type TemplateListItem } from '../stores/templates';
+import {
+  useTemplatesStore,
+  type TemplateListItem,
+  type PublicTemplateListItem,
+} from '../stores/templates';
+import { useAuthStore } from '../stores/auth';
 import DesignerView from './DesignerView.vue';
 import TemplateThumb from './TemplateThumb.vue';
 
 const templates = useTemplatesStore();
+const auth = useAuthStore();
+const isAdmin = computed(
+  () => auth.user?.role === 'admin' || auth.user?.role === 'emergency_admin',
+);
+const activeTab = ref<'mine' | 'public'>('mine');
+const publicItems = ref<PublicTemplateListItem[]>([]);
+const publicLoading = ref(false);
 const route = useRoute();
 const router = useRouter();
 
@@ -160,13 +173,66 @@ async function refreshAfterMutation(): Promise<void> {
   await refreshRecentId();
 }
 
+async function loadPublic(): Promise<void> {
+  publicLoading.value = true;
+  try {
+    const res = await templates.fetchPublicSlice({
+      offset: 0,
+      limit: 100,
+      search: searchQuery.value,
+      sort: sortBy.value === 'created' ? 'updated' : sortBy.value,
+    });
+    publicItems.value = res.items;
+  } finally {
+    publicLoading.value = false;
+  }
+}
+
+async function copyPublic(t: PublicTemplateListItem): Promise<void> {
+  try {
+    const created = await templates.copyFromPublic(t.id);
+    ElMessage.success(`已复制到「我的模板」:${created.name}`);
+    activeTab.value = 'mine';
+    await reloadActive();
+  } catch {
+    ElMessage.error('复制失败');
+  }
+}
+
+async function toggleVisibility(t: TemplateListItem): Promise<void> {
+  if (t.publishedVersion == null) {
+    ElMessage.warning('请先发布该模板，才能设为公开');
+    return;
+  }
+  const makePublic = t.visibility !== 'public';
+  try {
+    await templates.setVisibility(t.id, makePublic ? 'public' : 'private');
+    ElMessage.success(makePublic ? '已设为公开' : '已取消公开');
+    await refreshAfterMutation();
+  } catch {
+    ElMessage.error('操作失败');
+  }
+}
+
+function switchTab(tab: 'mine' | 'public'): void {
+  activeTab.value = tab;
+  if (tab === 'public') void loadPublic();
+  else void reloadActive();
+}
+
 // 搜索防抖 → 重拉当前视图
 let searchTimer: number | null = null;
 watch(searchQuery, () => {
   if (searchTimer) window.clearTimeout(searchTimer);
-  searchTimer = window.setTimeout(() => void reloadActive(), 350);
+  searchTimer = window.setTimeout(() => {
+    if (activeTab.value === 'public') void loadPublic();
+    else void reloadActive();
+  }, 350);
 });
-watch(sortBy, () => void reloadActive());
+watch(sortBy, () => {
+  if (activeTab.value === 'public') void loadPublic();
+  else void reloadActive();
+});
 watch(viewMode, () => void reloadActive());
 
 // Wrap mode transitions with View Transitions API.
@@ -343,6 +409,23 @@ const countLabel = computed(() => {
 
       <div class="page-body">
         <div class="tv-inner">
+          <div class="tv-tabs">
+            <button
+              type="button"
+              :class="{ active: activeTab === 'mine' }"
+              @click="switchTab('mine')"
+            >
+              我的模板
+            </button>
+            <button
+              type="button"
+              :class="{ active: activeTab === 'public' }"
+              @click="switchTab('public')"
+            >
+              <Globe :size="13" :stroke-width="1.6" /> 公共模板库
+            </button>
+          </div>
+
           <!-- 工具栏 -->
           <div class="toolbar">
             <div class="search">
@@ -385,88 +468,36 @@ const countLabel = computed(() => {
             </div>
           </div>
 
-          <!-- 计数行 -->
-          <div class="count-row">
-            <span class="han">{{ searchQuery ? '搜索结果' : '全部模板' }}</span>
-            <span class="num">{{ countLabel }}</span>
-            <span class="rule"></span>
-          </div>
-
-          <!-- 加载态 -->
-          <div v-if="templates.loading" class="empty-line">加载中…</div>
-
-          <!-- 网格视图：新建卡在第一排第一个（仅第 1 页），其余为当前页模板 -->
-          <div v-else-if="viewMode === 'grid'" class="tpl-grid">
-            <div v-if="gridPage === 1" class="tpl new" @click="createNew">
-              <span class="plus">
-                <Plus :size="16" :stroke-width="1.8" />
-              </span>
-              <span class="label">新建模板</span>
-              <span class="hint">A4 · A5 · 标签纸</span>
+          <template v-if="activeTab === 'mine'">
+            <!-- 计数行 -->
+            <div class="count-row">
+              <span class="han">{{ searchQuery ? '搜索结果' : '全部模板' }}</span>
+              <span class="num">{{ countLabel }}</span>
+              <span class="rule"></span>
             </div>
 
-            <div
-              v-for="t in gridItems"
-              :key="t.id"
-              class="tpl"
-              :class="{ recent: t.id === recentId }"
-              :style="{ viewTransitionName: `tpl-card-${t.id}` }"
-              @click="openTemplate(t.id)"
-            >
-              <div class="tpl-thumb">
-                <span class="stamp">{{ paperLabel() }}</span>
-                <TemplateThumb
-                  v-if="t.publishedVersion != null"
-                  :template-id="t.id"
-                  :version="t.publishedVersion"
-                />
-              </div>
-              <div class="tpl-actions">
-                <button type="button" title="复制" @click.stop="duplicateTemplate(t)">
-                  <Copy :size="12" :stroke-width="1.8" />
-                </button>
-                <button type="button" title="重命名" @click.stop="renameTemplate(t)">
-                  <Pencil :size="12" :stroke-width="1.8" />
-                </button>
-                <button
-                  type="button"
-                  class="danger"
-                  title="删除"
-                  @click.stop="deleteTemplate(t.id, t.name)"
-                >
-                  <Trash2 :size="12" :stroke-width="1.8" />
-                </button>
-              </div>
-              <div class="tpl-body">
-                <span class="name">{{ t.name }}</span>
-                <span class="meta">
-                  <span>{{ formatDate(t.updatedAt) }}</span>
-                  <span class="sep">·</span>
-                  <span>{{ versionLabel(t) }}</span>
-                </span>
-              </div>
-            </div>
-          </div>
+            <!-- 加载态 -->
+            <div v-if="templates.loading" class="empty-line">加载中…</div>
 
-          <!-- 列表视图：无限滚动，新建卡固定第一个，滚到底自动加载下一批 -->
-          <div v-else class="tpl-list">
-            <ElScrollbar ref="listScrollRef" max-height="660px" @scroll="onListScroll">
-              <div class="tpl-row tpl-row--new" @click="createNew">
+            <!-- 网格视图：新建卡在第一排第一个（仅第 1 页），其余为当前页模板 -->
+            <div v-else-if="viewMode === 'grid'" class="tpl-grid">
+              <div v-if="gridPage === 1" class="tpl new" @click="createNew">
                 <span class="plus">
-                  <Plus :size="14" :stroke-width="1.8" />
+                  <Plus :size="16" :stroke-width="1.8" />
                 </span>
                 <span class="label">新建模板</span>
                 <span class="hint">A4 · A5 · 标签纸</span>
               </div>
 
               <div
-                v-for="t in listItems"
+                v-for="t in gridItems"
                 :key="t.id"
-                class="tpl-row"
+                class="tpl"
                 :class="{ recent: t.id === recentId }"
+                :style="{ viewTransitionName: `tpl-card-${t.id}` }"
                 @click="openTemplate(t.id)"
               >
-                <div class="row-thumb">
+                <div class="tpl-thumb">
                   <span class="stamp">{{ paperLabel() }}</span>
                   <TemplateThumb
                     v-if="t.publishedVersion != null"
@@ -474,19 +505,15 @@ const countLabel = computed(() => {
                     :version="t.publishedVersion"
                   />
                 </div>
-                <div class="row-meta">
-                  <div class="name">{{ t.name }}</div>
-                  <div class="meta">
-                    <span>{{ formatDate(t.updatedAt) }}</span>
-                    <span class="sep">·</span>
-                    <span>{{ versionLabel(t) }}</span>
-                    <template v-if="t.id === recentId">
-                      <span class="sep">·</span>
-                      <span class="recent-text">最近编辑</span>
-                    </template>
-                  </div>
-                </div>
-                <div class="row-actions">
+                <div class="tpl-actions">
+                  <button
+                    v-if="isAdmin"
+                    type="button"
+                    :title="t.visibility === 'public' ? '取消公开' : '设为公开'"
+                    @click.stop="toggleVisibility(t)"
+                  >
+                    <Globe :size="12" :stroke-width="1.8" />
+                  </button>
                   <button type="button" title="复制" @click.stop="duplicateTemplate(t)">
                     <Copy :size="12" :stroke-width="1.8" />
                   </button>
@@ -502,23 +529,125 @@ const countLabel = computed(() => {
                     <Trash2 :size="12" :stroke-width="1.8" />
                   </button>
                 </div>
+                <div class="tpl-body">
+                  <span class="name">{{ t.name }}</span>
+                  <span class="meta">
+                    <span>{{ formatDate(t.updatedAt) }}</span>
+                    <span class="sep">·</span>
+                    <span>{{ versionLabel(t) }}</span>
+                  </span>
+                </div>
               </div>
+            </div>
 
-              <div v-if="listLoadingMore" class="list-more-line">加载中…</div>
-              <div v-else-if="!listHasMore && listItems.length > 0" class="list-more-line">
-                已到底 · 共 {{ total }} 个
+            <!-- 列表视图：无限滚动，新建卡固定第一个，滚到底自动加载下一批 -->
+            <div v-else class="tpl-list">
+              <ElScrollbar ref="listScrollRef" max-height="660px" @scroll="onListScroll">
+                <div class="tpl-row tpl-row--new" @click="createNew">
+                  <span class="plus">
+                    <Plus :size="14" :stroke-width="1.8" />
+                  </span>
+                  <span class="label">新建模板</span>
+                  <span class="hint">A4 · A5 · 标签纸</span>
+                </div>
+
+                <div
+                  v-for="t in listItems"
+                  :key="t.id"
+                  class="tpl-row"
+                  :class="{ recent: t.id === recentId }"
+                  @click="openTemplate(t.id)"
+                >
+                  <div class="row-thumb">
+                    <span class="stamp">{{ paperLabel() }}</span>
+                    <TemplateThumb
+                      v-if="t.publishedVersion != null"
+                      :template-id="t.id"
+                      :version="t.publishedVersion"
+                    />
+                  </div>
+                  <div class="row-meta">
+                    <div class="name">{{ t.name }}</div>
+                    <div class="meta">
+                      <span>{{ formatDate(t.updatedAt) }}</span>
+                      <span class="sep">·</span>
+                      <span>{{ versionLabel(t) }}</span>
+                      <template v-if="t.id === recentId">
+                        <span class="sep">·</span>
+                        <span class="recent-text">最近编辑</span>
+                      </template>
+                    </div>
+                  </div>
+                  <div class="row-actions">
+                    <button
+                      v-if="isAdmin"
+                      type="button"
+                      :title="t.visibility === 'public' ? '取消公开' : '设为公开'"
+                      @click.stop="toggleVisibility(t)"
+                    >
+                      <Globe :size="12" :stroke-width="1.8" />
+                    </button>
+                    <button type="button" title="复制" @click.stop="duplicateTemplate(t)">
+                      <Copy :size="12" :stroke-width="1.8" />
+                    </button>
+                    <button type="button" title="重命名" @click.stop="renameTemplate(t)">
+                      <Pencil :size="12" :stroke-width="1.8" />
+                    </button>
+                    <button
+                      type="button"
+                      class="danger"
+                      title="删除"
+                      @click.stop="deleteTemplate(t.id, t.name)"
+                    >
+                      <Trash2 :size="12" :stroke-width="1.8" />
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="listLoadingMore" class="list-more-line">加载中…</div>
+                <div v-else-if="!listHasMore && listItems.length > 0" class="list-more-line">
+                  已到底 · 共 {{ total }} 个
+                </div>
+              </ElScrollbar>
+            </div>
+
+            <!-- 分页：仅网格视图（列表为无限滚动） -->
+            <div v-if="viewMode === 'grid' && !templates.loading" class="tv-pagination">
+              <BrandPagination
+                :current-page="gridPage"
+                :total="total"
+                :page-count="gridPageCount"
+                @update:current-page="onGridPageChange"
+              />
+            </div>
+          </template>
+
+          <div v-if="activeTab === 'public'" class="tpl-public">
+            <div v-if="publicLoading" class="empty-line">加载中…</div>
+            <div v-else-if="publicItems.length === 0" class="empty-line">公共模板库暂无内容</div>
+            <div v-else class="tpl-grid">
+              <div v-for="t in publicItems" :key="t.id" class="tpl tpl--public">
+                <div class="tpl-thumb">
+                  <span class="stamp">{{ paperLabel() }}</span>
+                  <TemplateThumb
+                    v-if="t.publishedVersion != null"
+                    :template-id="t.id"
+                    :version="t.publishedVersion"
+                  />
+                </div>
+                <div class="tpl-body">
+                  <span class="name">{{ t.name }}</span>
+                  <span class="meta">
+                    <span>作者 {{ t.ownerName }}</span>
+                    <span class="sep">·</span>
+                    <span>v{{ t.publishedVersion }}</span>
+                  </span>
+                  <button type="button" class="btn btn-primary sm copy-btn" @click="copyPublic(t)">
+                    复制到我的
+                  </button>
+                </div>
               </div>
-            </ElScrollbar>
-          </div>
-
-          <!-- 分页：仅网格视图（列表为无限滚动） -->
-          <div v-if="viewMode === 'grid' && !templates.loading" class="tv-pagination">
-            <BrandPagination
-              :current-page="gridPage"
-              :total="total"
-              :page-count="gridPageCount"
-              @update:current-page="onGridPageChange"
-            />
+            </div>
           </div>
         </div>
       </div>
@@ -605,6 +734,36 @@ const countLabel = computed(() => {
 .tv-inner {
   max-width: 1600px;
   margin: 0 auto;
+}
+
+/* ============ Tab bar ============ */
+.tv-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--stone);
+}
+.tv-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 8px 14px;
+  font-family: var(--font-han);
+  font-size: 13.5px;
+  color: var(--fg-3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tv-tabs button.active {
+  color: var(--yangli-red);
+  border-bottom-color: var(--yangli-red);
+}
+.tpl--public .copy-btn {
+  margin-top: 8px;
+  width: 100%;
 }
 
 /* ============ Toolbar ============ */

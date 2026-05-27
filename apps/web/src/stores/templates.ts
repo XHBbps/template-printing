@@ -11,6 +11,16 @@ export interface TemplateListItem {
   updatedAt: string;
   publishedVersion: number | null;
   hasUnpublishedChanges: boolean;
+  visibility: string;
+}
+
+export interface PublicTemplateListItem {
+  id: string;
+  name: string;
+  description: string | null;
+  ownerName: string;
+  publishedVersion: number | null;
+  updatedAt: string;
 }
 
 export interface TemplateSliceParams {
@@ -65,6 +75,33 @@ export const useTemplatesStore = defineStore('templates', {
     },
     async remove(id: string): Promise<void> {
       await apiFetch<{ ok: true }>(`/templates/${id}`, { method: 'DELETE' });
+    },
+    async fetchPublicSlice(params: {
+      offset: number;
+      limit: number;
+      search: string;
+      sort: 'updated' | 'name' | 'created';
+    }): Promise<{ items: PublicTemplateListItem[]; total: number }> {
+      const qs = new URLSearchParams({
+        offset: String(params.offset),
+        limit: String(params.limit),
+        sort: params.sort,
+      });
+      const search = params.search.trim();
+      if (search) qs.set('search', search);
+      const res = await apiFetch<{ items: PublicTemplateListItem[]; total: number }>(
+        `/templates/public?${qs.toString()}`,
+      );
+      return { items: res.items, total: res.total };
+    },
+    async copyFromPublic(id: string): Promise<{ id: string; name: string }> {
+      return apiFetch<{ id: string; name: string }>(`/templates/${id}/copy`, { method: 'POST' });
+    },
+    async setVisibility(id: string, visibility: 'private' | 'public'): Promise<void> {
+      await apiFetch<{ id: string; visibility: string }>(`/templates/${id}/visibility`, {
+        method: 'PATCH',
+        body: JSON.stringify({ visibility }),
+      });
     },
   },
 });
