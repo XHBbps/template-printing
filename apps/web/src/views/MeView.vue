@@ -158,6 +158,18 @@ async function submitPassword(): Promise<void> {
               <span class="meta">PROFILE</span>
             </div>
             <div class="card-body">
+              <!-- 账号 · ID（唯一标识，置顶） -->
+              <div class="row">
+                <span class="k">账号 · ID</span>
+                <span class="v muted">
+                  <code class="muted-id">{{
+                    isInternal()
+                      ? auth.user?.larkUserId ?? auth.user?.localUsername ?? '—'
+                      : auth.user?.externalCode ?? '—'
+                  }}</code>
+                </span>
+              </div>
+
               <!-- 用户名 -->
               <div class="row">
                 <span class="k">用户名 · Username</span>
@@ -279,23 +291,19 @@ async function submitPassword(): Promise<void> {
                 </span>
               </div>
 
-              <!-- 工号/用户编号 (唯一 ID) -->
-              <div class="row">
-                <span class="k">工号 · ID</span>
-                <span class="v muted">
-                  <code class="muted-id">{{
-                    isInternal()
-                      ? auth.user?.larkUserId ?? auth.user?.localUsername ?? '—'
-                      : auth.user?.externalCode ?? '—'
-                  }}</code>
-                </span>
-              </div>
-
               <!-- 角色 -->
               <div class="row last">
                 <span class="k">角色 · Role</span>
                 <span class="v">
-                  <span class="role-text">{{ auth.user?.role ?? '—' }}</span>
+                  <span class="role-text">{{
+                    auth.user?.role === 'emergency_admin'
+                      ? '超级管理员'
+                      : auth.user?.role === 'admin'
+                        ? '管理员'
+                        : auth.user?.role === 'user'
+                          ? '普通用户'
+                          : '—'
+                  }}</span>
                 </span>
               </div>
             </div>
