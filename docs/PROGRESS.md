@@ -319,6 +319,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-27
 
+- **chore：移除模板中心失效的「分类筛选」下拉** —— `TemplatesView` 的 `categoryFilter` 下拉是从未接通的死 UI(值从不被读取、`fetchSlice` 仅传 search/sort,模板亦无 category 字段,选项为写死猜测值)。删除 `categoryFilter` ref + `<select>`。如未来需要真正的分类,应做完整版(可查询的分类列/标签 + 设计器写入 + 服务端 where 过滤),而非保留占位。
 - **feat：字段缺省值默认改空 + 属性面板可编辑(通用)** —— 字段(field)的「缺省值 `fallback`」默认值由 `—` 改为空字符串(`packages/schema` + `elementFactory`),真实输出(预览/打印/渲染,`FieldElement` `designMode=false`)空数据时不再显示横线 `—`、改为留空;设计器画布(`designMode=true`)仍显示 `{{ binding }}` 占位。属性面板新增 field「缺省值」输入框(`setFallback`),可清空旧模板里残留的 `—` 或填自定义占位(如 N/A)。schema 补默认值断言测试。系统其他位置(模板列表/飞书卡片)的 `—` 占位不在此次范围。
 - **fix：上划线/删除线恢复 + 上传图片 dev 显示(通用)** —— ① 上一轮把下划线改 `border-bottom` 时,`TextElement` 的 `containerStyle` 统一 `delete textDecoration`,而 `runStyle` 只对 `underline` 补回 → `overline`/`line-through` 丢失。`runStyle` 改为按 `textDecoration` 分支:`underline` 仍走 border-bottom(需延长+间距),`overline`/`line-through` 重新用原生 `text-decoration`。② 上传图片回显"图片加载失败":上传产物 URL 为 `/uploads/<file>`,生产由 API `ServeStaticModule` 同源服务,但 dev 下 Vite 只代理 `/api/` → `/uploads/*` 落到 SPA fallback 返回 HTML。`vite.config.ts` proxy 增加 `/uploads/` 转发到 API(不 rewrite),使 dev 与生产一致(改 vite 配置需重启 web dev server 生效)。两者通用、不改后端/模板数据。
 - **fix：未发布模板版本标签 + 下划线对称延长(通用)** —— ① 设计器子标题去掉冗余的 `V{meta.version}`(元数据版本恒为 1、与发布无关),未发布模板改显示"未发布"(发布状态由 `saveCaption` 提供);② `TextElement` 下划线由 `text-decoration` 改为 `border-bottom` + 左右各 `0.5em`(随字号)padding 延长 + 底部 `0.15em` 间距 → 居中即左右对称延长(贴近实物),Chromium 实测左右延长各 112px 相等。通用、不改模板数据。

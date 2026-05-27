@@ -57,7 +57,6 @@ const currentTemplateName = computed(() => {
 
 // Filter / sort / 视图状态
 const searchQuery = ref('');
-const categoryFilter = ref<string>('');
 // 默认按创建时间倒序（稳定顺序）：保存模板不会改变其位置，避免每次保存后列表重排。
 // 「最近编辑」(updated) 仍保留为可选项；红框「最近编辑」标识独立计算，不依赖列表排序。
 const sortBy = ref<'updated' | 'name' | 'created'>('created');
@@ -440,14 +439,6 @@ const countLabel = computed(() => {
             <div class="search">
               <input v-model="searchQuery" type="text" placeholder="搜索模板名 / ID..." />
             </div>
-
-            <select v-model="categoryFilter">
-              <option value="">全部分类</option>
-              <option value="出货单">出货单</option>
-              <option value="验收凭证">验收凭证</option>
-              <option value="合格证">合格证</option>
-              <option value="工艺卡">工艺卡</option>
-            </select>
 
             <select v-model="sortBy">
               <option value="created">创建时间</option>
