@@ -1,10 +1,12 @@
 import * as crypto from 'crypto';
 
 // eslint-disable-next-line import/no-unresolved
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../../prisma/prisma.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { isExternal } from '../account-kind.js';
 
 const TOKEN_PREFIX = 'tpkn_';
 const RANDOM_BYTES = 16; // → 32 hex chars
@@ -51,6 +53,12 @@ export class ApiTokenService {
 
   /** 为用户创建一个 token，明文仅这一次返回 */
   async create(userId: string, name: string): Promise<CreatedToken> {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { larkOpenId: true, role: true },
+    });
+    if (!u || isExternal(u)) throw new ForbiddenException('external_account_forbidden');
+
     const plaintext = ApiTokenService.generatePlaintext();
     const tokenHash = ApiTokenService.hash(plaintext);
     const prefix = ApiTokenService.getPrefix(plaintext);
