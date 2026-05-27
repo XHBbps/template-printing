@@ -1,5 +1,10 @@
 // eslint-disable-next-line import/no-unresolved
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
 import { Prisma } from '@prisma/client';
 
@@ -212,5 +217,89 @@ export class TemplatesService {
   async remove(ownerId: string, id: string): Promise<void> {
     await this.get(ownerId, id); // ownership check
     await this.prisma.template.delete({ where: { id } });
+  }
+
+  /** 公共库:列 public + 已发布模板(跨 owner,无 ownerId 过滤)。搜索只按 name。 */
+  async listPublic(args: TemplateListArgs) {
+    const limit = Math.min(Math.max(args.limit, 1), 100);
+    const offset = Math.max(args.offset, 0);
+    const q = args.search?.trim();
+    const where: Prisma.TemplateWhereInput = {
+      visibility: 'public',
+      publishedVersion: { not: null },
+      ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}),
+    };
+    const orderBy: Prisma.TemplateOrderByWithRelationInput[] =
+      args.sort === 'name'
+        ? [{ name: 'asc' }, { id: 'asc' }]
+        : args.sort === 'created'
+          ? [{ createdAt: 'desc' }, { id: 'asc' }]
+          : [{ updatedAt: 'desc' }, { id: 'asc' }];
+    const [rows, total] = await Promise.all([
+      this.prisma.template.findMany({
+        where,
+        orderBy,
+        skip: offset,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          publishedVersion: true,
+          updatedAt: true,
+          owner: { select: { name: true } },
+        },
+      }),
+      this.prisma.template.count({ where }),
+    ]);
+    const items = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      ownerName: r.owner?.name ?? '—',
+      publishedVersion: r.publishedVersion,
+      updatedAt: r.updatedAt,
+    }));
+    return { items, total, offset, limit };
+  }
+
+  /** 设可见性(admin 用;不按 ownerId 限定 → 可操作任意模板)。public 要求已发布。 */
+  async setVisibility(id: string, visibility: 'private' | 'public') {
+    const tpl = await this.prisma.template.findUnique({
+      where: { id },
+      select: { id: true, publishedVersion: true },
+    });
+    if (!tpl) throw new NotFoundException('template_not_found');
+    if (visibility === 'public' && tpl.publishedVersion == null) {
+      throw new BadRequestException('publish_before_public');
+    }
+    await this.prisma.template.update({ where: { id }, data: { visibility } });
+    return { id, visibility };
+  }
+
+  /** 复制公共模板到 meId 名下:取源最新发布版 data(按 publishedVersion 列),成私有新草稿。 */
+  async copyFromPublic(meId: string, sourceId: string) {
+    const src = await this.prisma.template.findFirst({
+      where: { id: sourceId, visibility: 'public', publishedVersion: { not: null } },
+      select: { id: true, name: true, description: true, publishedVersion: true },
+    });
+    if (!src) throw new NotFoundException('public_template_not_found');
+    const ver = await this.prisma.templateVersion.findUnique({
+      where: { templateId_version: { templateId: src.id, version: src.publishedVersion! } },
+      select: { data: true },
+    });
+    if (!ver) throw new NotFoundException('public_template_not_found');
+    return this.prisma.template.create({
+      data: {
+        name: `${src.name} 副本`,
+        description: src.description,
+        data: ver.data as object,
+        ownerId: meId,
+        visibility: 'private',
+        publishedVersion: null,
+        hasUnpublishedChanges: true,
+      },
+      select: { id: true, name: true },
+    });
   }
 }
