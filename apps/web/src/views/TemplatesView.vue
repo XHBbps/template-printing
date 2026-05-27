@@ -17,6 +17,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import BrandPagination from '../components/BrandPagination.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
+import PublicTemplatePreviewDialog from '../components/PublicTemplatePreviewDialog.vue';
 import DesignerHeader from '../designer/DesignerHeader.vue';
 import VersionDialog from '../designer/VersionDialog.vue';
 import { apiFetch } from '../lib/api';
@@ -197,6 +198,14 @@ async function copyPublic(t: PublicTemplateListItem): Promise<void> {
   } catch {
     ElMessage.error('复制失败');
   }
+}
+
+const previewOpen = ref(false);
+const previewTarget = ref<PublicTemplateListItem | null>(null);
+
+function openPublicPreview(t: PublicTemplateListItem): void {
+  previewTarget.value = t;
+  previewOpen.value = true;
 }
 
 async function toggleVisibility(t: TemplateListItem): Promise<void> {
@@ -641,7 +650,7 @@ const countLabel = computed(() => {
             <div v-else-if="publicItems.length === 0" class="empty-line">公共模板库暂无内容</div>
             <div v-else class="tpl-grid">
               <div v-for="t in publicItems" :key="t.id" class="tpl tpl--public">
-                <div class="tpl-thumb">
+                <div class="tpl-thumb" style="cursor: pointer" @click="openPublicPreview(t)">
                   <span class="stamp">{{ paperLabel() }}</span>
                   <TemplateThumb
                     v-if="t.publishedVersion != null"
@@ -656,7 +665,11 @@ const countLabel = computed(() => {
                     <span class="sep">·</span>
                     <span>v{{ t.publishedVersion }}</span>
                   </span>
-                  <button type="button" class="btn btn-primary sm copy-btn" @click="copyPublic(t)">
+                  <button
+                    type="button"
+                    class="btn btn-primary sm copy-btn"
+                    @click.stop="copyPublic(t)"
+                  >
                     复制到我的
                   </button>
                 </div>
@@ -702,6 +715,23 @@ const countLabel = computed(() => {
       confirm-text="删除"
       :loading="deleting"
       @confirm="confirmDelete"
+    />
+
+    <!-- ============ 公共模板预览 dialog ============ -->
+    <PublicTemplatePreviewDialog
+      v-if="previewTarget"
+      v-model:open="previewOpen"
+      :template-id="previewTarget.id"
+      :version="previewTarget.publishedVersion"
+      :name="previewTarget.name"
+      @copy="
+        () => {
+          if (previewTarget) {
+            void copyPublic(previewTarget);
+            previewOpen = false;
+          }
+        }
+      "
     />
 
     <!-- ============ 重命名 dialog ============ -->
