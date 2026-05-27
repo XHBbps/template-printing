@@ -109,7 +109,9 @@ async function main(): Promise<void> {
         throw e;
       } finally {
         if (ok) pool.release(page);
-        else await pool.recycle(page); // 出错/超时的页大概率污染 → 回收
+        // 出错/超时的页大概率污染 → 回收;recycle 自身再设 15s 超时兜底,
+        // 防 page.close/launch 卡死把 worker 槽永久拖住(总预算仍 < lockDuration)。
+        else await withTimeout(pool.recycle(page), 15_000, 'recycle').catch(() => {});
       }
 
       // 成功也通知 webhook
