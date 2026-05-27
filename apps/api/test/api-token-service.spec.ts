@@ -22,9 +22,11 @@ describe('ApiTokenService', () => {
     await prisma.user.deleteMany({
       where: { localUsername: { in: [U1, U2] } },
     });
+    // 持有 api-token 的账号须为内部（Lark SSO）——api-token 仅内部可用。
     const u1 = await prisma.user.create({
       data: {
         localUsername: U1,
+        larkOpenId: 'ou_apitoksvc_u1',
         localPasswordHash: await bcrypt.hash('x', 4),
         role: 'user',
         name: 'U1',
@@ -33,6 +35,7 @@ describe('ApiTokenService', () => {
     const u2 = await prisma.user.create({
       data: {
         localUsername: U2,
+        larkOpenId: 'ou_apitoksvc_u2',
         localPasswordHash: await bcrypt.hash('x', 4),
         role: 'user',
         name: 'U2',
