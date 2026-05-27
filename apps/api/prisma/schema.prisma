@@ -23,12 +23,14 @@ model User {
   name                String?
   email               String?
   avatarUrl           String?   @map("avatar_url")
+  mobile              String?   @map("mobile")
 
   // 'admin' | 'user' | 'emergency_admin'
   role                String    @default("user")
 
   // Local emergency credentials — null for Lark users
   localUsername       String?   @unique @map("local_username")
+  externalCode        String?   @unique @map("external_code")
   localPasswordHash   String?   @map("local_password_hash")
   mustChangePassword  Boolean   @default(false) @map("must_change_password")
   disabledAt          DateTime? @map("disabled_at")
