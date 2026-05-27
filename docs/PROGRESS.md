@@ -576,10 +576,10 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 | ~~Render 容器镜像 ~2.1GB~~ | ✅ 已优化 | 改 Alpine 多阶段 + 系统 Chromium：解压 ~1.0GB / 压缩 ~429MB（2026-05-27） |
 | ~~生产 render Dockerfile 用 bookworm + aliyun mirror~~ | ✅ 已解决 | 改 Alpine + apk aliyun 源（`ARG APK_MIRROR` 可覆盖海外） |
 | 飞书未设密码用户解绑 | 🟡 未测 | iter 23 时遗留 |
-| 渲染任务无重试 | 🔴 失败即终态 | 后续迭代加策略 |
-| 渲染输出 URL 可猜测 | 🔴 无 signed URL | 待加 HMAC-signed URL 防越权 |
-| Admin 用户管理后台仅占位 | 🟡 view 存在 / 后端 CRUD 未实现 | `views/admin/UsersAdminView.vue` |
-| Render 输出 quota 无限制 | 🔴 磁盘可被打满 | 待加 user-level quota |
+| ~~渲染任务无重试~~ | ✅ 已解决 | iter 31：bullmq `attempts:3` + 指数退避 + 永久错误 `UnrecoverableError` |
+| ~~渲染输出 URL 可猜测~~ | ✅ 已解决 | iter 31：HMAC signed URL + 过期（`FileSigService` / `/uploads/render/*`） |
+| ~~Admin 用户管理后台仅占位~~ | ✅ 已解决 | 2026-05-26：列表/新建本地/改角色/重置密码/禁用启用 + 降级即时生效 |
+| ~~Render 输出 quota 无限制~~ | ✅ 已解决 | iter 31：user 日配额 + cron 清理过期输出 |
 
 ---
 
