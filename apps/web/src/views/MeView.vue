@@ -47,7 +47,7 @@ async function saveName(): Promise<void> {
   }
   nameSubmitting.value = true;
   try {
-    await apiFetch<{ ok: true }>('/users/me', {
+    await apiFetch<{ ok: true }>('/users/me/profile', {
       method: 'PATCH',
       body: JSON.stringify({ name: next }),
     });
@@ -88,7 +88,7 @@ async function saveEmail(): Promise<void> {
   emailSubmitting.value = true;
   try {
     // 空字符串 → 后端清空邮箱(null)
-    await apiFetch<{ ok: true }>('/users/me', {
+    await apiFetch<{ ok: true }>('/users/me/profile', {
       method: 'PATCH',
       body: JSON.stringify({ email: nextEmail }),
     });

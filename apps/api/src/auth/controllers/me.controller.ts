@@ -34,6 +34,7 @@ export interface MeResponse {
   role: 'admin' | 'user' | 'emergency_admin';
   mustChangePassword: boolean;
   larkUserId: string | null;
+  localUsername: string | null;
   hasLocalPassword: boolean;
   mobile: string | null;
   externalCode: string | null;
@@ -78,6 +79,7 @@ export class MeController {
         role: user.role as MeResponse['role'],
         mustChangePassword: user.mustChangePassword,
         larkUserId: user.larkUserId,
+        localUsername: user.localUsername,
         hasLocalPassword: Boolean(user.localPasswordHash),
         mobile: user.mobile,
         externalCode: user.externalCode,

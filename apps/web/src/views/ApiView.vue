@@ -15,8 +15,11 @@ import {
 // eslint-disable-next-line import/no-unresolved
 import { apiFetch } from '../lib/api';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
+import { useAuthStore } from '../stores/auth';
 
 const route = useRoute();
+const auth = useAuthStore();
+const isInternal = computed(() => auth.user?.isInternal ?? false);
 
 /* ============================================================
  * 顶部 tab：凭证 / 文档(默认) / 模板字段
@@ -558,7 +561,12 @@ function copySample(ep: Endpoint): void {
 
     <!-- ============ 顶部 tab ============ -->
     <nav class="api-tabs">
-      <a class="tab" :class="{ active: activeTab === 'tokens' }" @click="activeTab = 'tokens'">
+      <a
+        v-if="isInternal"
+        class="tab"
+        :class="{ active: activeTab === 'tokens' }"
+        @click="activeTab = 'tokens'"
+      >
         凭证 <span class="en">Tokens</span>
       </a>
       <a class="tab" :class="{ active: activeTab === 'docs' }" @click="activeTab = 'docs'">
@@ -837,73 +845,86 @@ function copySample(ep: Endpoint): void {
       <div v-show="activeTab === 'tokens'" class="tab-pane">
         <div class="section-head">
           <h2 class="pane-title">我的 Token <span class="han">· Bearer Credentials</span></h2>
-          <button class="btn btn-primary sm" type="button" @click="createDialogOpen = true">
+          <button
+            v-if="isInternal"
+            class="btn btn-primary sm"
+            type="button"
+            @click="createDialogOpen = true"
+          >
             <span class="ico"><Plus :size="14" :stroke-width="1.5" /></span>
             创建 Token
           </button>
         </div>
 
-        <div class="callout">
-          <div class="cap">SECURITY · 安全须知</div>
-          <div class="title">明文只在创建时显示一次</div>
-          <div class="desc">
-            DB 中以 SHA-256 哈希存储；管理端点（GET/POST/DELETE 本表）仅接受 cookie 鉴权，避免 token
-            自管理 token 的环。
-          </div>
+        <div v-if="!isInternal" class="callout">
+          <div class="cap">ACCESS · 访问限制</div>
+          <div class="title">仅内部账号可使用 API</div>
+          <div class="desc">外部账号暂不支持创建 API Token，如需接入请联系管理员。</div>
         </div>
 
-        <div v-if="tokensLoading" class="card">
-          <div class="empty-state"><div class="eyebrow">Loading · 加载中</div></div>
-        </div>
-        <div v-else-if="tokens.length === 0" class="card">
-          <div class="empty-state">
-            <div class="eyebrow">No tokens · 暂无凭证</div>
-            <div class="hint">FORMAT · tpkn_•••••• (32 hex)</div>
+        <template v-if="isInternal">
+          <div class="callout">
+            <div class="cap">SECURITY · 安全须知</div>
+            <div class="title">明文只在创建时显示一次</div>
+            <div class="desc">
+              DB 中以 SHA-256 哈希存储；管理端点（GET/POST/DELETE 本表）仅接受 cookie 鉴权，避免
+              token 自管理 token 的环。
+            </div>
           </div>
-        </div>
-        <div v-else class="card">
-          <div class="card-body flush">
-            <table class="tokens-table">
-              <thead>
-                <tr>
-                  <th>名称</th>
-                  <th>前缀</th>
-                  <th>状态</th>
-                  <th>最近使用</th>
-                  <th>创建时间</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="t in tokens" :key="t.id" :class="{ revoked: !!t.revokedAt }">
-                  <td class="name">{{ t.name }}</td>
-                  <td class="prefix">{{ t.prefix }}…</td>
-                  <td>
-                    <span v-if="t.revokedAt" class="pill idle">已吊销</span>
-                    <span v-else class="pill ok">活跃</span>
-                  </td>
-                  <td class="prefix" :title="t.lastUsedAt ?? '未使用'">
-                    {{ formatRelative(t.lastUsedAt) }}
-                  </td>
-                  <td class="prefix">{{ formatAbs(t.createdAt) }}</td>
-                  <td>
-                    <a
-                      v-if="!t.revokedAt"
-                      href="#"
-                      class="revoke-link"
-                      @click.prevent="doRevokeToken(t)"
-                      >立即吊销</a
-                    >
-                    <span v-else class="muted">—</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+
+          <div v-if="tokensLoading" class="card">
+            <div class="empty-state"><div class="eyebrow">Loading · 加载中</div></div>
           </div>
-          <div class="footer-meta">
-            共 {{ tokens.length }} 个 token，{{ activeTokenCount }} 个活跃
+          <div v-else-if="tokens.length === 0" class="card">
+            <div class="empty-state">
+              <div class="eyebrow">No tokens · 暂无凭证</div>
+              <div class="hint">FORMAT · tpkn_•••••• (32 hex)</div>
+            </div>
           </div>
-        </div>
+          <div v-else class="card">
+            <div class="card-body flush">
+              <table class="tokens-table">
+                <thead>
+                  <tr>
+                    <th>名称</th>
+                    <th>前缀</th>
+                    <th>状态</th>
+                    <th>最近使用</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="t in tokens" :key="t.id" :class="{ revoked: !!t.revokedAt }">
+                    <td class="name">{{ t.name }}</td>
+                    <td class="prefix">{{ t.prefix }}…</td>
+                    <td>
+                      <span v-if="t.revokedAt" class="pill idle">已吊销</span>
+                      <span v-else class="pill ok">活跃</span>
+                    </td>
+                    <td class="prefix" :title="t.lastUsedAt ?? '未使用'">
+                      {{ formatRelative(t.lastUsedAt) }}
+                    </td>
+                    <td class="prefix">{{ formatAbs(t.createdAt) }}</td>
+                    <td>
+                      <a
+                        v-if="!t.revokedAt"
+                        href="#"
+                        class="revoke-link"
+                        @click.prevent="doRevokeToken(t)"
+                        >立即吊销</a
+                      >
+                      <span v-else class="muted">—</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="footer-meta">
+              共 {{ tokens.length }} 个 token，{{ activeTokenCount }} 个活跃
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- ====================== 模板字段 ====================== -->

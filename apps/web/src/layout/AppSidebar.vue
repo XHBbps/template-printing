@@ -29,6 +29,8 @@ const isAdmin = (): boolean => {
   return role === 'admin' || role === 'emergency_admin';
 };
 
+const isInternal = (): boolean => auth.user?.isInternal ?? false;
+
 const initial = (): string => (auth.user?.name ?? '?').charAt(0).toUpperCase();
 
 function toggle(): void {
@@ -82,13 +84,15 @@ async function confirmLogout(): Promise<void> {
       </RouterLink>
     </nav>
 
-    <div v-if="!collapsed" class="sidebar-section-label">Integration · 集成</div>
-    <nav class="nav">
-      <RouterLink to="/api" active-class="active">
-        <span class="ico"><Key :size="16" :stroke-width="1.5" /></span>
-        <span v-if="!collapsed">API</span>
-      </RouterLink>
-    </nav>
+    <template v-if="isInternal()">
+      <div v-if="!collapsed" class="sidebar-section-label">Integration · 集成</div>
+      <nav class="nav">
+        <RouterLink to="/api" active-class="active">
+          <span class="ico"><Key :size="16" :stroke-width="1.5" /></span>
+          <span v-if="!collapsed">API</span>
+        </RouterLink>
+      </nav>
+    </template>
 
     <div v-if="!collapsed" class="sidebar-section-label">Logs · 日志</div>
     <nav class="nav">
