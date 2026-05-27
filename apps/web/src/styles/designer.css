@@ -199,6 +199,12 @@
   pointer-events: none !important;
 }
 
+/* 缩放外框：预留 transform 缩放后的布局尺寸，供 flex 居中/滚动（transform 本身不占布局） */
+.tp-paper-frame {
+  position: relative;
+  flex-shrink: 0;
+}
+
 /* 纸张 — 1px stone 描边，无 shadow（扁平品牌） */
 .tp-paper {
   position: relative;

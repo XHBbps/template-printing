@@ -12,13 +12,34 @@ const paperRef = ref<HTMLElement | null>(null);
 const isDropTarget = ref(false);
 
 const cssVars = computed(() => {
+  const px = store.paperPx;
+  return {
+    '--cell-w': `${store.template.canvas.cell.w}px`,
+    '--cell-h': `${store.template.canvas.cell.h}px`,
+    '--canvas-w': `${px.w}px`,
+    '--canvas-h': `${px.h}px`,
+  };
+});
+
+// 纸张：intrinsic 尺寸 + 整体缩放（zoom=1 时不加 transform，保证打印/100% 零副作用）
+const paperStyle = computed(() => {
+  const z = store.view.zoom;
+  return {
+    ...cssVars.value,
+    width: 'var(--canvas-w)',
+    height: 'var(--canvas-h)',
+    transform: z === 1 ? 'none' : `scale(${z})`,
+    transformOrigin: 'top left',
+  };
+});
+
+// frame：预留缩放后的布局尺寸（transform 不占布局空间），使 flex 居中/滚动正常
+const frameStyle = computed(() => {
   const z = store.view.zoom;
   const px = store.paperPx;
   return {
-    '--cell-w': `${store.template.canvas.cell.w * z}px`,
-    '--cell-h': `${store.template.canvas.cell.h * z}px`,
-    '--canvas-w': `${px.w * z}px`,
-    '--canvas-h': `${px.h * z}px`,
+    width: `${px.w * z}px`,
+    height: `${px.h * z}px`,
   };
 });
 
@@ -139,26 +160,24 @@ onMounted(() => {
       :style="canvasAreaStyle"
       @pointerdown="onCanvasPointerDown"
     >
-      <div
-        ref="paperRef"
-        class="tp-paper"
-        :class="{
-          'is-dragging': store.isResizing,
-          'is-drop-target': isDropTarget,
-          heavy: store.template.elements.length > 500,
-        }"
-        :style="{
-          ...cssVars,
-          width: 'var(--canvas-w)',
-          height: 'var(--canvas-h)',
-        }"
-        @click="clickPaperBackground"
-        @dragover="onDragOver"
-        @dragleave="onDragLeave"
-        @drop="onDrop"
-      >
-        <CanvasElement v-for="el in store.template.elements" :key="el.id" :element="el" />
-        <SnapGuides v-if="store.isResizing" :guides="store.guides" />
+      <div class="tp-paper-frame" :style="frameStyle">
+        <div
+          ref="paperRef"
+          class="tp-paper"
+          :class="{
+            'is-dragging': store.isResizing,
+            'is-drop-target': isDropTarget,
+            heavy: store.template.elements.length > 500,
+          }"
+          :style="paperStyle"
+          @click="clickPaperBackground"
+          @dragover="onDragOver"
+          @dragleave="onDragLeave"
+          @drop="onDrop"
+        >
+          <CanvasElement v-for="el in store.template.elements" :key="el.id" :element="el" />
+          <SnapGuides v-if="store.isResizing" :guides="store.guides" />
+        </div>
       </div>
     </div>
     <!-- Floating toolbar is a sibling of canvas-area so scroll doesn't move it -->

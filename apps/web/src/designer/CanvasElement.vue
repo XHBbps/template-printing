@@ -36,16 +36,13 @@ const gripMode = computed<'inside' | 'outside-above' | 'outside-below'>(() => {
 });
 
 const PX_PER_MM = 4;
-const positionStyle = computed(() => {
-  const z = store.view.zoom;
-  return {
-    left: `${props.element.anchor.x * PX_PER_MM * z}px`,
-    top: `${props.element.anchor.y * PX_PER_MM * z}px`,
-    width: `${props.element.anchor.w * PX_PER_MM * z}px`,
-    height: `${props.element.anchor.h * PX_PER_MM * z}px`,
-    zIndex: props.element.style.zIndex ?? 0,
-  };
-});
+const positionStyle = computed(() => ({
+  left: `${props.element.anchor.x * PX_PER_MM}px`,
+  top: `${props.element.anchor.y * PX_PER_MM}px`,
+  width: `${props.element.anchor.w * PX_PER_MM}px`,
+  height: `${props.element.anchor.h * PX_PER_MM}px`,
+  zIndex: props.element.style.zIndex ?? 0,
+}));
 
 const sizeBadge = computed(() => {
   const g = props.element.grid;

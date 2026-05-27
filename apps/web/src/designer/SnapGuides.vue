@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useDesignerStore } from '../stores/designer';
 
 interface Guides {
   v: number[];
@@ -9,12 +8,11 @@ interface Guides {
 }
 
 const props = defineProps<{ guides: Guides }>();
-const store = useDesignerStore();
 
 const PX_PER_MM = 4;
 
 function mmToCanvasPx(mm: number): number {
-  return mm * PX_PER_MM * store.view.zoom;
+  return mm * PX_PER_MM;
 }
 
 const verticalLines = computed(() =>
