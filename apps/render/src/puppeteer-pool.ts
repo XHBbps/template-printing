@@ -149,7 +149,7 @@ export class PuppeteerPool {
     const n = (this.uses.get(page) ?? 0) + 1;
     this.uses.set(page, n);
     if (n >= this.maxPageUses) {
-      void this.recycle(page); // 主动回收防内存蠕变
+      void this.recycle(page).catch(() => {}); // 主动回收防内存蠕变;吞掉拒绝防 unhandledRejection
       return;
     }
     this.dispatch(page);
