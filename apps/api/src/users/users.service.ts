@@ -12,6 +12,8 @@ import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 // eslint-disable-next-line import/no-unresolved
+import { isExternal } from '../auth/account-kind.js';
+// eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /** Advisory lock ID for externalCode 序号分配；须在本代码库 pg_advisory_xact_lock 调用中唯一。 */
@@ -119,11 +121,13 @@ export class UsersService {
     if (targetId === meId) throw new ForbiddenException('cannot_modify_self');
     const target = await this.prisma.user.findUnique({
       where: { id: targetId },
-      select: { id: true, role: true },
+      select: { id: true, role: true, larkOpenId: true },
     });
     if (!target) throw new ForbiddenException('user_not_found');
     if (target.role === 'emergency_admin')
       throw new ForbiddenException('emergency_admin_protected');
+    if (role === 'admin' && isExternal(target))
+      throw new ForbiddenException('external_cannot_be_admin');
     if (target.role === role) return { id: targetId, role };
 
     await this.prisma.$transaction(async (tx) => {

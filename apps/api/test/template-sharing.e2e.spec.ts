@@ -230,4 +230,31 @@ describe('Template sharing e2e', () => {
       .set('Cookie', userb.cookie)
       .expect(404);
   });
+
+  it('POST /templates with visibility:public is silently ignored — template stays private', async () => {
+    // Non-admin (userb) tries to create a template with visibility:'public' in the body.
+    // The DTO strips unknown fields → visibility is not persisted → template is private.
+    const res = await request(app.getHttpServer())
+      .post('/templates')
+      .set('Cookie', userb.cookie)
+      .set('X-CSRF-Token', userb.csrf)
+      .send({
+        name: 'visibility-escape-test',
+        visibility: 'public',
+        data: VER_DATA,
+      })
+      .expect(201);
+    const createdId = res.body.id as string;
+
+    // Verify it does NOT appear in the public list
+    const pubList = await request(app.getHttpServer())
+      .get('/templates/public?limit=100')
+      .set('Cookie', userb.cookie)
+      .expect(200);
+    const ids = pubList.body.items.map((x: { id: string }) => x.id);
+    expect(ids).not.toContain(createdId);
+
+    // Cleanup
+    await prisma.template.delete({ where: { id: createdId } });
+  });
 });

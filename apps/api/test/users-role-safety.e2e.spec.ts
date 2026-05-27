@@ -64,6 +64,21 @@ describe('PATCH /admin/users/:id/role + safety', () => {
     await patchRole(em2.id, 'user').expect(403);
   });
 
+  it('external local user cannot be promoted to admin', async () => {
+    // Admin creates a local account → it has no larkOpenId → isExternal → cannot become admin
+    const extRes = await request(app.getHttpServer())
+      .post('/admin/users')
+      .set('Cookie', cookies)
+      .set('X-CSRF-Token', csrf)
+      .send({ localUsername: 'e2e_ext_local', name: 'External Local' })
+      .expect(201);
+    const extId = extRes.body.user.id as string;
+    NAMES.push('e2e_ext_local');
+
+    const res = await patchRole(extId, 'admin').expect(403);
+    expect(res.body.message).toContain('external_cannot_be_admin');
+  });
+
   it('CONCURRENT demotion of the last two admins keeps >=1 (real concurrency)', async () => {
     // Make the ONLY two active role=admin users be a1,a2. Demote any other stray active admins first.
     await prisma.user.updateMany({
