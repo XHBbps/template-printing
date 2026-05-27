@@ -22,10 +22,30 @@ import { sendCallback } from './webhook.js';
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const BROWSERS = Number(process.env.RENDER_BROWSERS ?? 4);
 const PAGES_PER_BROWSER = Number(process.env.RENDER_PAGES_PER_BROWSER ?? 2);
+const JOB_TIMEOUT_MS = Number(process.env.RENDER_JOB_TIMEOUT_MS ?? 60_000);
+const ACQUIRE_TIMEOUT_MS = Number(process.env.RENDER_ACQUIRE_TIMEOUT_MS ?? 30_000);
+const PAGE_MAX_USES = Number(process.env.RENDER_PAGE_MAX_USES ?? 200);
+// lock 必须 ≥ 等页 + 渲染 + 余量（bullmq lock 覆盖整个 processor 执行）
+const LOCK_DURATION_MS = Number(
+  process.env.RENDER_LOCK_DURATION_MS ?? ACQUIRE_TIMEOUT_MS + JOB_TIMEOUT_MS + 30_000,
+);
+
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label}_timeout`)), ms);
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
+}
 
 async function main(): Promise<void> {
   const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
-  const pool = new PuppeteerPool({ browsers: BROWSERS, pagesPerBrowser: PAGES_PER_BROWSER });
+  const pool = new PuppeteerPool({
+    browsers: BROWSERS,
+    pagesPerBrowser: PAGES_PER_BROWSER,
+    maxPageUses: PAGE_MAX_USES,
+    acquireTimeoutMs: ACQUIRE_TIMEOUT_MS,
+  });
   await pool.warmup();
   // eslint-disable-next-line no-console
   console.log(`[render] pool ready (capacity=${pool.capacity})`);
@@ -61,38 +81,47 @@ async function main(): Promise<void> {
 
       await markProcessing(jobId);
       const page = await pool.acquire();
+      let ok = false;
       try {
         const paperMm = resolvePaperMm(tpl.data);
-        const result = await renderJobOnPage(page, {
+        const renderPromise = renderJobOnPage(page, {
           jobId,
           template: tpl.data as object,
           data: job.data,
           formats: job.formats,
           paperMm,
         });
+        // 超时后 race reject；loser(renderPromise) 随后因关页 reject → 吞掉防 unhandledRejection
+        renderPromise.catch(() => {});
+        const result = await withTimeout(renderPromise, JOB_TIMEOUT_MS, 'render');
         await markDone(jobId, result.pdfUrl, result.pngUrl, attemptNo);
+        ok = true;
         // eslint-disable-next-line no-console
         console.log(`[render] done ${jobId} (attempt ${attemptNo})`);
       } catch (e) {
         const msg = (e as Error).message ?? 'unknown_error';
         // eslint-disable-next-line no-console
         console.error(`[render] failed ${jobId} (attempt ${attemptNo}/${totalAttempts}): ${msg}`);
-        // markFailed 仅在最后一次 attempt 调用 — 中间失败保持 status='processing'，
-        // 避免 status 在 retry 期间反复 failed/processing 闪烁
         if (isLastAttempt) {
           await markFailed(jobId, msg, attemptNo);
           await sendCallback(jobId, job.callback_url);
         }
-        // 抛错让 bullmq 走 attempts + backoff 重试逻辑
         throw e;
       } finally {
-        pool.release(page);
+        if (ok) pool.release(page);
+        else await pool.recycle(page); // 出错/超时的页大概率污染 → 回收
       }
 
       // 成功也通知 webhook
       await sendCallback(jobId, job.callback_url);
     },
-    { connection, concurrency: BROWSERS * PAGES_PER_BROWSER },
+    {
+      connection,
+      concurrency: BROWSERS * PAGES_PER_BROWSER,
+      lockDuration: LOCK_DURATION_MS,
+      stalledInterval: 30_000,
+      maxStalledCount: 1,
+    },
   );
 
   const shutdown = async (): Promise<void> => {
