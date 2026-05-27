@@ -90,7 +90,7 @@ export const TextElementSchema = Base.extend({
 export const FieldElementSchema = Base.extend({
   type: z.literal('field'),
   binding: z.string(),
-  fallback: z.string().default('—'),
+  fallback: z.string().default(''),
   format: z.string().nullable().default(null),
 });
 

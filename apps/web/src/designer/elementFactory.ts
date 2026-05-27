@@ -108,7 +108,7 @@ export function buildElement(
         anchor,
         style,
         binding: '',
-        fallback: '—',
+        fallback: '',
         format: null,
       };
     case 'image':

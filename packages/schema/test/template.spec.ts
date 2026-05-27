@@ -397,6 +397,18 @@ describe('FieldElementSchema (iteration 5)', () => {
     };
     expect(FieldElementSchema.parse(el).binding).toBe('');
   });
+
+  it('defaults fallback to empty string (empty data → blank in real output)', () => {
+    const el = {
+      id: 'f2',
+      type: 'field' as const,
+      grid: { c: 0, r: 0, cs: 16, rs: 3 },
+      anchor: { x: 0, y: 0, w: 50, h: 8 },
+      style: baseStyle,
+      binding: 'foo',
+    };
+    expect(FieldElementSchema.parse(el).fallback).toBe('');
+  });
 });
 
 describe('TemplateElementSchema element type coverage (iter 11)', () => {

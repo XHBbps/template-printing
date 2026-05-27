@@ -72,6 +72,10 @@ function setBinding(v: string): void {
     store.updateElement(sel.value.id, { binding: v } as Partial<TemplateElement>);
   }
 }
+function setFallback(v: string): void {
+  if (!sel.value || sel.value.type !== 'field') return;
+  store.updateElement(sel.value.id, { fallback: v } as Partial<TemplateElement>);
+}
 
 type ImageSourceKind = 'url' | 'upload' | 'field';
 function setImageSourceKind(kind: ImageSourceKind): void {
@@ -283,6 +287,19 @@ watch(
             disabled
           />
         </ElSelect>
+      </div>
+
+      <!-- 缺省值 — field：真实输出(预览/打印/渲染)空数据时显示;留空则不显示 -->
+      <div v-if="sel && sel.type === 'field'" class="row">
+        <span class="lbl">缺省值</span>
+        <input
+          type="text"
+          class="snum"
+          style="flex: 1"
+          :value="sel.fallback"
+          placeholder="空数据时显示（留空=不显示）"
+          @input="(e: Event) => setFallback((e.target as HTMLInputElement).value)"
+        />
       </div>
 
       <!-- 绑定 — table (binding required, no (未绑定) option) -->
