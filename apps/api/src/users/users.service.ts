@@ -12,7 +12,7 @@ import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 // eslint-disable-next-line import/no-unresolved
-import { isExternal } from '../auth/account-kind.js';
+import { isExternal, isInternal } from '../auth/account-kind.js';
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -67,6 +67,7 @@ export class UsersService {
           localUsername: true,
           larkUserId: true,
           larkOpenId: true,
+          externalCode: true,
           localPasswordHash: true,
           disabledAt: true,
           lastLoginAt: true,
@@ -80,10 +81,8 @@ export class UsersService {
     const items = rows.map((u) => {
       const hasLarkBinding = u.larkOpenId != null;
       const hasLocalPassword = u.localPasswordHash != null;
-      const accountType: 'lark' | 'local' | 'both' =
-        hasLarkBinding && hasLocalPassword ? 'both' : hasLarkBinding ? 'lark' : 'local';
-      const accountLabel =
-        accountType === 'both' ? '飞书+本地' : accountType === 'lark' ? '飞书' : '本地';
+      const accountType: 'internal' | 'external' = isInternal(u) ? 'internal' : 'external';
+      const accountLabel = accountType === 'internal' ? '内部' : '外部';
       const isSelf = u.id === meId;
       const isEmergency = u.role === 'emergency_admin';
       const isLastAdmin = u.role === 'admin' && u.disabledAt == null && activeAdminCount <= 1;
@@ -99,6 +98,7 @@ export class UsersService {
         role: u.role,
         localUsername: u.localUsername,
         larkUserId: u.larkUserId,
+        externalCode: u.externalCode,
         hasLocalPassword,
         hasLarkBinding,
         accountType,

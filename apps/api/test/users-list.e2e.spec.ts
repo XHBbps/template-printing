@@ -58,7 +58,7 @@ describe('GET /admin/users', () => {
     expect(res.body.page).toBe(1);
     const me = (res.body.items as UserRow[]).find((u) => u.localUsername === ADMIN);
     expect(me).toBeTruthy();
-    expect(me?.accountType).toBe('local');
+    expect(me?.accountType).toBe('internal'); // emergency_admin は内部
     expect(me?.can.disable).toBe(false); // emergency_admin 不可禁用
     expect(me?.can.changeRole).toBe(false);
     expect(me?.disabledReason).toBe('emergency_admin_protected');

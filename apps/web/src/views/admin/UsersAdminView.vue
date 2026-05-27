@@ -25,8 +25,9 @@ interface UserItem {
   larkUserId: string | null;
   hasLocalPassword: boolean;
   hasLarkBinding: boolean;
-  accountType: 'lark' | 'local' | 'both';
+  accountType: 'internal' | 'external';
   accountLabel: string;
+  externalCode: string | null;
   disabled: boolean;
   can: UserCan;
   disabledReason: string | null;
@@ -57,7 +58,7 @@ const ROLE_OPTIONS = [
   { value: '', label: '全部' },
   { value: 'user', label: '普通用户' },
   { value: 'admin', label: '管理员' },
-  { value: 'emergency_admin', label: '应急管理员' },
+  { value: 'emergency_admin', label: '超级管理员' },
 ];
 const STATUS_OPTIONS = [
   { value: '', label: '全部' },
@@ -137,7 +138,8 @@ function friendlyMessage(code: string): string | null {
   const map: Record<string, string> = {
     last_admin_protected: '不能禁用/降级最后一个管理员',
     cannot_modify_self: '不能操作自己',
-    emergency_admin_protected: '应急管理员受保护',
+    emergency_admin_protected: '超级管理员受保护',
+    external_cannot_be_admin: '仅内部账号可授权管理员',
     username_taken: '用户名已被占用',
     not_a_local_account: '该账号无本地密码，无法重置',
   };
@@ -153,7 +155,8 @@ function handleApiError(e: unknown, fallback = '操作失败'): void {
 }
 
 function accountId(item: UserItem): string {
-  return item.localUsername ?? item.larkUserId ?? '—';
+  if (item.accountType === 'internal') return item.larkUserId ?? item.localUsername ?? '—';
+  return item.externalCode ?? item.localUsername ?? '—';
 }
 
 function disabledTooltip(item: UserItem): string | undefined {
@@ -418,7 +421,7 @@ async function doCreate(): Promise<void> {
                       >
                         {{
                           item.role === 'emergency_admin'
-                            ? '应急管理员'
+                            ? '超级管理员'
                             : item.role === 'admin'
                               ? '管理员'
                               : '普通用户'
@@ -441,16 +444,26 @@ async function doCreate(): Promise<void> {
                         <!-- 改角色 -->
                         <span
                           class="action-wrap"
-                          :title="!item.can.changeRole ? disabledTooltip(item) : undefined"
+                          :title="
+                            item.role === 'emergency_admin'
+                              ? '超级管理员不可更改角色'
+                              : !item.can.changeRole
+                                ? disabledTooltip(item)
+                                : undefined
+                          "
                         >
+                          <!-- 超级管理员：只读文本，不渲染 select -->
+                          <span
+                            v-if="item.role === 'emergency_admin'"
+                            class="role-select role-select-readonly"
+                            >超级管理员</span
+                          >
+                          <!-- 普通/管理员行：渲染可操作 select -->
                           <select
+                            v-else
                             class="role-select"
-                            :value="item.role === 'emergency_admin' ? item.role : item.role"
-                            :disabled="
-                              !item.can.changeRole ||
-                              item.role === 'emergency_admin' ||
-                              roleChanging === item.id
-                            "
+                            :value="item.role"
+                            :disabled="!item.can.changeRole || roleChanging === item.id"
                             @change="
                               (e) =>
                                 doChangeRole(
@@ -460,9 +473,16 @@ async function doCreate(): Promise<void> {
                             "
                           >
                             <option value="user">普通用户</option>
-                            <option value="admin">管理员</option>
-                            <option v-if="item.role === 'emergency_admin'" value="emergency_admin">
-                              应急管理员
+                            <option
+                              value="admin"
+                              :disabled="item.accountType === 'external'"
+                              :title="
+                                item.accountType === 'external'
+                                  ? '仅内部账号可授权管理员'
+                                  : undefined
+                              "
+                            >
+                              管理员
                             </option>
                           </select>
                         </span>
@@ -819,6 +839,12 @@ table.log .mono {
 .role-select:focus {
   outline: none;
   border-color: var(--yangli-graphite);
+}
+.role-select-readonly {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.55;
+  cursor: default;
 }
 
 .act-btn {
