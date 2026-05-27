@@ -27,6 +27,7 @@ export interface CreatedToken {
 export interface VerifiedToken {
   id: string;
   role: string;
+  larkOpenId: string | null;
 }
 
 @Injectable()
@@ -94,7 +95,7 @@ export class ApiTokenService {
 
     const row = await this.prisma.apiToken.findUnique({
       where: { tokenHash },
-      include: { user: { select: { id: true, role: true, disabledAt: true } } },
+      include: { user: { select: { id: true, role: true, disabledAt: true, larkOpenId: true } } },
     });
     if (!row) return null;
     if (row.revokedAt) return null;
@@ -105,7 +106,7 @@ export class ApiTokenService {
       .update({ where: { id: row.id }, data: { lastUsedAt: new Date() } })
       .catch((e) => this.logger.warn(`failed to update lastUsedAt: ${(e as Error).message}`));
 
-    return { id: row.user.id, role: row.user.role };
+    return { id: row.user.id, role: row.user.role, larkOpenId: row.user.larkOpenId };
   }
 
   async revokeAllForUser(userId: string): Promise<void> {

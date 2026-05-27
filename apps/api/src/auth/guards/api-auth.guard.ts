@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 
 // eslint-disable-next-line import/no-unresolved
+import { isExternal } from '../account-kind.js';
+// eslint-disable-next-line import/no-unresolved
 import { ApiTokenService } from '../api-token/api-token.service.js';
 // eslint-disable-next-line import/no-unresolved
 import type { AuthenticatedRequest } from '../decorators/current-user.decorator.js';
@@ -48,6 +50,7 @@ export class ApiAuthGuard implements CanActivate {
       const plaintext = auth.slice('Bearer '.length);
       const user = await this.tokens.verify(plaintext);
       if (!user) throw new UnauthorizedException('invalid_or_revoked_token');
+      if (isExternal(user)) throw new ForbiddenException('external_account_forbidden');
       // 兼容 JwtClaims 形态（csrf 无需 — token 自身是凭证）
       req.user = {
         sub: user.id,

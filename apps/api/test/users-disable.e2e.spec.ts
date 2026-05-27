@@ -48,6 +48,8 @@ describe('POST /admin/users/:id/disable|enable', () => {
         localPasswordHash: await bcrypt.hash(TARGET_PW, 10),
         role: 'user',
         name: 'Dis Target',
+        // 内部账号才可签发 api-token；给一个假 larkOpenId 使其成为内部账号
+        larkOpenId: 'ou_dis_target_fake',
       },
     });
     const m = await Test.createTestingModule({ imports: [AppModule] }).compile();
