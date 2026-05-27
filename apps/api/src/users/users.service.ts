@@ -14,6 +14,9 @@ import bcrypt from 'bcryptjs';
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
 
+/** Advisory lock ID for externalCode 序号分配；须在本代码库 pg_advisory_xact_lock 调用中唯一。 */
+const EXTERNAL_CODE_LOCK_ID = 1234567890;
+
 export interface ListArgs {
   page: number;
   pageSize: number;
@@ -182,14 +185,16 @@ export class UsersService {
     });
     if (exists) throw new ConflictException('username_taken');
     const plaintext = randomBytes(9).toString('base64url'); // ~12 chars
+    // 在事务外完成 bcrypt (~200ms)，避免持锁期间占用 DB 连接
+    const hash = await bcrypt.hash(plaintext, 12);
     try {
       const user = await this.prisma.$transaction(async (tx) => {
         // 使用 advisory lock 避免并发时 MAX 聚合与 FOR UPDATE 冲突
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(1234567890)`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${EXTERNAL_CODE_LOCK_ID})`;
         const rows = await tx.$queryRaw<Array<{ max: number | null }>>`
           SELECT MAX(CAST(SUBSTRING(external_code FROM 2) AS INTEGER)) AS max
-          FROM users WHERE external_code LIKE 'W%'`;
-        const next = (rows[0]?.max ?? 0) + 1;
+          FROM users WHERE external_code ~ '^W[0-9]+$'`;
+        const next = (rows[0]!.max ?? 0) + 1;
         const externalCode = `W${String(next).padStart(8, '0')}`;
         return tx.user.create({
           data: {
@@ -198,7 +203,7 @@ export class UsersService {
             email: input.email ?? null,
             role: 'user',
             externalCode,
-            localPasswordHash: await bcrypt.hash(plaintext, 12),
+            localPasswordHash: hash,
             mustChangePassword: true,
           },
           select: {
