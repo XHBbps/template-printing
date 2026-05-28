@@ -459,6 +459,10 @@ export class LarkBotController {
       try {
         const relative = dto.pdfUrl.startsWith('/') ? dto.pdfUrl.slice(1) : dto.pdfUrl;
         const filePath = path.join(STORAGE_ROOT, relative);
+        // 防 path traversal: 解析后路径必须在 STORAGE_ROOT 内（+ sep 防 /storageEVIL 同前缀绕过）
+        if (!path.resolve(filePath).startsWith(path.resolve(STORAGE_ROOT) + path.sep)) {
+          throw new BadRequestException('invalid_pdf_path');
+        }
         const buf = await fs.readFile(filePath);
         const fileKey = await this.bot.uploadIMFile(buf, `${tplName}.pdf`, 'pdf');
 

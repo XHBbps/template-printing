@@ -150,6 +150,10 @@ export class LarkBitableController {
         // pdfUrl 形如 /uploads/render/<jobId>.pdf — 拼到 STORAGE_ROOT 下找文件
         const relative = dto.pdfUrl.startsWith('/') ? dto.pdfUrl.slice(1) : dto.pdfUrl;
         const filePath = path.join(STORAGE_ROOT, relative);
+        // 防 path traversal: 解析后路径必须在 STORAGE_ROOT 内（+ sep 防 /storageEVIL 同前缀绕过）
+        if (!path.resolve(filePath).startsWith(path.resolve(STORAGE_ROOT) + path.sep)) {
+          throw new BadRequestException('invalid_pdf_path');
+        }
         const pdfBuf = await fs.readFile(filePath);
 
         // 飞书 drive medias upload_all 对 bitable_file 的 parent_node 要求是
