@@ -34,7 +34,7 @@
 
 **修订后修复优先级(替换文末"建议优先级"):**
 1. ✅ **远程可触达核心漏洞(批次1 已修)**:V1(IDOR,叙述去"枚举即得")→ V3(路径穿越,token 门控)→ V4(CORS)→ **V8(SVG 公开服务,提级)**;V2 改写后并入(他人已发布私有模板);V5 降 Medium 单列。
-2. **上线即崩/渲染全废(真 P0)**:D1(JWT_SECRET/MASTER_KEY/FILE_SIG_SECRET)、D2(WEB_BASE)、D3(storage 卷)、D4(密钥一致)、D6(统一 Dockerfile **且让 CI 跑 prod 镜像**)。D5/D7 移出 P0。
+2. ✅ **上线即崩/渲染全废(真 P0)— 批次2 已修(2026-05-28)**:D1(JWT_SECRET/MASTER_KEY/FILE_SIG_SECRET)、D2(WEB_BASE)、D3(storage 卷)、D4(密钥一致,compose 共享 .env.prod 满足)、D6(统一 Dockerfile **且让 CI 跑 prod 镜像**)+ B3(mem_limit)+ V7(/metrics 白名单)。D5/D7 移出 P0(D7 已删,D5 降 Low)。**实建/起栈验证额外发现并修复 3 个原审计未覆盖的真实部署阻断**:**GAP#1** api prod 镜像 pnpm 悬空依赖(`Dockerfile.prod` 改 `pnpm deploy --prod` + undici 误标 devDep 修正)、**GAP#2** compose `${REGISTRY}/${TAG}` 插值需 shell/根 `.env`(部署脚本 `set -a; . .env.prod`)、**GAP#3** 空库首次部署迁移顺序(`init/update.sh` 改 `run --rm migrate` 前置 + `EmergencyAdminBootstrap` 容忍空库)。开发机起 prod 栈渲染往返通过。计划见 `docs/superpowers/plans/2026-05-28-batch2-prod-deploy-artifacts.md`。
 3. **凭证加密未实现(D-A2)**:功能缺失 + 文档失真,需产品决策。
 4. **存储无限增长**:P1(orphan uploads)、P2(audit_log)。
 5. **首屏快赢**:F1、F7、(改写后的)`reloadActive` 并行。
