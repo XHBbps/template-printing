@@ -19,12 +19,14 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .npmrc ./
 COPY apps/render/package.json ./apps/render/
 COPY packages/types/package.json ./packages/types/
+COPY packages/schema/package.json ./packages/schema/
 RUN pnpm install --frozen-lockfile
 COPY . .
 # Build TS → dist, then produce a self-contained prod deployment (bundles workspace deps,
 # strips devDependencies, real files instead of pnpm store symlinks). Target is OUTSIDE the
 # workspace so pnpm deploy doesn't refuse an in-workspace path.
-RUN pnpm --filter @template-printing/render build \
+RUN pnpm --filter @template-printing/schema build \
+    && pnpm --filter @template-printing/render build \
     && pnpm --filter @template-printing/render deploy --prod /prod/render
 
 # ----- Stage 2: runtime with system Chromium + Noto CJK -----
