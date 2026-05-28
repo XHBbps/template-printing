@@ -106,11 +106,11 @@ export class RenderCleanupService {
     if (stuck.length === 0) return;
     this.log.warn(`reconcile: ${stuck.length} stuck job(s) → failed`);
     for (const job of stuck) {
-      await this.prisma.renderJob.update({
-        where: { id: job.id },
+      const { count } = await this.prisma.renderJob.updateMany({
+        where: { id: job.id, status: 'processing' },
         data: { status: 'failed', errorMsg: 'stuck_timeout', completedAt: new Date() },
       });
-      await this.sendStuckCallback(job.id, job.callbackUrl);
+      if (count === 1) await this.sendStuckCallback(job.id, job.callbackUrl);
     }
   }
 

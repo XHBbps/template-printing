@@ -76,6 +76,7 @@ describe('RenderCleanupService.reconcileStuckJobs (e2e)', () => {
   let templateId: string;
   let jobAId: string; // stuck (30 min ago) — should be reconciled
   let jobBId: string; // fresh (now) — should be untouched
+  let jobCId: string; // done (30 min ago) — already terminal, must NOT be overwritten
 
   beforeAll(async () => {
     // Start callback receiver
@@ -122,8 +123,57 @@ describe('RenderCleanupService.reconcileStuckJobs (e2e)', () => {
     });
     jobBId = jobB.id;
 
-    // Instantiate service with real prisma + fake FileSig
-    service = new RenderCleanupService(prisma as never, fakeFileSig);
+    // Job C: 造成 processing + 旧 startedAt，使其进入 findMany 快照；但通过下面的
+    // prisma 代理，在 findMany resolve 之后、逐行 update 之前把它在 DB 里翻成 done，
+    // 精确复现「快照说 processing，但 update 时已被 worker markDone」的竞态。
+    // 期望：updateMany({where:{id, status:'processing'}}) count===0，done 行不被覆盖。
+    const jobC = await prisma.renderJob.create({
+      data: {
+        templateId,
+        data: {},
+        formats: ['pdf'],
+        status: 'processing',
+        startedAt: thirtyMinAgo,
+        callbackUrl: `${cbUrl}/callback`,
+      },
+    });
+    jobCId = jobC.id;
+
+    // 代理 prisma.renderJob.findMany：真实查询返回后（快照里 Job C 仍是 processing），
+    // 立刻把 Job C 在 DB 翻成 done（模拟并发 worker markDone），再返回原始快照。
+    const racingPrisma = new Proxy(prisma, {
+      get(target, prop, receiver) {
+        if (prop === 'renderJob') {
+          const realModel = Reflect.get(target, prop, receiver) as typeof prisma.renderJob;
+          return new Proxy(realModel, {
+            get(mTarget, mProp, mReceiver) {
+              if (mProp === 'findMany') {
+                return async (...args: unknown[]) => {
+                  const res = await (realModel.findMany as (...a: unknown[]) => Promise<unknown>)(
+                    ...args,
+                  );
+                  // 仅触发一次：把 Job C 翻成 done（带 pdfUrl，模拟成功产物）
+                  await realModel.update({
+                    where: { id: jobCId },
+                    data: {
+                      status: 'done',
+                      completedAt: new Date(),
+                      pdfUrl: '/uploads/render/e2e-stuck-done.pdf',
+                    },
+                  });
+                  return res;
+                };
+              }
+              return Reflect.get(mTarget, mProp, mReceiver);
+            },
+          });
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+
+    // Instantiate service with racing prisma proxy + fake FileSig
+    service = new RenderCleanupService(racingPrisma as never, fakeFileSig);
   });
 
   afterAll(async () => {
@@ -149,6 +199,16 @@ describe('RenderCleanupService.reconcileStuckJobs (e2e)', () => {
     const jobB = await prisma.renderJob.findUnique({ where: { id: jobBId } });
     expect(jobB).not.toBeNull();
     expect(jobB!.status).toBe('processing');
+  });
+
+  it('does NOT overwrite an already-done job (race: snapshot then worker markDone)', async () => {
+    // Job C 在快照阶段是 processing（findMany 命中），但 update 前被 worker 完成成 done。
+    // 实测中我们直接造成 done 态：reconcileStuckJobs 跑完后该行必须仍 done、未被改写。
+    const jobC = await prisma.renderJob.findUnique({ where: { id: jobCId } });
+    expect(jobC).not.toBeNull();
+    expect(jobC!.status).toBe('done');
+    expect(jobC!.errorMsg).not.toBe('stuck_timeout');
+    expect(jobC!.pdfUrl).toBe('/uploads/render/e2e-stuck-done.pdf');
   });
 
   it('callbackStatus on stuck job is set to sent (mock returned 200)', async () => {
