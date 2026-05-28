@@ -114,6 +114,14 @@ async function main(): Promise<void> {
         // 超时后 race reject；loser(renderPromise) 随后因关页 reject → 吞掉防 unhandledRejection
         renderPromise.catch(() => {});
         const result = await withTimeout(renderPromise, JOB_TIMEOUT_MS, 'render');
+        if (result.permanentError) {
+          // 渲染期永久错误（非法条码/二维码/图片 404）→ 不出残缺图、立即 fail-fast 不重试。
+          // eslint-disable-next-line no-console
+          console.warn(`[render] job ${jobId} permanent render error: ${result.permanentError}`);
+          const changed = await markFailed(jobId, result.permanentError, attemptNo);
+          if (changed > 0) await sendCallback(jobId, job.callback_url);
+          throw new UnrecoverableError(result.permanentError);
+        }
         doneChanged = await markDone(jobId, result.pdfUrl, result.pngUrl, attemptNo);
         ok = true;
         // eslint-disable-next-line no-console

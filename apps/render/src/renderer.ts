@@ -14,6 +14,8 @@ export interface RenderOutput {
   pngPath: string | null;
   pdfUrl: string | null;
   pngUrl: string | null;
+  // 渲染期永久错误（非法条码/二维码/图片 404 等）。设置则未出图，调用方应 fail-fast。
+  permanentError?: string;
 }
 
 export async function renderJobOnPage(
@@ -69,14 +71,35 @@ export async function renderJobOnPage(
       args.data,
     );
 
-    // 4. Wait for the page to signal ready (Vue rendered).
+    // 4. Wait for the page to signal ready (Vue rendered) OR a permanent error.
     // polling: 100 — explicit ms polling. Default 'raf' (requestAnimationFrame)
     // is throttled in headless / non-visible pages so it can miss __renderReady
     // even after it's set; see iter 26 / iter 27 debugging.
     await page.waitForFunction(
-      () => (window as unknown as { __renderReady?: boolean }).__renderReady === true,
+      () => {
+        const w = window as unknown as { __renderReady?: boolean; __renderError?: unknown };
+        return w.__renderReady === true || w.__renderError != null;
+      },
       { timeout: 30_000, polling: 100 },
     );
+
+    // 4b. 读永久错误（PrintHeadlessView 在元件遇非法条码/二维码/图片 404 时设置）：
+    //     有则不出图、透出 reason，让 worker fail-fast（不产出残缺标签）。
+    //     注意：page.goto 每次重新加载页面会重置 window（新文档），__renderError
+    //     在复用页（pooled page）下一次渲染前自然清空，无需手动清。
+    const renderError = await page.evaluate(
+      () =>
+        (window as unknown as { __renderError?: { reason?: string } | null }).__renderError ?? null,
+    );
+    if (renderError) {
+      return {
+        pdfPath: null,
+        pngPath: null,
+        pdfUrl: null,
+        pngUrl: null,
+        permanentError: renderError.reason ?? 'render_error',
+      };
+    }
 
     // 5. Generate outputs
     const outDir = path.join(STORAGE_ROOT, 'uploads', 'render');
