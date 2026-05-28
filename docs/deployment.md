@@ -29,6 +29,8 @@ vi .env.prod   # 填入实际值（密钥、域名等）
 
 完成后 https://your-domain.com 即可访问。
 
+> **顺序说明（GAP#3 修复）**：`init.sh` 在 api 对外提供服务**之前**先用一次性容器执行 `prisma migrate deploy`——即「先起 `postgres`/`redis` → `docker compose run --rm --no-deps api npx prisma migrate deploy` → 再起 `api web render`」。空库时若先起 api，其 `EmergencyAdminBootstrap` 会触 `P2021: table … does not exist`；因此 api 侧也做了防御：表/列不存在时仅警告并跳过 bootstrap，不再崩溃循环（下次启动迁移完成后再建超管）。`update.sh` 同样在重启 api 前先 `run --rm` 迁移。两脚本会 `set -a; . ./.env.prod; set +a` 把 `REGISTRY/TAG/POSTGRES_PASSWORD` 载入 shell，保证镜像名 `${REGISTRY}/...:${TAG}` 在 `run`/`up` 时正确插值。
+
 ## 后续更新
 
 推荐通过 GitHub Actions 自动部署：
