@@ -13,6 +13,8 @@ import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { PrismaClient } from '@prisma/client';
 
 // eslint-disable-next-line import/no-unresolved
+import { MetricsService } from '../src/metrics/metrics.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { RenderCleanupService } from '../src/render/render-cleanup.service.js';
 
 // ──────────────────────────────────────────
@@ -66,6 +68,7 @@ function startCallbackServer(): Promise<{
 
 describe('RenderCleanupService.reconcileStuckJobs (e2e)', () => {
   const prisma = new PrismaClient();
+  const metrics = new MetricsService();
   let service: RenderCleanupService;
   let cbServer: http.Server;
   let cbUrl: string;
@@ -172,9 +175,22 @@ describe('RenderCleanupService.reconcileStuckJobs (e2e)', () => {
       },
     });
 
-    // Instantiate service with racing prisma proxy + fake FileSig
-    service = new RenderCleanupService(racingPrisma as never, fakeFileSig);
+    // Instantiate service with racing prisma proxy + fake FileSig + real Metrics
+    service = new RenderCleanupService(racingPrisma as never, fakeFileSig, metrics);
   });
+
+  // Helper: extract the numeric value of tp_render_jobs_total{status="stuck_timeout",...}
+  // from a Prometheus exposition text. Sums all matching label-set lines (≥1 expected).
+  function stuckTimeoutCount(text: string): number {
+    let sum = 0;
+    for (const line of text.split('\n')) {
+      if (line.startsWith('tp_render_jobs_total') && line.includes('status="stuck_timeout"')) {
+        const val = Number(line.slice(line.lastIndexOf(' ') + 1));
+        if (Number.isFinite(val)) sum += val;
+      }
+    }
+    return sum;
+  }
 
   afterAll(async () => {
     await prisma.renderJob.deleteMany({ where: { templateId } });
@@ -185,6 +201,9 @@ describe('RenderCleanupService.reconcileStuckJobs (e2e)', () => {
   });
 
   it('reconcileStuckJobs marks stuck job as failed/stuck_timeout and leaves fresh job alone', async () => {
+    // P2b: capture stuck_timeout counter value BEFORE running cron (process-wide accumulator)
+    const before = stuckTimeoutCount(await metrics.expose());
+
     // Default RENDER_STUCK_TIMEOUT_MIN = 10; job A is 30 min old → past threshold
     await service.reconcileStuckJobs();
 
@@ -199,6 +218,15 @@ describe('RenderCleanupService.reconcileStuckJobs (e2e)', () => {
     const jobB = await prisma.renderJob.findUnique({ where: { id: jobBId } });
     expect(jobB).not.toBeNull();
     expect(jobB!.status).toBe('processing');
+
+    // ── P2b: tp_render_jobs_total{status="stuck_timeout"} must have been incremented ──
+    // Job A was a real stuck processing job (count===1 branch); Job C raced to done
+    // (count===0, no inc). So the counter should increase by exactly 1 from `before`.
+    const text = await metrics.expose();
+    expect(text).toContain('tp_render_jobs_total');
+    expect(text).toContain('status="stuck_timeout"');
+    const after = stuckTimeoutCount(text);
+    expect(after).toBeGreaterThanOrEqual(before + 1);
   });
 
   it('does NOT overwrite an already-done job (race: snapshot then worker markDone)', async () => {

@@ -9,6 +9,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { fetch } from 'undici';
 
 // eslint-disable-next-line import/no-unresolved
+import { MetricsService } from '../metrics/metrics.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { FileSigService } from '../uploads/file-sig.service.js';
@@ -32,6 +34,7 @@ export class RenderCleanupService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileSig: FileSigService,
+    private readonly metrics: MetricsService,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
@@ -110,7 +113,12 @@ export class RenderCleanupService {
         where: { id: job.id, status: 'processing' },
         data: { status: 'failed', errorMsg: 'stuck_timeout', completedAt: new Date() },
       });
-      if (count === 1) await this.sendStuckCallback(job.id, job.callbackUrl);
+      if (count === 1) {
+        // P2b：API 侧对账 cron 真翻转一个 stuck job 时，inc 渲染任务终态指标。
+        // worker 是独立进程无 metrics 端点，stuck_timeout 只能在此处计数/告警。
+        this.metrics.renderJobs.inc({ status: 'stuck_timeout', source: 'cron' });
+        await this.sendStuckCallback(job.id, job.callbackUrl);
+      }
     }
   }
 

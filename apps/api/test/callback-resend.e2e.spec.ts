@@ -15,6 +15,8 @@ import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { PrismaClient } from '@prisma/client';
 
 // eslint-disable-next-line import/no-unresolved
+import { MetricsService } from '../src/metrics/metrics.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { RenderCleanupService } from '../src/render/render-cleanup.service.js';
 
 // ──────────────────────────────────────────
@@ -185,7 +187,7 @@ describe('RenderCleanupService.resendFailedCallbacks (e2e)', () => {
     });
     jobSentId = jobS.id;
 
-    service = new RenderCleanupService(prisma as never, fakeFileSig);
+    service = new RenderCleanupService(prisma as never, fakeFileSig, new MetricsService());
 
     // Run once; then give the mock server a tiny window to flush POST bodies.
     await service.resendFailedCallbacks();
