@@ -450,6 +450,9 @@ export class LarkBotController {
     });
     if (!session) return { ok: true };
 
+    // P0：已成功 → 幂等短路，防重复上传/重发
+    if (session.state === 'done') return { ok: true };
+
     const tpl = session.templateId
       ? await this.prisma.template.findUnique({ where: { id: session.templateId } })
       : null;

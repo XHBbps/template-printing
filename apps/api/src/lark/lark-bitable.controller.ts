@@ -155,6 +155,9 @@ export class LarkBitableController {
       return { ok: true };
     }
 
+    // P0：已成功回写过 → 幂等，杜绝 stalled 重投/补发导致重复上传 PDF + 重复写回
+    if (req.callbackStatus === 'done') return { ok: true };
+
     if (dto.status === 'done' && dto.pdfUrl) {
       try {
         // pdfUrl 形如 /uploads/render/<jobId>.pdf — 拼到 STORAGE_ROOT 下找文件
