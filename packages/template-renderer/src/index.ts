@@ -9,3 +9,5 @@ export { default as QrElement } from './elements/QrElement.vue';
 export { default as AutonumberElement } from './elements/AutonumberElement.vue';
 export { default as SystemElement } from './elements/SystemElement.vue';
 export { default as RectElement } from './elements/RectElement.vue';
+export { renderSettleKey } from './render-context';
+export type { RenderSettleCtx } from './render-context';
