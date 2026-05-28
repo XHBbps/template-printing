@@ -4,11 +4,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 
 // eslint-disable-next-line import/no-unresolved
+import { configureApp } from '../src/app-bootstrap.js';
+// eslint-disable-next-line import/no-unresolved
 import { validateEnv } from '../src/common/env.js';
 // eslint-disable-next-line import/no-unresolved
 import { HealthModule } from '../src/health/health.module.js';
-// eslint-disable-next-line import/no-unresolved
-import { configureApp } from '../src/main.js';
 
 describe('CORS env allowlist (V4)', () => {
   let app: INestApplication;
