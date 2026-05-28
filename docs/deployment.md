@@ -98,6 +98,48 @@ API 侧 cron(`render-cleanup.service.ts`)按 env 周期清理长期增长的存�
 - **路径修正(批次3)**:本批修复了 `RENDER_DIR` 漏 `uploads/` 的路径 bug —— 渲染产物清理(`cleanupOldOutputs`)与签名下载现正确指向 `STORAGE_ROOT/uploads/render/`(此前清理删错路径、签名下载 404)。
 - 清理 cron 与渲染对账 cron 同在 API 进程内调度;render worker 不参与清理。
 
+## 渲染可靠性(批次4)
+
+渲染失败/异常路径的三层加固:**状态机单调性**(杜绝重复脏写)+ **回调失败补发**(扛外部 webhook 偶发 5xx)+ **stuck_timeout 告警**(暴露 worker OOM/崩溃)。相关 env(见 `.env.example`):
+
+| Env | 默认 | 说明 |
+|---|---|---|
+| `CALLBACK_RESEND_MAX_ATTEMPTS` | 5 | 回调失败补发最大次数。补发 cron(每 5 分钟)对 `callbackStatus='failed'` 的终态 job 重发回调;达上限仍失败则置永久 `failed` 不再补发。**≤0=关**(完全不补发)。 |
+
+### 回调失败补发
+
+渲染完成(done/failed)后 worker 回调外部 `callbackUrl`,若对方返回非 2xx/超时,仅记 `callbackStatus='failed'` —— 此前会静默丢通知。本批新增 API 侧补发 cron `resendFailedCallbacks()`(`render-cleanup.service.ts`,`@Cron(EVERY_5_MINUTES)`):
+
+- **退避公式(钉死)**:资格 = `completedAt + (5 * 2^callbackAttempts) 分钟 <= now`。`callbackAttempts` 从 0 递增,实际补发落在 **completedAt + 5 / 10 / 20 / 40 / 80 分钟**,5 次共 **horizon ≈ 80min**。
+- 超过 horizon(`callbackAttempts >= CALLBACK_RESEND_MAX_ATTEMPTS`)仍失败 → 置永久 `failed` 不再补发(扛不住消费方长于 80min 的宕机,属可接受取舍)。
+- **计数语义**:`callback_attempts` 列只表达"补发 cron 已发的次数";worker 初次回调与对账 cron 的 `sendStuckCallback` 只置 `callbackStatus`、不动 `callback_attempts`。
+- **外部调用方必须按 jobId 幂等去重**:补发与 bullmq stalled 重投都可能让同一 job 的回调被重复投递,消费端须以 `jobId` 为幂等键去重(如:已处理过的 jobId 直接返回 200 跳过)。
+- **飞书内部回调恒 HTTP 200**(`lark-bitable.controller.ts` 的 `renderCallback` 即便内部 bitable 写失败也 `return {ok:true}`),故 worker 永远把飞书路径记为 `sent` —— 补发**实际只服务外部 `callbackUrl` 调用方**,飞书侧不会触发补发。
+
+### 状态机单调性(P0)
+
+**不变量:终态(done/failed)一旦写入不可被覆盖。** 修掉 bullmq stalled 晚到执行 / 对账 cron 快照窗口覆盖已有终态导致的 DB 与回调不一致、重复渲染、重复写回飞书:
+
+- **render `db.ts`** `markDone`/`markFailed`:UPDATE 加 `AND status NOT IN ('done','failed')`(终态粘性),返回受影响行数。
+- **render `main.ts`**:`fetchJob` 后若已终态直接短路 `return`(挡"开跑前已终态"的 stalled 重投);`markDone`/`markFailed` **仅当真翻转了终态(rowCount > 0)才 `sendCallback`**(挡"渲染中被 cron 抢先标 failed"后 worker 再发一次成功回调)。
+- **API 对账 cron** `reconcileStuckJobs`:由逐行 update 改为 `updateMany({where:{id, status:'processing'}})`,**仅 `count===1`(真翻转)才 `sendStuckCallback`**(挡 findMany 快照与 update 之间该行已 `markDone` 的覆盖)。
+- **飞书回调 handler 幂等守卫**:bitable / bot 两侧 `renderCallback` 顶部对已 `done` 的请求短路返回,杜绝 stalled 重投 / 补发导致的重复上传 PDF + 重复写回多维表格。
+
+### stuck_timeout 告警
+
+对账 cron 把 `processing` 超 `RENDER_STUCK_TIMEOUT_MIN` 的 job 翻成 `stuck_timeout` 失败时,会 inc 指标 `tp_render_jobs_total{status="stuck_timeout", source="cron"}`。**该指标持续 >0 是系统性信号 —— 通常代表 render worker OOM 或崩溃被 kill(任务卡在 processing 无人推进)**,而非个别业务失败,应配 Prometheus 告警:
+
+```yaml
+- alert: RenderWorkerStuckJobs
+  expr: increase(tp_render_jobs_total{status="stuck_timeout"}[15m]) > 0
+  for: 5m
+  labels: { severity: warning }
+  annotations:
+    summary: "render worker 出现 stuck_timeout(疑似 OOM/崩溃)"
+```
+
+触发后应优先排查 render 容器:`docker compose -f docker-compose.prod.yml logs render`(看 OOMKilled / 崩溃栈)+ 容器内存是否撞 `mem_limit`(内存吃紧先降 `RENDER_BROWSERS`×`RENDER_PAGES_PER_BROWSER` 或 `RENDER_DEVICE_SCALE_FACTOR`,见上「渲染健壮性与并发」)。
+
 ## 本地开发端口约定
 
 `docker-compose.dev.yml` 为了避开 Windows 常见保留端口段，将基础服务映射到非默认宿主机端口：

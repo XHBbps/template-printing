@@ -24,7 +24,7 @@
 
 ---
 
-## P0 — 状态机单调性(终态粘性,核心)
+## P0 — 状态机单调性(终态粘性,核心)✅ 已实现(Plan 1)
 
 **不变量:终态(done/failed)一旦写入不可被覆盖。** 一处 SQL 守卫收掉全部竞态。
 
@@ -40,14 +40,16 @@
 
 ---
 
-## P1a — backoff jitter(一行)
+## P1a — backoff jitter(一行)⏸ 暂缓(与 P2a 一并 Plan 2/后续)
 
-`apps/api/src/render/render.service.ts:100`:`backoff: { type: 'exponential', delay: 2000, jitter: 0.5 }`。
+> ⏸ **实测 bullmq 5.10.4 无 `jitter` 选项**,初稿的一行 `jitter:0.5` 不成立;真做需 render Worker 注册自定义 `backoffStrategy` + API 入队改 `type:'custom'`(跨进程 + 部署耦合,不再是一行)。本批(Plan 1)跳过,保持现有 exponential 2/4/8s,与 P2a 一并留待 Plan 2/后续。
+
+`apps/api/src/render/render.service.ts:100`:~~`backoff: { type: 'exponential', delay: 2000, jitter: 0.5 }`~~(jitter 选项不存在,见上)。
 **测试:** 入队选项断言 `jitter:0.5`(沿用现有 enqueue 单测)。
 
 ---
 
-## P1b — 回调失败补发
+## P1b — 回调失败补发 ✅ 已实现(Plan 1)
 
 1. **schema/migration:** `RenderJob` 加 `callbackAttempts Int @default(0) @map("callback_attempts")`;`prisma migrate dev --name add_callback_attempts`(仓库内不 reset,只新增列)。
 2. **计数语义(钉死):** `callbackAttempts` = **补发 cron 已发的次数**(默认 0)。worker `webhook.ts` 初次发回调、API `sendStuckCallback` **只置 `callbackStatus`(sent/failed),不动 `callbackAttempts`**;**仅补发 cron 每发一次 `callbackAttempts += 1`**。这样计数只表达"已补发几次",公式才干净。
@@ -92,7 +94,7 @@
 
 ---
 
-## P2b — 终态可观测(方案 A:API cron 出 stuck_timeout)
+## P2b — 终态可观测(方案 A:API cron 出 stuck_timeout)✅ 已实现(Plan 1)
 
 - `RenderCleanupService` 注入 `MetricsService`;`reconcileStuckJobs` 每翻转一个 stuck job(`count===1`)→ `metrics.renderJobs.inc({ status:'stuck_timeout', source:'cron' })`。
 - `done`/`failed` 逐 attempts 计数需 worker 端点,本批不做(已在 P2 决策中确认)。
