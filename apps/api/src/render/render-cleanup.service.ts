@@ -213,4 +213,23 @@ export class RenderCleanupService {
     });
     if (count > 0) this.log.log(`audit-log cleanup: ${count} row(s) older than ${days}d removed`);
   }
+
+  /**
+   * P12(系统 review):清理已终态(done/failed)的飞书机器人会话,防 lark_bot_sessions 无限增长。
+   * 删 state in (done,failed) 且 updatedAt 早于 BOT_SESSION_RETENTION_DAYS(默认30,≤0 关)的行。
+   * 进行中的会话(select_template/fill_fields/rendering)不删。
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
+  async cleanupBotSessions(): Promise<void> {
+    const days = Number(process.env.BOT_SESSION_RETENTION_DAYS ?? 30);
+    if (!Number.isFinite(days) || days <= 0) return;
+    const cutoff = new Date(Date.now() - days * 86400 * 1000);
+    const { count } = await this.prisma.larkBotSession.deleteMany({
+      where: { state: { in: ['done', 'failed'] }, updatedAt: { lt: cutoff } },
+    });
+    if (count > 0)
+      this.log.log(
+        `bot-session cleanup: ${count} done/failed session(s) older than ${days}d removed`,
+      );
+  }
 }
