@@ -7,6 +7,38 @@
 
 ---
 
+## 校验修订(2026-05-28,两轮核查 + Opus 交叉复核 + 独立抽验确认 — **以本节为准**)
+
+下文表格保留原始审计明细;**定级/取舍以本节为权威**(已逐项读真实代码确认):
+
+**删除(4 项,非真问题):**
+- **V6**(challenge 回显):飞书 URL 验证握手强制,回显攻击者自传值、不泄密/不改状态(`lark-bot.controller.ts:151-152`)。删。
+- **P9**(markFailed 冗余 findUnique):`markFailed(reqId)` 仅传 id,必须查出 `appToken/tableId/recordId/statusField` 用于回写表格/发卡片(`lark-bitable.controller.ts:188-196`),是副作用用途非冗余。删。
+- **D7**(nginx `.bak` 冲突):conf.d 为 `:ro` 只读挂载(`docker-compose.prod.yml:74`),`include *.conf` 不匹配 `.conf.bak`,最多无害残留。删(连同 O7)。
+- **F5**(位置引错):`:152-160` 是 `reloadActive` 非 `onMounted`(后者在 `:268`);**精神成立保留**,改述为"`reloadActive` 内 `:153-159` 的 `loadGridPage`+`refreshRecentId` 可 `Promise.all`"。
+
+**机制/定级修正(6 项):**
+- **V2** High→保留 High 但**改写暴露面**:`ownerId=null` 是系统调用方设计、非漏洞技巧;未发布模板被 `no_published_version` 挡住。真实暴露面 = **他人已发布的私有模板**可被飞书机器人选中渲染。
+- **V5** High→**降 Medium 且机制说反了**:是 `LARK_BITABLE_*` 与 `LARK_BOT_*` **两个独立 token**(非全局共用一个);漏配时 `!expected || x!==y` → **fail-closed 全拒**(非"无鉴权")。真实问题仅:**bitable 集成内** webhook 值与内部 render-callback token 复用(`:77`/`:83`/`:132`)+ 比较用 `!==` 非常量时间(微弱硬化点)。
+- **F4** High→**限定场景**:3 个串行 RTT 仅在"access 过期但 refresh 有效"态;正常 1 RTT、未登录 2 RTT。仍值得乐观渲染,但叙述限定。
+- **F11** Low→**改频率描述**:每次"编辑操作"触发(非"每次元素变更");Low 合适。
+- **D1** P0→**限定崩溃字段**:真会启动崩的是 `JWT_SECRET`(名字不符)+ 缺 `MASTER_KEY`/`FILE_SIG_SECRET`(+ `LARK_SSO_APP_ID/SECRET/REDIRECT_URI` 也必填无默认);`COOKIE_DOMAIN/SENTRY_DSN/APP_VERSION/LARK_*_VERIFICATION_TOKEN/INITIAL_ADMIN_LOCAL_PASSWORD` 均 optional **不崩**。
+- **D5** P0→**降 Low**(硬化项)+ 行号纠正:弱密码在 `.env.example:36`(`:35` 是 username);`env.ts:26` 是 `.min(8).optional()`,dev 样例占位、prod example 未设。
+- **D6** 补关键洞察:不仅 api+web 两端 Dockerfile 不同(render 两端相同),**更严重的是 CI 验证的是非-prod 镜像,prod Dockerfile(`apps/*/Dockerfile.prod`)从未被 CI 构建过**。
+
+**提级/提显眼(2 项):**
+- **V8**(SVG `<style>`/`data:`)**不降级**:`/uploads/*.svg` 无鉴权直送**活体浏览器**(非仅 Puppeteer,见 ServeStatic serveRoot `/` 仅排除 `/uploads/render`)→ 存储型内容/CSS 外联/SSRF 面真实。`<script>`/`on*` 已剥(挡脚本型 XSS),但应 drop `<style>`、限 href scheme、uploads 加 CSP/Content-Disposition。
+- **D-A2**(凭证加密未实现)**提到显眼处**:全仓 `MASTER_KEY` 零加密调用、无凭证表、无 `createCipheriv`/AES;飞书 secret 是 `LARK_SSO_APP_SECRET` 明文 env 注入。`AGENTS.md:190/:353` 宣称"飞书 secret 用 MASTER_KEY 加密存 DB + 传 credentialId" **完全未实现**(`examples/lark-bot/README.md:42` 自承"本版本未实现 AES 解密")。= 功能缺失 + 文档失真,需产品决策(实现 or 改文档)。
+
+**修订后修复优先级(替换文末"建议优先级"):**
+1. **远程可触达核心漏洞**:V1(IDOR,叙述去"枚举即得")→ V3(路径穿越,token 门控)→ V4(CORS)→ **V8(SVG 公开服务,提级)**;V2 改写后并入(他人已发布私有模板);V5 降 Medium 单列。
+2. **上线即崩/渲染全废(真 P0)**:D1(JWT_SECRET/MASTER_KEY/FILE_SIG_SECRET)、D2(WEB_BASE)、D3(storage 卷)、D4(密钥一致)、D6(统一 Dockerfile **且让 CI 跑 prod 镜像**)。D5/D7 移出 P0。
+3. **凭证加密未实现(D-A2)**:功能缺失 + 文档失真,需产品决策。
+4. **存储无限增长**:P1(orphan uploads)、P2(audit_log)。
+5. **首屏快赢**:F1、F7、(改写后的)`reloadActive` 并行。
+
+---
+
 ## 桶一:重大漏洞(影响核心功能使用 / 安全)
 
 > 排序:Critical → High → Medium。这些会被远程触达或破坏核心流程(API 调用 / 模板编辑 / 飞书侧)。
