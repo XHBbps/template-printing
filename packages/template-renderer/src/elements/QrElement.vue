@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
-import { computed, ref, watch, onMounted, nextTick } from 'vue';
+import { computed, ref, watch, onMounted, nextTick, inject } from 'vue';
 // eslint-disable-next-line import/no-unresolved
 import qrcode from 'qrcode-generator';
+import { renderSettleKey } from '../render-context';
 
 const props = defineProps<{
   element: Extract<TemplateElement, { type: 'qr' }>;
@@ -13,6 +14,10 @@ const props = defineProps<{
 }>();
 
 const qrSvg = ref('');
+
+// 渲染-settle ctx:仅非 designMode(打印渲染期)参与;设计器不 provide → null。
+const settle = inject(renderSettleKey, null);
+const active = () => (!props.designMode && settle ? settle : null);
 
 const contentText = computed(() => {
   if (props.element.binding) {
@@ -38,6 +43,9 @@ function render(): void {
     qrSvg.value = '';
     return;
   }
+  // 早 return(无内容)在 begin 之前 → 不算异步操作,不计;begin/end 同步配平。
+  const ctx = active();
+  ctx?.begin();
   try {
     const eccMap = { L: 'L', M: 'M', Q: 'Q', H: 'H' } as const;
     const ecc = (props.element.eccLevel ?? 'M') as 'L' | 'M' | 'Q' | 'H';
@@ -51,6 +59,9 @@ function render(): void {
     // eslint-disable-next-line no-console
     console.error('[QrElement] qrcode render failed:', err);
     qrSvg.value = '';
+    ctx?.reportError('qr_invalid', String((err as Error)?.message ?? err));
+  } finally {
+    ctx?.end();
   }
 }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, nextTick } from 'vue';
+import { computed, ref, watch, onMounted, nextTick, inject } from 'vue';
+import { renderSettleKey } from '../render-context';
 // bwip-js uses conditional exports (browser/node/electron/react-native) that
 // vue-tsc cannot resolve with moduleResolution=Bundler. Vite picks the browser
 // bundle correctly at runtime. Suppress the TS module-not-found error here.
@@ -17,6 +18,10 @@ const props = defineProps<{
 }>();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
+
+// 渲染-settle ctx:仅非 designMode(打印渲染期)参与;设计器不 provide → null。
+const settle = inject(renderSettleKey, null);
+const active = () => (!props.designMode && settle ? settle : null);
 
 const value = computed<string>(() => {
   if (props.element.content?.static) return props.element.content.static;
@@ -53,6 +58,9 @@ function render(): void {
   const estModules = v.length * 11 + 20;
   const scale = Math.max(1, Math.floor((elPxW * 0.85) / estModules));
   const height = Math.max(8, Math.floor(elPxH * 0.75));
+  // begin/end 在同一次同步 render 内严格配平(bwip-js 同步);active() 一次求值复用到 finally。
+  const ctx = active();
+  ctx?.begin();
   try {
     bwipjs.toCanvas(canvasRef.value, {
       bcid: props.element.symbology,
@@ -73,6 +81,9 @@ function render(): void {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[BarcodeElement] bwip-js render failed:', err);
+    ctx?.reportError('barcode_invalid', String((err as Error)?.message ?? err));
+  } finally {
+    ctx?.end();
   }
 }
 
