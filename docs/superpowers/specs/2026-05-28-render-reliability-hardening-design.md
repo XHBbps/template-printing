@@ -64,13 +64,16 @@
 
 ---
 
-## P2a-worker — 永久错误细分:worker zod 预校验(✅ 本批 / Plan 1)
+## P2a-worker — 永久错误细分:worker zod 预校验(⏸ 延后到 Plan 2,不在本批)
 
-**目标:** 把"模板结构非法"从"白重试 3 次 × 各占 60s 渲染槽"降为立即 `UnrecoverableError`。确定性、纯 Node、零设计器风险——这是 P2a 里的大头(畸形模板远比"合法结构 + 非法条码内容"常见)。
+**目标(不变):** 把"模板结构非法"从"白重试 3 次 × 各占 60s 渲染槽"降为立即 `UnrecoverableError`。
 
-- `apps/render` 加 workspace 依赖 `@template-printing/schema`(纯 zod,无 Vue,可在 Node worker 内用)。
-- `main.ts` 取到 `tpl.data` 后、`markProcessing` 前:`const v = TemplateSchema.safeParse(tpl.data); if (!v.success) { await markFailed(jobId, 'schema_invalid', attemptNo); await sendCallback(...); throw new UnrecoverableError('schema_invalid'); }`(与 `template_not_found` 同形;`markFailed` 此刻 `pending→failed`,P0 粘性守卫放行)。
-- **测试:** worker 单测——非法 `tpl.data` → zod 短路、`UnrecoverableError`、不重试;合法 `tpl.data` 不受影响。
+**为何也延后(plan 期发现的打包陷阱 + 低命中率):**
+- ❌ 初稿说"`@template-printing/schema` 纯 zod,可在 Node worker 内直接用"——**错**。该包 `main: ./src/index.ts`(raw TS,无 build);render 生产镜像 `docker/render.Dockerfile:59` 跑 `node dist/main.js`,`pnpm deploy` 把 schema 当 raw TS 拷入 → Node 20 无法执行 `.ts` → `ERR_UNKNOWN_FILE_EXTENSION` 崩。而 vitest/tsx(dev/测试)即时转译 → **绿**。典型 batch-2「build≠runs」陷阱。全仓**无任何 Node 侧运行时消费 schema**(`apps/api/src` 声明依赖却从不 import)。
+- 要全 zod 在 worker 跑通生产,须给 schema 加 build(dist + `exports`)并接入 render Dockerfile 构建阶段(改 web/designer 共用包 + 需生产 runtime-verify),或 bundle worker / 改 tsx 运行——均比"一次 safeParse"大。
+- `tpl.data` 是 DB 里的已发布模板结构(设计器作者),若作者/保存侧已校验,畸形模板抵达 worker 近乎零频 → 任何形态的 T7 命中率都低。
+
+**Plan 2 的选项(待定,与 P2a-web 同批决策):** (a) 给 schema 加 build 后用完整 `TemplateSchema.safeParse`;或 (b) worker 内手写极小结构守卫(canvas 存在 + elements 是数组 + 每元素有 type/anchor)零依赖零打包风险但保真度低。Plan 2 启动时定。
 
 ## P2a-web — 条码/渲染期错误细分(⏸ 延后到 Plan 2,不在本批)
 
@@ -107,8 +110,8 @@
 
 ## Plan 拆分(按"碰不碰 `template-renderer` 共享包"切爆炸半径)
 
-- **Plan 1(服务端,低回归,先发):** P0 + P1a + P1b + **P2a-worker(zod)** + P2b。验证统一为 typecheck / 单测 / 渲染往返 + cron e2e,**无设计器手测依赖**。P0 是 correctness bug,应尽早上线,不被回归风险项拖累。→ 本 spec 收尾即进 Plan 1 的 writing-plans。
-- **Plan 2(唯一设计器回归项,需先解就绪 barrier):** P2a-web。需修 50ms render-settle 契约 + 设计器手动走查 + 单独可回滚 + 产品确认"非法条码 → fail-fast"口径。单独 plan、单独发布。
+- **Plan 1(服务端,低回归,先发):** P0 + P1a + P1b + P2b。全部纯服务端、**零打包风险、零设计器手测依赖**;验证统一为 typecheck / 单测 / 渲染往返 + cron e2e。P0 是 correctness bug,应尽早上线,不被回归/打包风险项拖累。→ 本 spec 收尾即进 Plan 1 的 writing-plans。
+- **Plan 2(后续,碰共享包 / 打包 / 设计器回归):** P2a-worker(先定 schema 打包方案:加 build 用全 zod,或 worker 内手写结构守卫)+ P2a-web(先修 50ms render-settle barrier + Barcode/Qr sink + 设计器手动走查 + 产品确认"非法条码 → fail-fast"口径)。单独 plan、单独发布、单独可回滚。
 
 ## 文档同步(AGENTS.md §9)
 
@@ -116,6 +119,6 @@
 
 ## 任务分解预判(交 writing-plans)
 
-**Plan 1(本批):** T1 P0 db.ts 粘性 + rowCount → T2 P0 main.ts 短路(`return` 非 throw)/rowCount 决定 `sendCallback` → T3 P0 cron updateMany 守卫(`count===1` 才回调)→ T4 P0 飞书 handler 幂等守卫(bitable + bot)→ T5 P1a jitter → T6 P1b 列+migration+补发 cron(计数语义/退避公式见 P1b)+env → T7 P2a-worker zod 预校验 → T8 P2b stuck_timeout metric → T9 文档 + 全量回归。(P0 四步耦合度高,plan 期可酌情合并 task。)
+**Plan 1(本批):** T1 P0 db.ts 粘性 + rowCount → T2 P0 main.ts 短路(`return` 非 throw)/rowCount 决定 `sendCallback` → T3 P0 cron updateMany 守卫(`count===1` 才回调)→ T4 P0 飞书 handler 幂等守卫(bitable + bot)→ T5 P1a jitter → T6 P1b 列+migration+补发 cron(计数语义/退避公式见 P1b)+env → T7 P2b stuck_timeout metric → T8 文档 + 全量回归。(P0 四步耦合度高,plan 期可酌情合并 task。)
 
-**Plan 2(后续):** 就绪 barrier 修复 → Barcode/Qr sink + PrintHeadlessView provide/onErrorCaptured + worker 读信号 → 设计器走查。
+**Plan 2(后续):** schema 打包方案定夺 → P2a-worker(zod 或结构守卫)→ 就绪 barrier 修复 → Barcode/Qr sink + PrintHeadlessView provide/onErrorCaptured + worker 读信号 → 设计器走查。
