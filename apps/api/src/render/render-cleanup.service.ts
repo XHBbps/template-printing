@@ -198,4 +198,19 @@ export class RenderCleanupService {
       `orphan-uploads cleanup: ${deleted} unreferenced file(s) removed (grace ${graceDays}d)`,
     );
   }
+
+  /**
+   * P2(系统 review):审计日志保留清理,防 audit_log 无限增长。
+   * 删 createdAt 早于 AUDIT_LOG_RETENTION_DAYS(默认90,≤0 关)的行。
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
+  async cleanupAuditLog(): Promise<void> {
+    const days = Number(process.env.AUDIT_LOG_RETENTION_DAYS ?? 90);
+    if (!Number.isFinite(days) || days <= 0) return;
+    const cutoff = new Date(Date.now() - days * 86400 * 1000);
+    const { count } = await this.prisma.auditLog.deleteMany({
+      where: { createdAt: { lt: cutoff } },
+    });
+    if (count > 0) this.log.log(`audit-log cleanup: ${count} row(s) older than ${days}d removed`);
+  }
 }
