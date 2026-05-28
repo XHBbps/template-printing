@@ -140,6 +140,36 @@ API 侧 cron(`render-cleanup.service.ts`)按 env 周期清理长期增长的存�
 
 触发后应优先排查 render 容器:`docker compose -f docker-compose.prod.yml logs render`(看 OOMKilled / 崩溃栈)+ 容器内存是否撞 `mem_limit`(内存吃紧先降 `RENDER_BROWSERS`×`RENDER_PAGES_PER_BROWSER` 或 `RENDER_DEVICE_SCALE_FACTOR`,见上「渲染健壮性与并发」)。
 
+### 批次4 续(Plan2):自定义退避 + jitter / 永久错误细分
+
+Plan2 在 Plan1 基础上再加两层:**重试退避加 jitter 防惊群**(P1a)+ **永久错误细分 fail-fast**(P2a)。相关 env:
+
+| Env | 默认 | 说明 |
+|---|---|---|
+| `RENDER_BACKOFF_BASE_MS` | 2000 | 渲染重试退避基线(ms)。实际退避 = `base × 2^(n-1) × [0.5, 1.5)`(指数 + ±50% jitter)。**注:它是 render worker 进程的 `process.env`,不在 api `env.ts` schema**。 |
+
+#### P1a — 自定义退避 + jitter
+
+bullmq 5.10.4 无内置 `jitter` 选项,故由 render Worker 注册自定义 `settings.backoffStrategy`(`jitterBackoff`,`backoff.ts`)+ API 入队改 `backoff: { type: 'custom' }`(`render.service.ts`)。退避 = `RENDER_BACKOFF_BASE_MS × 2^(n-1) × [0.5, 1.5)` —— 指数增长叠加 **±50% jitter**,打散并发 job 的齐步重试,避免大批量并发失败时同一时刻齐步重试放大外部依赖尖峰(惊群)。
+
+> ⚠️ **部署耦合(必须 api 与 render 同版本部署)**:API 入队的 `backoff: { type: 'custom' }` 依赖 render Worker 已注册同名 `backoffStrategy`。若部署了新 api(入队 `type:'custom'`)却仍跑旧 render Worker(无 custom 策略),旧 worker 收到 custom 会抛 **"Unknown backoff strategy"**,重试链断。升级时务必 api + render 同批次出货。
+
+#### P2a — 永久错误细分(fail-fast)
+
+把"模板结构非法 / 条码非法 / 图片 404 / 渲染期抛错"这类**改重试也无济于事**的错误,从"白重试 3 次 × 各占 60s 渲染槽"降为**立即失败、跳过重试、不产出残缺 PDF/PNG**(`UnrecoverableError`):
+
+| reason | 来源 | 含义 |
+|---|---|---|
+| `schema_invalid` | worker 导航前 zod 预校验 | `tpl.data` 结构非法(`TemplateSchema.safeParse` 失败) |
+| `barcode_invalid` | web 元件 designMode 门控上报 | 条码内容非法 |
+| `qr_invalid` | web 元件 designMode 门控上报 | 二维码内容非法 |
+| `image_404` | web 元件 designMode 门控上报 | 图片资源加载失败 |
+| `render_error` | 渲染期同步抛错 | 模板渲染期抛出的其他同步错误 |
+
+以上 reason 一律 fail-fast:job 立即置 `failed`、`attempts=1`(不重试)、**不产出残缺 PDF/PNG**(对账与回调补发不会被触发)。
+
+worker 的 zod 预校验消费 `@template-printing/schema/template`(schema 包的**构建产物** dist,非 raw TS) —— 因 render 生产镜像跑 `node dist/main.js`,Node 20 无法执行 `.ts`。故 **render 生产镜像构建依赖 schema 包先 build**:`docker/render.Dockerfile` 构建阶段已先 build schema(`exports["./template"]→dist`)再 build/deploy render,实证 node 可解析 `./template`。
+
 ## 本地开发端口约定
 
 `docker-compose.dev.yml` 为了避开 Windows 常见保留端口段，将基础服务映射到非默认宿主机端口：

@@ -40,9 +40,9 @@
 
 ---
 
-## P1a — backoff jitter(一行)⏸ 暂缓(与 P2a 一并 Plan 2/后续)
+## P1a — backoff jitter ✅ 已实现(Plan 2)
 
-> ⏸ **实测 bullmq 5.10.4 无 `jitter` 选项**,初稿的一行 `jitter:0.5` 不成立;真做需 render Worker 注册自定义 `backoffStrategy` + API 入队改 `type:'custom'`(跨进程 + 部署耦合,不再是一行)。本批(Plan 1)跳过,保持现有 exponential 2/4/8s,与 P2a 一并留待 Plan 2/后续。
+> ✅ **Plan 2 落地**:bullmq 5.10.4 无 `jitter` 选项,初稿的一行 `jitter:0.5` 不成立;改由 render Worker 注册自定义 `settings.backoffStrategy`(`backoff.ts` 的 `jitterBackoff`,退避 = `RENDER_BACKOFF_BASE_MS(默认2000) × 2^(n-1) × [0.5,1.5)` 指数+±50% jitter 防惊群)+ API 入队改 `backoff:{type:'custom'}`。⚠️ 跨进程 + **部署耦合:api 与 render 必须同版本部署**(旧 worker 收 custom 抛 "Unknown backoff strategy")。Plan 1 跳过、保持 exponential 2/4/8s,本项与 P2a 一并 Plan 2 完成。
 
 `apps/api/src/render/render.service.ts:100`:~~`backoff: { type: 'exponential', delay: 2000, jitter: 0.5 }`~~(jitter 选项不存在,见上)。
 **测试:** 入队选项断言 `jitter:0.5`(沿用现有 enqueue 单测)。
@@ -66,20 +66,24 @@
 
 ---
 
-## P2a-worker — 永久错误细分:worker zod 预校验(⏸ 延后到 Plan 2,不在本批)
+## P2a-worker — 永久错误细分:worker zod 预校验 ✅ 已实现(Plan 2)
 
-**目标(不变):** 把"模板结构非法"从"白重试 3 次 × 各占 60s 渲染槽"降为立即 `UnrecoverableError`。
+**目标(已达成):** 把"模板结构非法"从"白重试 3 次 × 各占 60s 渲染槽"降为立即 `UnrecoverableError('schema_invalid')`。
 
-**为何也延后(plan 期发现的打包陷阱 + 低命中率):**
+> ✅ **Plan 2 落地(选项 a)**:给 `@template-printing/schema` 加 build + `exports["./template"]→dist`(`.` 仍 src),render 导航前用完整 `TemplateSchema.safeParse(tpl.data)`(`schema-precheck.ts`),畸形 → `UnrecoverableError('schema_invalid')`;`docker/render.Dockerfile` 构建阶段先 build schema 再 build/deploy render(生产 runtime-verify `node` 可解析 `./template`,避下述 raw-TS 陷阱)。
+
+**(规划期发现的打包陷阱 + 低命中率,已由上述方案解决):**
 - ❌ 初稿说"`@template-printing/schema` 纯 zod,可在 Node worker 内直接用"——**错**。该包 `main: ./src/index.ts`(raw TS,无 build);render 生产镜像 `docker/render.Dockerfile:59` 跑 `node dist/main.js`,`pnpm deploy` 把 schema 当 raw TS 拷入 → Node 20 无法执行 `.ts` → `ERR_UNKNOWN_FILE_EXTENSION` 崩。而 vitest/tsx(dev/测试)即时转译 → **绿**。典型 batch-2「build≠runs」陷阱。全仓**无任何 Node 侧运行时消费 schema**(`apps/api/src` 声明依赖却从不 import)。
 - 要全 zod 在 worker 跑通生产,须给 schema 加 build(dist + `exports`)并接入 render Dockerfile 构建阶段(改 web/designer 共用包 + 需生产 runtime-verify),或 bundle worker / 改 tsx 运行——均比"一次 safeParse"大。
 - `tpl.data` 是 DB 里的已发布模板结构(设计器作者),若作者/保存侧已校验,畸形模板抵达 worker 近乎零频 → 任何形态的 T7 命中率都低。
 
 **Plan 2 的选项(待定,与 P2a-web 同批决策):** (a) 给 schema 加 build 后用完整 `TemplateSchema.safeParse`;或 (b) worker 内手写极小结构守卫(canvas 存在 + elements 是数组 + 每元素有 type/anchor)零依赖零打包风险但保真度低。Plan 2 启动时定。
 
-## P2a-web — 条码/渲染期错误细分(⏸ 延后到 Plan 2,不在本批)
+## P2a-web — 条码/渲染期错误细分 ✅ 已实现(Plan 2)
 
-**为何延后(用户 review 新发现的设计风险):**
+> ✅ **Plan 2 落地**:先修就绪 barrier —— `PrintHeadlessView` 改为「渲染-settle 注册表」(所有异步元件 settle 才置就绪)+ 错误 sink,消除 50ms race;Barcode/Qr/Image 元件 **designMode 门控**上报(`barcode_invalid`/`qr_invalid`/`image_404`,不回归设计器编辑);worker `renderer.ts` `waitForFunction(__renderReady || __renderError)` + `main.ts` 读 `window.__renderError` → `UnrecoverableError`(**不出残图**)。产品口径已采 fail-fast(非法条码/图片 404 → 整个 job failed,不出带空条码/残缺 PDF)。端到端已验:图片404 job→failed/`image_404`/attempts=1、正常→done。
+
+**(规划期 review 发现的设计风险,已由上述方案逐条解决):**
 1. **检测寄生在 50ms 心跳上 → 本身 racy。** worker 读 `window.__renderError` 的时机由 `waitForFunction(__renderReady || __renderError)` 决定,而 `__renderReady` 是 `PrintHeadlessView.vue:25-43` 固定 50ms 定时器**无条件**置的,不等异步元件渲染完。Barcode 的 `render()` 在 `await nextTick()` 后的 async watch 里跑,bwip-js 抛错→sink 上报的时刻**不保证早于 50ms**。结果:模板重一点 / CI 慢一点,worker 先看到 `__renderReady=true` 就 `page.pdf`,漏掉 `__renderError`。→ **会做出一个时灵时不灵的非确定性永久错误分类器,比不做更糟。**
 2. **要做对得先修"渲染真正结束"的 barrier**(元件上报渲染完成 / render-settle 信号,替代 50ms 心跳)——这触碰 headless 渲染的核心**就绪契约**,比"加 sink + 读信号"大一圈。
 3. **产品口径取舍待定:** 非法条码现状是"出 PDF、条码留空";P2a-web 会升级成"整个 job failed"。打印场景下少个条码的标签或许确实不该印(fail-fast 更对),但这是有意识取舍,需产品确认要"失败"而非"出带空条码 PDF"。
