@@ -122,6 +122,10 @@ const router = createRouter({
 let hasHydratedOnce = false;
 
 router.beforeEach(async (to) => {
+  // 渲染页(headless 浏览器)只渲染注入的 __renderInput、永不需要鉴权 —— 直接放行,
+  // 跳过 boot 期 hydrate,避免无 cookie 时 GET /users/me（及其 401 触发的 /auth/refresh）
+  // 产生 401 噪声 + 无用请求。该路由 requiresAuth:false 且无 adminOnly,早返回不绕过任何实际守卫。
+  if (to.name === 'print-headless') return true;
   const auth = useAuthStore();
   // First-time hydrate on app boot (always).
   // Re-hydrate when entering a protected route with unknown auth (catches
