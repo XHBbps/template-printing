@@ -18,6 +18,109 @@ const remember = ref(true);
 const submitting = ref(false);
 const lang = ref<'cn' | 'en'>('cn');
 
+// ── 登录页文案字典(整页 CN/EN 切换)──
+const messages = {
+  cn: {
+    app: '模板打印',
+    eyebrow: '内部系统 · 流程IT中心',
+    h1a: '印一份',
+    h1b: '像样的',
+    h1accent: '模板。',
+    h1sub: '模板驱动、可审计的扬力集团文档打印系统。',
+    statRenders: '月渲染量',
+    statLatency: 'P50 延迟',
+    statSuccess: '渲染成功率',
+    signInEyebrow: '登录',
+    welcome: '欢迎回来',
+    username: '用户名',
+    password: '密码',
+    remember: '保持登录 30 天',
+    signIn: '登录',
+    signingIn: '登录中…',
+    or: '或',
+    larkBtn: '使用飞书登录',
+    footNote:
+      '登录即表示同意《使用规范》与《数据保密协议》。本系统仅供扬力集团内部使用,所有渲染日志可追溯。',
+    statusLink: '系统状态',
+    changelogLink: '变更日志',
+    apiDocsLink: 'API 文档',
+    needCreds: '请输入用户名和密码',
+    loginOk: '登录成功',
+    loginFail: '登录失败,请重试',
+    statusTitle: '系统状态',
+    statusChecking: '检测中…',
+    statusUp: '服务运行正常',
+    statusDown: '服务暂不可用',
+    uptime: '已运行',
+    mRenders: '近 30 天渲染量',
+    mLatency: 'P50 渲染延迟',
+    mSuccess: '渲染成功率',
+    changelogTitle: '变更日志',
+    apiAuthLabel: '鉴权',
+    apiAuthDesc: '请求头带 Bearer 令牌;令牌在登录后「API 控制台」创建。',
+    apiEndpointsLabel: '主要接口',
+    apiRenderDesc: '入队渲染(异步),立即返回 jobId;完成时回调 callbackUrl,或主动轮询。',
+    apiPollDesc: '轮询渲染任务状态。',
+    apiCallbackLabel: '完成回调',
+    apiCallbackDesc: '渲染完成后,平台 POST 以下结构到你的 callbackUrl:',
+    apiExampleLabel: '示例',
+    apiConsoleNote: '登录后进入「API 控制台」管理令牌、查看模板字段与完整文档。',
+    close: '关闭',
+  },
+  en: {
+    app: 'Template Print',
+    eyebrow: 'Internal · Process IT Center',
+    h1a: 'Print a',
+    h1b: 'document worth',
+    h1accent: 'keeping.',
+    h1sub: 'Template-driven, audit-ready document printing for the Yangli Group.',
+    statRenders: 'Renders / mo',
+    statLatency: 'P50 latency',
+    statSuccess: 'Success rate',
+    signInEyebrow: 'Sign in',
+    welcome: 'Welcome back',
+    username: 'Username',
+    password: 'Password',
+    remember: 'Keep me signed in for 30 days',
+    signIn: 'Sign in',
+    signingIn: 'Signing in…',
+    or: 'OR',
+    larkBtn: 'Sign in with Lark',
+    footNote:
+      'By signing in you agree to the Usage Policy and Data Confidentiality Agreement. For internal Yangli Group use only; all render logs are auditable.',
+    statusLink: 'System status',
+    changelogLink: 'Changelog',
+    apiDocsLink: 'API docs',
+    needCreds: 'Please enter username and password',
+    loginOk: 'Signed in',
+    loginFail: 'Sign-in failed, please retry',
+    statusTitle: 'System status',
+    statusChecking: 'Checking…',
+    statusUp: 'All services operational',
+    statusDown: 'Service unavailable',
+    uptime: 'Uptime',
+    mRenders: 'Renders (30d)',
+    mLatency: 'P50 render latency',
+    mSuccess: 'Success rate',
+    changelogTitle: 'Changelog',
+    apiAuthLabel: 'Authentication',
+    apiAuthDesc:
+      'Send a Bearer token in the header; create tokens in the API console after signing in.',
+    apiEndpointsLabel: 'Endpoints',
+    apiRenderDesc:
+      'Enqueue a render (async); returns jobId immediately. Receive a webhook on callbackUrl, or poll.',
+    apiPollDesc: 'Poll render job status.',
+    apiCallbackLabel: 'Completion callback',
+    apiCallbackDesc: 'On completion, the platform POSTs this shape to your callbackUrl:',
+    apiExampleLabel: 'Example',
+    apiConsoleNote:
+      'Sign in to manage tokens, view template fields and full docs in the API console.',
+    close: 'Close',
+  },
+} as const;
+
+const t = computed(() => messages[lang.value]);
+
 interface StatsOverview {
   windowDays: number;
   monthlyRenders: number;
@@ -52,6 +155,80 @@ const successStat = computed(() => {
   return r == null ? { value: '—', unit: '' } : { value: (r * 100).toFixed(2), unit: '%' };
 });
 
+// ── 系统状态弹窗:点击实时 ping /healthz + 复用月度指标 ──
+const statusOpen = ref(false);
+const statusState = ref<'checking' | 'up' | 'down'>('checking');
+const statusUptime = ref<number | null>(null);
+
+function fmtUptime(s: number | null): string {
+  if (s == null) return '—';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+async function openStatus(): Promise<void> {
+  statusOpen.value = true;
+  statusState.value = 'checking';
+  statusUptime.value = null;
+  try {
+    const h = await apiFetch<{ ok: boolean; uptime: number }>('/healthz');
+    statusState.value = h?.ok ? 'up' : 'down';
+    statusUptime.value = h?.uptime ?? null;
+  } catch {
+    statusState.value = 'down';
+  }
+  try {
+    stats.value = await apiFetch<StatsOverview>('/stats/overview');
+  } catch {
+    // 保留已有 stats
+  }
+}
+
+// ── API 文档弹窗(公开速览,内容取自 /api 控制台文档 tab)──
+const apiDocsOpen = ref(false);
+
+// ── 变更日志弹窗:手维护的版本列表(中英双份)──
+const changelogOpen = ref(false);
+interface ChangelogEntry {
+  v: string;
+  date: string;
+  cn: string[];
+  en: string[];
+}
+const changelog: ChangelogEntry[] = [
+  {
+    v: '2.4.1',
+    date: '2026·05',
+    cn: [
+      '渲染失败重试与回调可靠性加固(状态机一致性、回调补发)',
+      '存储自动清理:孤儿图片 / 审计日志 / 飞书会话',
+    ],
+    en: [
+      'Hardened render retry & callback reliability (state-machine consistency, callback resend)',
+      'Automatic storage cleanup: orphan images / audit logs / Lark sessions',
+    ],
+  },
+  {
+    v: '2.4.0',
+    date: '2026·05',
+    cn: ['账号内 / 外部双类型重构', '设计器缩放与渲染回归修复'],
+    en: ['Internal / external account type overhaul', 'Designer zoom & render regression fixes'],
+  },
+  {
+    v: '2.3.0',
+    date: '2026·04',
+    cn: ['飞书多维表格按钮 / 机器人卡片触发渲染', 'Signed URL、日配额与产物自动清理'],
+    en: [
+      'Lark Bitable button / bot card triggered rendering',
+      'Signed URLs, daily quota & output auto-cleanup',
+    ],
+  },
+];
+const changelogItems = computed(() =>
+  changelog.map((e) => ({ v: e.v, date: e.date, items: lang.value === 'cn' ? e.cn : e.en })),
+);
+
 async function goLark(): Promise<void> {
   const continueTo = (router.currentRoute.value.query.continue as string | undefined) ?? '/';
   try {
@@ -64,7 +241,7 @@ async function goLark(): Promise<void> {
 
 async function submitLocal(): Promise<void> {
   if (!username.value || !password.value) {
-    ElMessage.warning('请输入用户名和密码');
+    ElMessage.warning(t.value.needCreds);
     return;
   }
   submitting.value = true;
@@ -81,14 +258,14 @@ async function submitLocal(): Promise<void> {
       },
     );
     await authStore.setLocalLoginResult(result);
-    ElMessage.success('登录成功');
+    ElMessage.success(t.value.loginOk);
     const continueTo = (router.currentRoute.value.query.continue as string | undefined) ?? '/';
     await router.push(continueTo);
   } catch (e) {
     if (e instanceof ApiClientError) {
       ElMessage.error(e.message);
     } else {
-      ElMessage.error('登录失败，请重试');
+      ElMessage.error(t.value.loginFail);
     }
   } finally {
     submitting.value = false;
@@ -123,7 +300,7 @@ async function submitLocal(): Promise<void> {
         <div class="tp-l-lockup">
           <img src="/yangli-logo-master.png" alt="YANGLI" />
           <span class="tp-l-pipe"></span>
-          <span class="tp-l-app">模板打印</span>
+          <span class="tp-l-app">{{ t.app }}</span>
         </div>
         <div class="tp-l-build">
           <span><span class="tp-l-red-dot"></span>v 2.4.1 · BUILD 2026·05</span><br />
@@ -134,14 +311,12 @@ async function submitLocal(): Promise<void> {
       <div class="tp-l-display">
         <div class="tp-l-eyebrow">
           <span class="tp-l-rule"></span>
-          Internal · Process IT · 流程IT中心
+          {{ t.eyebrow }}
         </div>
         <h1 class="tp-l-h1">
-          印一份<br />
-          像样的<span class="tp-l-accent">模板。</span>
-          <span class="tp-l-en">
-            Template-driven, audit-ready document printing for the Yangli Group.
-          </span>
+          {{ t.h1a }}<br />
+          {{ t.h1b }}<span class="tp-l-accent">{{ t.h1accent }}</span>
+          <span class="tp-l-en">{{ t.h1sub }}</span>
         </h1>
       </div>
 
@@ -151,20 +326,20 @@ async function submitLocal(): Promise<void> {
             {{ rendersStat.value
             }}<span v-if="rendersStat.unit" class="tp-l-unit">{{ rendersStat.unit }}</span>
           </div>
-          <div class="tp-l-lbl">月渲染量 <span class="tp-l-lbl-en">RENDERS / MO</span></div>
+          <div class="tp-l-lbl">{{ t.statRenders }}</div>
         </div>
         <div class="tp-l-stat">
           <div class="tp-l-num">
             {{ p50Stat.value }}<span v-if="p50Stat.unit" class="tp-l-unit">{{ p50Stat.unit }}</span>
           </div>
-          <div class="tp-l-lbl">P50 延迟 <span class="tp-l-lbl-en">P50 LATENCY</span></div>
+          <div class="tp-l-lbl">{{ t.statLatency }}</div>
         </div>
         <div class="tp-l-stat">
           <div class="tp-l-num">
             {{ successStat.value
             }}<span v-if="successStat.unit" class="tp-l-unit">{{ successStat.unit }}</span>
           </div>
-          <div class="tp-l-lbl">渲染成功率 <span class="tp-l-lbl-en">SUCCESS RATE</span></div>
+          <div class="tp-l-lbl">{{ t.statSuccess }}</div>
         </div>
       </div>
     </aside>
@@ -182,12 +357,11 @@ async function submitLocal(): Promise<void> {
       <div class="tp-l-form-card">
         <div class="tp-l-form-eyebrow">
           <span class="tp-l-red-square"></span>
-          Sign in · 登录
+          {{ t.signInEyebrow }}
         </div>
-        <h2 class="tp-l-form-h2">欢迎回来</h2>
-        <p class="tp-l-form-sub">
-          使用扬力账号继续。首次飞书登录会自动建号，登录后可在「个人中心」补密码。
-        </p>
+        <h2 class="tp-l-form-h2">{{ t.welcome }}</h2>
+        <!-- 副标题文字已移除,保留占位维持「欢迎回来」与表单的间距 -->
+        <p class="tp-l-form-sub" aria-hidden="true"></p>
 
         <form @submit.prevent="submitLocal">
           <div class="tp-l-field">
@@ -201,9 +375,7 @@ async function submitLocal(): Promise<void> {
               autocomplete="username"
               spellcheck="false"
             />
-            <label for="tp-l-user" class="tp-l-floating">
-              用户名<span class="tp-l-en-cap">Username</span>
-            </label>
+            <label for="tp-l-user" class="tp-l-floating">{{ t.username }}</label>
           </div>
           <div class="tp-l-field">
             <input
@@ -216,21 +388,19 @@ async function submitLocal(): Promise<void> {
               autocomplete="current-password"
               @keyup.enter="submitLocal"
             />
-            <label for="tp-l-pwd" class="tp-l-floating">
-              密码<span class="tp-l-en-cap">Password</span>
-            </label>
+            <label for="tp-l-pwd" class="tp-l-floating">{{ t.password }}</label>
           </div>
 
           <div class="tp-l-password-row">
             <label class="tp-l-remember">
               <input v-model="remember" type="checkbox" />
               <span class="tp-l-box"></span>
-              <span>保持登录 30 天</span>
+              <span>{{ t.remember }}</span>
             </label>
           </div>
 
           <button type="submit" class="tp-l-submit" :disabled="submitting">
-            <span>{{ submitting ? '登录中…' : '登录 · Sign in' }}</span>
+            <span>{{ submitting ? t.signingIn : t.signIn }}</span>
             <span class="tp-l-arrow">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M5 12h14M13 6l6 6-6 6" />
@@ -240,7 +410,7 @@ async function submitLocal(): Promise<void> {
           </button>
         </form>
 
-        <div class="tp-l-or">OR · 或</div>
+        <div class="tp-l-or">{{ t.or }}</div>
 
         <button type="button" class="tp-l-lark-btn" @click="goLark">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -248,23 +418,176 @@ async function submitLocal(): Promise<void> {
             <path d="M3 8h18" />
             <circle cx="7" cy="13.5" r="1.2" fill="currentColor" />
           </svg>
-          使用飞书登录
+          {{ t.larkBtn }}
         </button>
 
-        <div class="tp-l-foot-note">
-          登录即表示同意《<strong>使用规范</strong>》与《<strong>数据保密协议</strong>》。本系统仅供扬力集团内部使用，所有渲染日志可追溯。
-        </div>
+        <div class="tp-l-foot-note">{{ t.footNote }}</div>
       </div>
 
       <div class="tp-l-form-bottom">
         <div class="tp-l-left">
-          <a href="#" @click.prevent>系统状态</a>
-          <a href="#" @click.prevent>变更日志</a>
-          <RouterLink to="/api">API 文档</RouterLink>
+          <a href="#" @click.prevent="openStatus">{{ t.statusLink }}</a>
+          <a href="#" @click.prevent="changelogOpen = true">{{ t.changelogLink }}</a>
+          <a href="#" @click.prevent="apiDocsOpen = true">{{ t.apiDocsLink }}</a>
         </div>
         <div>© 2026 YANGLI · BRAND OFFICE</div>
       </div>
     </main>
+
+    <!-- ───── 系统状态 弹窗 ───── -->
+    <Teleport to="body">
+      <div v-if="statusOpen" class="tp-l-modal-overlay" @click.self="statusOpen = false">
+        <div class="tp-l-modal" role="dialog" aria-modal="true">
+          <div class="tp-l-modal-head">
+            <span class="tp-l-red-square"></span>
+            <span class="tp-l-modal-title">{{ t.statusTitle }}</span>
+            <button
+              class="tp-l-modal-x"
+              type="button"
+              :aria-label="t.close"
+              @click="statusOpen = false"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="tp-l-modal-body">
+            <div class="tp-l-status-row">
+              <span class="tp-l-dot" :class="statusState"></span>
+              <span class="tp-l-status-text">
+                {{
+                  statusState === 'checking'
+                    ? t.statusChecking
+                    : statusState === 'up'
+                      ? t.statusUp
+                      : t.statusDown
+                }}
+              </span>
+              <span v-if="statusState === 'up' && statusUptime != null" class="tp-l-status-up">
+                {{ t.uptime }} {{ fmtUptime(statusUptime) }}
+              </span>
+            </div>
+            <dl class="tp-l-metrics">
+              <div>
+                <dt>{{ t.mRenders }}</dt>
+                <dd>{{ rendersStat.value }}{{ rendersStat.unit }}</dd>
+              </div>
+              <div>
+                <dt>{{ t.mLatency }}</dt>
+                <dd>{{ p50Stat.value }}{{ p50Stat.unit }}</dd>
+              </div>
+              <div>
+                <dt>{{ t.mSuccess }}</dt>
+                <dd>{{ successStat.value }}{{ successStat.unit }}</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="tp-l-modal-foot">
+            <button class="tp-l-modal-btn" type="button" @click="statusOpen = false">
+              {{ t.close }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ───── 变更日志 弹窗 ───── -->
+    <Teleport to="body">
+      <div v-if="changelogOpen" class="tp-l-modal-overlay" @click.self="changelogOpen = false">
+        <div class="tp-l-modal" role="dialog" aria-modal="true">
+          <div class="tp-l-modal-head">
+            <span class="tp-l-red-square"></span>
+            <span class="tp-l-modal-title">{{ t.changelogTitle }}</span>
+            <button
+              class="tp-l-modal-x"
+              type="button"
+              :aria-label="t.close"
+              @click="changelogOpen = false"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="tp-l-modal-body">
+            <div v-for="e in changelogItems" :key="e.v" class="tp-l-cl-entry">
+              <div class="tp-l-cl-ver">
+                v{{ e.v }}<span class="tp-l-cl-date">{{ e.date }}</span>
+              </div>
+              <ul class="tp-l-cl-list">
+                <li v-for="(it, i) in e.items" :key="i">{{ it }}</li>
+              </ul>
+            </div>
+          </div>
+          <div class="tp-l-modal-foot">
+            <button class="tp-l-modal-btn" type="button" @click="changelogOpen = false">
+              {{ t.close }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ───── API 文档 弹窗(公开速览)───── -->
+    <Teleport to="body">
+      <div v-if="apiDocsOpen" class="tp-l-modal-overlay" @click.self="apiDocsOpen = false">
+        <div class="tp-l-modal" role="dialog" aria-modal="true">
+          <div class="tp-l-modal-head">
+            <span class="tp-l-red-square"></span>
+            <span class="tp-l-modal-title">{{ t.apiDocsLink }}</span>
+            <button
+              class="tp-l-modal-x"
+              type="button"
+              :aria-label="t.close"
+              @click="apiDocsOpen = false"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="tp-l-modal-body">
+            <div class="tp-l-api-sec">
+              <div class="tp-l-api-h">{{ t.apiAuthLabel }}</div>
+              <p class="tp-l-api-p">{{ t.apiAuthDesc }}</p>
+              <code class="tp-l-code">Authorization: Bearer tpkn_…</code>
+            </div>
+
+            <div class="tp-l-api-sec">
+              <div class="tp-l-api-h">{{ t.apiEndpointsLabel }}</div>
+              <div class="tp-l-api-ep">
+                <span class="tp-l-m post">POST</span><code>/api/render</code>
+              </div>
+              <p class="tp-l-api-p">{{ t.apiRenderDesc }}</p>
+              <div class="tp-l-api-ep">
+                <span class="tp-l-m get">GET</span><code>/api/render/:jobId</code>
+              </div>
+              <p class="tp-l-api-p">{{ t.apiPollDesc }}</p>
+            </div>
+
+            <div class="tp-l-api-sec">
+              <div class="tp-l-api-h">{{ t.apiCallbackLabel }}</div>
+              <p class="tp-l-api-p">{{ t.apiCallbackDesc }}</p>
+              <pre class="tp-l-code tp-l-code-block">
+{ "jobId": "...", "status": "done|failed", "pdfUrl": "...|null", "pngUrl": "...|null", "errorMsg": "...|null" }</pre
+              >
+            </div>
+
+            <div class="tp-l-api-sec">
+              <div class="tp-l-api-h">{{ t.apiExampleLabel }}</div>
+              <pre class="tp-l-code tp-l-code-block">
+curl 'https://api.yangli.local/api/render' \
+  -H 'Authorization: Bearer tpkn_…' \
+  -H 'Content-Type: application/json' \
+  -d '{"templateId":"…","data":{},"formats":["pdf"]}'</pre
+              >
+            </div>
+
+            <p class="tp-l-api-note">{{ t.apiConsoleNote }}</p>
+          </div>
+          <div class="tp-l-modal-foot">
+            <button class="tp-l-modal-btn" type="button" @click="apiDocsOpen = false">
+              {{ t.close }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -759,6 +1082,8 @@ async function submitLocal(): Promise<void> {
   color: var(--fg-2);
   line-height: 1.65;
   margin: 0 0 36px;
+  /* 副标题文字已删,保留约两行占位维持原间距 */
+  min-height: 46px;
 }
 
 .tp-l-form-card form {
@@ -1015,6 +1340,278 @@ async function submitLocal(): Promise<void> {
 .tp-l-form-bottom a:hover {
   color: var(--ink);
   border-bottom-color: var(--stone);
+}
+
+/* ─────────────── 弹窗(系统状态 / 变更日志)─────────────── */
+.tp-l-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(20, 20, 22, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: tp-l-modal-fade var(--dur-fast, 0.15s) var(--ease-default, ease);
+}
+@keyframes tp-l-modal-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.tp-l-modal {
+  background: var(--paper-white);
+  width: 100%;
+  max-width: 420px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  border-top: 3px solid var(--yangli-red);
+  overflow: hidden;
+}
+.tp-l-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--stone);
+}
+.tp-l-modal-title {
+  font-family: var(--font-han);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+.tp-l-modal-x {
+  margin-left: auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--fg-3);
+  line-height: 1;
+  padding: 4px;
+}
+.tp-l-modal-x:hover {
+  color: var(--yangli-red);
+}
+.tp-l-modal-body {
+  padding: 22px;
+  overflow-y: auto;
+}
+.tp-l-modal-foot {
+  padding: 14px 22px;
+  border-top: 1px solid var(--stone);
+  display: flex;
+  justify-content: flex-end;
+}
+.tp-l-modal-btn {
+  height: 38px;
+  padding: 0 22px;
+  background: var(--ink);
+  color: var(--paper-white);
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  font-family: var(--font-han);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.15s) var(--ease-default, ease);
+}
+.tp-l-modal-btn:hover {
+  background: var(--yangli-red);
+  border-color: var(--yangli-red);
+}
+
+/* 系统状态 */
+.tp-l-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.tp-l-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--stone);
+}
+.tp-l-dot.up {
+  background: #2e9e5b;
+  box-shadow: 0 0 0 4px rgba(46, 158, 91, 0.18);
+}
+.tp-l-dot.down {
+  background: var(--yangli-red);
+  box-shadow: 0 0 0 4px rgba(206, 32, 39, 0.18);
+}
+.tp-l-dot.checking {
+  background: #c79a2e;
+  animation: tp-l-pulse 1.2s ease-in-out infinite;
+}
+.tp-l-status-text {
+  font-family: var(--font-han);
+  font-size: 14px;
+  color: var(--ink);
+  font-weight: 500;
+}
+.tp-l-status-up {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  letter-spacing: 0.04em;
+}
+.tp-l-metrics {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.tp-l-metrics > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--stone);
+}
+.tp-l-metrics > div:last-child {
+  border-bottom: none;
+}
+.tp-l-metrics dt {
+  font-family: var(--font-han);
+  font-size: 13px;
+  color: var(--fg-2);
+}
+.tp-l-metrics dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* 变更日志 */
+.tp-l-cl-entry {
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--stone);
+}
+.tp-l-cl-entry:last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+.tp-l-cl-ver {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--yangli-red);
+  margin-bottom: 10px;
+}
+.tp-l-cl-date {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+}
+.tp-l-cl-list {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tp-l-cl-list li {
+  font-family: var(--font-han);
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.55;
+}
+
+/* API 文档弹窗 */
+.tp-l-api-sec {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--stone);
+}
+.tp-l-api-sec:last-of-type {
+  padding-bottom: 0;
+  margin-bottom: 14px;
+  border-bottom: none;
+}
+.tp-l-api-h {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--yangli-red);
+  margin-bottom: 10px;
+}
+.tp-l-api-p {
+  margin: 0 0 10px;
+  font-family: var(--font-han);
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.55;
+}
+.tp-l-api-ep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.tp-l-api-ep code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink);
+}
+.tp-l-m {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--paper-white);
+}
+.tp-l-m.post {
+  background: #2e9e5b;
+}
+.tp-l-m.get {
+  background: #2f6fb0;
+}
+.tp-l-code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink);
+  background: #f5f4f2;
+  border: 1px solid var(--stone);
+  border-radius: 4px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  white-space: pre;
+}
+.tp-l-code-block {
+  margin: 0;
+  line-height: 1.5;
+}
+.tp-l-api-note {
+  margin: 0;
+  font-family: var(--font-han);
+  font-size: 12px;
+  color: var(--fg-3);
+  line-height: 1.6;
 }
 
 /* 极窄屏（< 960px）退化为单列 — 表单优先，品牌叙事作为顶部 banner 收起 */
