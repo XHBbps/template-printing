@@ -141,4 +141,61 @@ export class RenderCleanupService {
         .catch(() => {});
     }
   }
+
+  /**
+   * P1(系统 review):清理无任何模板引用的孤儿上传图片,防 /storage/uploads 无限增长。
+   * 内容寻址(sha256 文件名)→ 引用集 = templates.data + template_versions.data 中所有 /uploads/<file>。
+   * 仅删「不在引用集 且 mtime 早于 UPLOAD_ORPHAN_GRACE_DAYS(默认7,0=关)」的顶层文件;
+   * render/ 子目录(渲染产物)由 cleanupOldOutputs 负责,这里按"仅顶层文件"自然排除。
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
+  async cleanupOrphanUploads(): Promise<void> {
+    const graceDays = Number(process.env.UPLOAD_ORPHAN_GRACE_DAYS ?? 7);
+    if (!Number.isFinite(graceDays) || graceDays <= 0) {
+      this.log.log('UPLOAD_ORPHAN_GRACE_DAYS <= 0, skip orphan-uploads cleanup');
+      return;
+    }
+    const uploadsDir = path.join(STORAGE_ROOT, 'uploads');
+    let entries: import('fs').Dirent[];
+    try {
+      entries = await fs.readdir(uploadsDir, { withFileTypes: true });
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw e;
+    }
+    const files = entries.filter((d) => d.isFile()).map((d) => d.name); // 顶层文件,排除 render/ 子目录
+    if (files.length === 0) return;
+
+    // 引用集:扫 templates.data + template_versions.data 的 /uploads/<file>
+    const rows = await this.prisma.$queryRaw<Array<{ data: string }>>`
+      SELECT data::text AS data FROM templates WHERE data::text LIKE '%/uploads/%'
+      UNION ALL
+      SELECT data::text AS data FROM template_versions WHERE data::text LIKE '%/uploads/%'`;
+    const referenced = new Set<string>();
+    const re = /\/uploads\/([A-Za-z0-9._-]+)/g;
+    for (const r of rows) {
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(r.data)) !== null) referenced.add(m[1]!);
+    }
+
+    const cutoff = Date.now() - graceDays * 86400 * 1000;
+    let deleted = 0;
+    for (const name of files) {
+      if (referenced.has(name)) continue;
+      const full = path.join(uploadsDir, name);
+      try {
+        const st = await fs.stat(full);
+        if (st.mtimeMs >= cutoff) continue; // 宽限期内(刚上传未存模板)
+        await fs.unlink(full);
+        deleted++;
+      } catch (e) {
+        const code = (e as NodeJS.ErrnoException).code;
+        if (code !== 'ENOENT')
+          this.log.warn(`orphan unlink ${full} failed: ${(e as Error).message}`);
+      }
+    }
+    this.log.log(
+      `orphan-uploads cleanup: ${deleted} unreferenced file(s) removed (grace ${graceDays}d)`,
+    );
+  }
 }
