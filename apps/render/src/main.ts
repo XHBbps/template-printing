@@ -68,20 +68,27 @@ async function main(): Promise<void> {
         console.warn(`[render] job ${jobId} not found in db — permanent failure`);
         throw new UnrecoverableError(`job ${jobId} not found in db`);
       }
+      // P0：已终态 → stalled 重投/重复派发，直接跳过，杜绝重复渲染+重复回调
+      if (job.status === 'done' || job.status === 'failed') {
+        // eslint-disable-next-line no-console
+        console.log(`[render] job ${jobId} already ${job.status} — skip (stalled re-exec)`);
+        return;
+      }
       const tpl =
         job.template_version != null
           ? await fetchTemplateVersion(job.template_id, job.template_version)
           : await fetchTemplate(job.template_id);
       if (!tpl) {
         // template_not_found 永久失败 — 跳过剩余 attempts
-        await markFailed(jobId, 'template_not_found', attemptNo);
-        await sendCallback(jobId, job.callback_url);
+        const changed = await markFailed(jobId, 'template_not_found', attemptNo);
+        if (changed > 0) await sendCallback(jobId, job.callback_url);
         throw new UnrecoverableError('template_not_found');
       }
 
       await markProcessing(jobId);
       const page = await pool.acquire();
       let ok = false;
+      let doneChanged = 0;
       try {
         const paperMm = resolvePaperMm(tpl.data);
         const renderPromise = renderJobOnPage(page, {
@@ -94,7 +101,7 @@ async function main(): Promise<void> {
         // 超时后 race reject；loser(renderPromise) 随后因关页 reject → 吞掉防 unhandledRejection
         renderPromise.catch(() => {});
         const result = await withTimeout(renderPromise, JOB_TIMEOUT_MS, 'render');
-        await markDone(jobId, result.pdfUrl, result.pngUrl, attemptNo);
+        doneChanged = await markDone(jobId, result.pdfUrl, result.pngUrl, attemptNo);
         ok = true;
         // eslint-disable-next-line no-console
         console.log(`[render] done ${jobId} (attempt ${attemptNo})`);
@@ -103,8 +110,8 @@ async function main(): Promise<void> {
         // eslint-disable-next-line no-console
         console.error(`[render] failed ${jobId} (attempt ${attemptNo}/${totalAttempts}): ${msg}`);
         if (isLastAttempt) {
-          await markFailed(jobId, msg, attemptNo);
-          await sendCallback(jobId, job.callback_url);
+          const failChanged = await markFailed(jobId, msg, attemptNo);
+          if (failChanged > 0) await sendCallback(jobId, job.callback_url);
         }
         throw e;
       } finally {
@@ -114,8 +121,8 @@ async function main(): Promise<void> {
         else await withTimeout(pool.recycle(page), 15_000, 'recycle').catch(() => {});
       }
 
-      // 成功也通知 webhook
-      await sendCallback(jobId, job.callback_url);
+      // 成功才到这（失败已 throw）：仅当本次真翻转 done 才回调（防与 cron 抢先标 failed 后重复成功回调）
+      if (doneChanged > 0) await sendCallback(jobId, job.callback_url);
     },
     {
       connection,
