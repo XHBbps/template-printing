@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-28（安全加固 V5：render-callback 用独立 RENDER_CALLBACK_SECRET + 常量时间比较）
+**最近更新**：2026-05-28（批次1 远程可触达核心漏洞安全加固完成:V1 渲染 IDOR / V2 飞书越权 / V3 回调路径穿越 / V4 CORS allowlist / V8 SVG 消毒 / V5 回调 token 拆分;api 测试 162 全绿）
 
 ---
 
@@ -319,6 +319,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-28
 
+- **批次1:远程可触达核心漏洞 安全加固(系统 review)完成** —— 依 `docs/superpowers/specs/2026-05-28-system-review-audit.md`(校验修订版)修复 6 项 + 1 项测试基建:**V1** 渲染 `GET /render/:jobId` IDOR 归属校验(详见 2026-05-27 条);**V2** 飞书机器人仅列/渲染 公共且已发布 模板(`lark-bot.controller` 抽 `BOT_TEMPLATE_WHERE` 共享过滤,picker/选择/入队前三处一致,堵越权渲染他人已发布私有模板);**V3** 两个 render-callback 在 `fs.readFile` 前加 `path.resolve().startsWith(STORAGE_ROOT+sep)` 路径穿越守卫(RED 测试实证读到 /etc/hostname);**V4** CORS 由 `origin:true` 改 `CORS_ORIGIN` env allowlist(回调式 origin 校验,保留 credentials,`configureApp` 抽到 `app-bootstrap.ts` 供测试与生产同路径);**V8** SVG 消毒去 `<style>` 标签/属性 + 去 `data:` scheme,uploads `.svg` 静态响应加 `Content-Disposition: attachment` + 严格 CSP;**V5** render-callback 独立 `RENDER_CALLBACK_SECRET` + 常量时间比较(详见下条)。**测试基建**:`configureApp` 移出 `main.ts` 顶层副作用至无副作用 `app-bootstrap.ts`,修 e2e 导入触发 `bootstrap()` 的环境泄漏。全量 api 测试 **36 套件 / 162 用例全绿**;不改入队 attempts/渲染视觉/前端。
 - **fix(api)：render-callback 用独立 `RENDER_CALLBACK_SECRET` + 常量时间比较(安全加固 V5)** —— 原先 `LARK_BITABLE_VERIFICATION_TOKEN` 同时用于外部飞书 webhook(`printTrigger`)与内部 render worker→API 回调(`renderCallback`),复用一个 token 导致任一泄露即互相牵连;且校验用 `!==` 非常量时间比较。改:新增内部回调专用 `RENDER_CALLBACK_SECRET`(`env.ts` optional ≥16 chars),`printTrigger` 的 `callbackUrl` 改用该 secret 构造、`renderCallback` 改校验该 secret;新增模块级 `safeEqual()` 用 `crypto.timingSafeEqual`(先比长度再比内容),`printTrigger` webhook 校验与 `renderCallback` 校验均改常量时间。`printTrigger` 仍校验 `LARK_BITABLE_VERIFICATION_TOKEN`(外部 webhook 不变);保留 Task 3 的 path-traversal 守卫。新增 e2e `render-callback-token.e2e.spec.ts`(webhook token→401、callback secret→200);path-traversal e2e 改用新 secret 鉴权。`.env.example`/`docs/deployment.md` 同步。
 
 ### 2026-05-27

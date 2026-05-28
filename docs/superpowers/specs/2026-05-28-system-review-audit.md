@@ -30,8 +30,10 @@
 - **V8**(SVG `<style>`/`data:`)**不降级**:`/uploads/*.svg` 无鉴权直送**活体浏览器**(非仅 Puppeteer,见 ServeStatic serveRoot `/` 仅排除 `/uploads/render`)→ 存储型内容/CSS 外联/SSRF 面真实。`<script>`/`on*` 已剥(挡脚本型 XSS),但应 drop `<style>`、限 href scheme、uploads 加 CSP/Content-Disposition。
 - **D-A2**(凭证加密未实现)**提到显眼处**:全仓 `MASTER_KEY` 零加密调用、无凭证表、无 `createCipheriv`/AES;飞书 secret 是 `LARK_SSO_APP_SECRET` 明文 env 注入。`AGENTS.md:190/:353` 宣称"飞书 secret 用 MASTER_KEY 加密存 DB + 传 credentialId" **完全未实现**(`examples/lark-bot/README.md:42` 自承"本版本未实现 AES 解密")。= 功能缺失 + 文档失真,需产品决策(实现 or 改文档)。
 
+**✅ 批次1 已修(2026-05-28)**:V1 / V2 / V3 / V4 / V5 / V8 全部修复并通过 e2e/单测(全量 api 162 用例绿);计划见 `docs/superpowers/plans/2026-05-28-batch1-security-hardening.md`,变更见 PROGRESS 2026-05-28。下文优先级 §1 整批完成;§2 起为后续批次。
+
 **修订后修复优先级(替换文末"建议优先级"):**
-1. **远程可触达核心漏洞**:V1(IDOR,叙述去"枚举即得")→ V3(路径穿越,token 门控)→ V4(CORS)→ **V8(SVG 公开服务,提级)**;V2 改写后并入(他人已发布私有模板);V5 降 Medium 单列。
+1. ✅ **远程可触达核心漏洞(批次1 已修)**:V1(IDOR,叙述去"枚举即得")→ V3(路径穿越,token 门控)→ V4(CORS)→ **V8(SVG 公开服务,提级)**;V2 改写后并入(他人已发布私有模板);V5 降 Medium 单列。
 2. **上线即崩/渲染全废(真 P0)**:D1(JWT_SECRET/MASTER_KEY/FILE_SIG_SECRET)、D2(WEB_BASE)、D3(storage 卷)、D4(密钥一致)、D6(统一 Dockerfile **且让 CI 跑 prod 镜像**)。D5/D7 移出 P0。
 3. **凭证加密未实现(D-A2)**:功能缺失 + 文档失真,需产品决策。
 4. **存储无限增长**:P1(orphan uploads)、P2(audit_log)。
