@@ -50,6 +50,19 @@ import { UsersModule } from './users/users.module.js';
       serveRoot: '/',
       // /uploads/render/* 走 SignedUploadsController（HMAC token 校验），不通过静态服务
       exclude: ['/healthz', '/auth/*', '/users/*', '/uploads/render/*'],
+      // 安全加固（V8）：上传的 .svg 公开未鉴权可访问，强制浏览器下载而非作为
+      // 活动文档渲染，并叠加严格 CSP（禁止脚本/外联资源），杜绝 stored-XSS/CSS 外泄/SSRF。
+      serveStaticOptions: {
+        setHeaders: (res: import('express').Response, filePath: string) => {
+          if (filePath.toLowerCase().endsWith('.svg')) {
+            res.setHeader('Content-Disposition', 'attachment');
+            res.setHeader(
+              'Content-Security-Policy',
+              "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+            );
+          }
+        },
+      },
     }),
     // iter 31 T3：全局 rate limit 60 req/min/user。POST /api/render 用
     // @Throttle 在 controller 内 override 为 30/min（可 .env 覆盖）。

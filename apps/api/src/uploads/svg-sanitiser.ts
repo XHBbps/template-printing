@@ -32,7 +32,6 @@ const ALLOWED_TAGS = [
   'image',
   'title',
   'desc',
-  'style',
   'marker',
 ];
 
@@ -70,7 +69,6 @@ const ALLOWED_ATTRS = [
   'clip-path',
   'mask',
   'filter',
-  'style',
   'gradientUnits',
   'gradientTransform',
   'spreadMethod',
@@ -105,7 +103,7 @@ export function sanitiseSvg(input: Buffer): Buffer | null {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: { '*': ALLOWED_ATTRS },
     parser: { lowerCaseTags: false, lowerCaseAttributeNames: false, xmlMode: true },
-    allowedSchemes: ['http', 'https', 'data'],
+    allowedSchemes: ['http', 'https'],
     allowedSchemesAppliedToAttributes: ['href', 'xlink:href'],
     transformTags: {
       svg: (tagName, attribs) => {
