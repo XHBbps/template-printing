@@ -28,6 +28,10 @@ const EnvSchema = z.object({
   // Cookie domain for SSO — '' means use request host (default for local dev)
   COOKIE_DOMAIN: z.string().default(''),
 
+  // 逗号分隔的允许 Origin；生产必须显式设(如 https://print.example.com)。
+  // 默认放行本地 dev web,避免本地开发要求设 env。
+  CORS_ORIGIN: z.string().default('http://localhost:5173'),
+
   RENDER_BROWSERS: z.coerce.number().int().positive().default(4),
   RENDER_PAGES_PER_BROWSER: z.coerce.number().int().positive().default(2),
 
