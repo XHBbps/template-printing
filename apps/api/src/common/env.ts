@@ -41,6 +41,11 @@ const EnvSchema = z.object({
     .string()
     .min(16, 'LARK_BITABLE_VERIFICATION_TOKEN must be at least 16 chars')
     .optional(),
+  // render worker → /lark/render-callback 内部回调专用 secret(与外部飞书 webhook token 分离)
+  RENDER_CALLBACK_SECRET: z
+    .string()
+    .min(16, 'RENDER_CALLBACK_SECRET must be at least 16 chars')
+    .optional(),
   // Render worker 回调 api 时用的 base URL（docker 内部）。生产可指向 https://print.x.com
   API_INTERNAL_BASE: z.string().url().default('http://api:3000'),
 

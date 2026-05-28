@@ -122,9 +122,13 @@ Compose 内部的 `api` / `render` 仍使用容器内地址；只有在宿主机
 
 ```
 # 业务人员在飞书自动化 webhook body 里也填同一值（双方对齐）
-# 也用作 /lark/render-callback URL query 的 token
 # 生成：openssl rand -hex 16
 LARK_BITABLE_VERIFICATION_TOKEN=<openssl rand -hex 16 的真实值>
+
+# render worker → /lark/render-callback 内部回调专用 secret
+# 与外部飞书 webhook token 分离（任一泄露不互相牵连）；常量时间比较校验
+# 生成：openssl rand -hex 16
+RENDER_CALLBACK_SECRET=<openssl rand -hex 16 的真实值>
 
 # 渲染 worker 回调 api 时用的 base URL（容器内部）
 # 生产建议指向公网 HTTPS：https://print.<your-company>.com

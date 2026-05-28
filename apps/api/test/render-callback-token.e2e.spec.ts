@@ -11,6 +11,11 @@ import bcrypt from 'bcryptjs';
 // eslint-disable-next-line import/no-unresolved
 import request from 'supertest';
 
+// Set BEFORE bootstrap so the controller reads the right values at request time.
+// The internal render-callback secret is DISTINCT from the external webhook token.
+process.env.RENDER_CALLBACK_SECRET = 'cb-secret-aaaaaaaaaaaa';
+process.env.LARK_BITABLE_VERIFICATION_TOKEN = 'wh-token-bbbbbbbbbbbb';
+
 // eslint-disable-next-line import/no-unresolved
 import { AppModule } from '../src/app.module.js';
 // eslint-disable-next-line import/no-unresolved
@@ -31,41 +36,25 @@ const VER_DATA = {
   elements: [],
 };
 
-// Spy that records every uploadMaterial call. The render-callback handler must
-// NOT call this for a path-traversal pdfUrl — it should reject before fs.readFile.
-const uploadMaterialCalls: unknown[] = [];
-const updateRecordCalls: unknown[] = [];
-
 const larkBitableMock = {
-  updateRecord: async (args: unknown) => {
-    updateRecordCalls.push(args);
-    return { ok: true };
-  },
-  uploadMaterial: async (args: unknown) => {
-    uploadMaterialCalls.push(args);
-    return 'spy_file_token';
-  },
-  // not used by the callback path but present on the real service
+  updateRecord: async () => ({ ok: true }),
+  uploadMaterial: async () => 'spy_file_token',
   createBitableRecord: async () => ({ ok: true }),
 };
 
-describe('Render callback pdfUrl path traversal (e2e)', () => {
+const WEBHOOK_TOKEN = 'wh-token-bbbbbbbbbbbb';
+const CALLBACK_SECRET = 'cb-secret-aaaaaaaaaaaa';
+
+describe('Render callback token separation (e2e)', () => {
   let app: INestApplication;
   const prisma = new PrismaClient();
 
-  const OWNER = 'e2e_rcpt_owner';
-  const PW = 'pw-e2e-rcpt-1';
-  // The internal render-callback now validates RENDER_CALLBACK_SECRET (not the
-  // external webhook token), so we must authenticate with that to reach the
-  // path-traversal guard.
-  const CALLBACK_SECRET = 'e2e-rcpt-callback-secret';
+  const OWNER = 'e2e_rct_owner';
+  const PW = 'pw-e2e-rct-1';
 
   let bitableJobId: string;
 
   beforeAll(async () => {
-    // Token must match what the controller reads at request time.
-    process.env.RENDER_CALLBACK_SECRET = CALLBACK_SECRET;
-
     await prisma.user.deleteMany({ where: { localUsername: { in: [OWNER] } } });
     const owner = await prisma.user.create({
       data: {
@@ -73,13 +62,13 @@ describe('Render callback pdfUrl path traversal (e2e)', () => {
         localPasswordHash: await bcrypt.hash(PW, 10),
         role: 'user',
         mustChangePassword: false,
-        name: 'RCPT Owner',
+        name: 'RCT Owner',
       },
     });
 
     const tpl = await prisma.template.create({
       data: {
-        name: 'rcpt-template',
+        name: 'rct-template',
         data: VER_DATA,
         ownerId: owner.id,
         visibility: 'private',
@@ -97,8 +86,7 @@ describe('Render callback pdfUrl path traversal (e2e)', () => {
     });
     bitableJobId = job.id;
 
-    // Seed the LarkPrintRequest so the bitable handler proceeds past the
-    // findUnique null-guard and into the file-read branch.
+    // Seed a LarkPrintRequest so the handler proceeds past the findUnique guard.
     await prisma.larkPrintRequest.create({
       data: {
         renderJobId: job.id,
@@ -120,46 +108,38 @@ describe('Render callback pdfUrl path traversal (e2e)', () => {
   });
 
   afterAll(async () => {
+    await prisma.larkPrintRequest.deleteMany({ where: { renderJobId: bitableJobId } });
+    await prisma.renderJob.deleteMany({ where: { id: bitableJobId } });
     const ids = (
       await prisma.user.findMany({
         where: { localUsername: { in: [OWNER] } },
         select: { id: true },
       })
     ).map((u) => u.id);
-    // larkPrintRequest cascades from renderJob; renderJob cascades from template.
-    await prisma.larkPrintRequest.deleteMany({ where: { renderJobId: bitableJobId } });
-    await prisma.renderJob.deleteMany({ where: { id: bitableJobId } });
     await prisma.template.deleteMany({ where: { ownerId: { in: ids } } });
     await prisma.user.deleteMany({ where: { localUsername: { in: [OWNER] } } });
     await prisma.$disconnect();
     await app.close();
   });
 
-  it('bitable render-callback rejects a path-traversal pdfUrl and never reads/uploads the file', async () => {
-    uploadMaterialCalls.length = 0;
-    updateRecordCalls.length = 0;
+  it('rejects the external WEBHOOK token for the internal render-callback (401)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/lark/render-callback')
+      .query({ token: WEBHOOK_TOKEN })
+      .send({ jobId: bitableJobId, status: 'failed', errorMsg: 'x' });
 
+    expect(res.status).toBe(401);
+  });
+
+  it('accepts the dedicated RENDER_CALLBACK_SECRET for the internal callback (not 401)', async () => {
     const res = await request(app.getHttpServer())
       .post('/lark/render-callback')
       .query({ token: CALLBACK_SECRET })
-      .send({
-        jobId: bitableJobId,
-        status: 'done',
-        pdfUrl: '/../../../../etc/hostname',
-      });
+      // status:'failed' avoids needing a real pdf file on disk; we only assert
+      // the request passed the token gate (i.e. NOT 401).
+      .send({ jobId: bitableJobId, status: 'failed', errorMsg: 'x' });
 
-    // The handler ack's with 200 (errors are caught and routed to markFailed),
-    // but the guard must prevent the traversal file from being read & uploaded.
+    expect(res.status).not.toBe(401);
     expect(res.status).toBe(200);
-
-    // CORE ASSERTION: no file content was uploaded to Lark from the traversal path.
-    expect(uploadMaterialCalls).toHaveLength(0);
-
-    // The request row must be marked failed with the guard's error message.
-    const req = await prisma.larkPrintRequest.findUnique({
-      where: { renderJobId: bitableJobId },
-    });
-    expect(req?.callbackStatus).toBe('failed');
-    expect(req?.errorMsg).toContain('invalid_pdf_path');
   });
 });

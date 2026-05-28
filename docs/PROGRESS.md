@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-27（安全加固 V1：GET /render/:jobId 加归属校验，修跨用户 IDOR）
+**最近更新**：2026-05-28（安全加固 V5：render-callback 用独立 RENDER_CALLBACK_SECRET + 常量时间比较）
 
 ---
 
@@ -316,6 +316,10 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 ## 3. 近期变更
 
 > 按时间倒序，最近 ~15 次重大变更。详细 commit 见 `git log --oneline`。
+
+### 2026-05-28
+
+- **fix(api)：render-callback 用独立 `RENDER_CALLBACK_SECRET` + 常量时间比较(安全加固 V5)** —— 原先 `LARK_BITABLE_VERIFICATION_TOKEN` 同时用于外部飞书 webhook(`printTrigger`)与内部 render worker→API 回调(`renderCallback`),复用一个 token 导致任一泄露即互相牵连;且校验用 `!==` 非常量时间比较。改:新增内部回调专用 `RENDER_CALLBACK_SECRET`(`env.ts` optional ≥16 chars),`printTrigger` 的 `callbackUrl` 改用该 secret 构造、`renderCallback` 改校验该 secret;新增模块级 `safeEqual()` 用 `crypto.timingSafeEqual`(先比长度再比内容),`printTrigger` webhook 校验与 `renderCallback` 校验均改常量时间。`printTrigger` 仍校验 `LARK_BITABLE_VERIFICATION_TOKEN`(外部 webhook 不变);保留 Task 3 的 path-traversal 守卫。新增 e2e `render-callback-token.e2e.spec.ts`(webhook token→401、callback secret→200);path-traversal e2e 改用新 secret 鉴权。`.env.example`/`docs/deployment.md` 同步。
 
 ### 2026-05-27
 

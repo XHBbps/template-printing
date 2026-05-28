@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 
@@ -50,6 +51,15 @@ const RenderCallbackDto = z.object({
 
 const STORAGE_ROOT = process.env.STORAGE_ROOT ?? '/storage';
 
+// 常量时间比较 token，避免 timing 侧信道泄露
+function safeEqual(a: string | undefined | null, b: string | undefined | null): boolean {
+  if (!a || !b) return false;
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
+
 @Controller('lark')
 export class LarkBitableController {
   private readonly logger = new Logger(LarkBitableController.name);
@@ -73,14 +83,15 @@ export class LarkBitableController {
     if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
     const dto = parsed.data;
 
-    const expected = process.env.LARK_BITABLE_VERIFICATION_TOKEN;
-    if (!expected || dto.verificationToken !== expected) {
+    if (!safeEqual(dto.verificationToken, process.env.LARK_BITABLE_VERIFICATION_TOKEN)) {
       throw new UnauthorizedException('verification_token_mismatch');
     }
 
     // 1. 入队渲染（system 调用，跳过 ownership 检查；callbackUrl 指向自己）
+    // callbackUrl 用内部专用 secret，与外部飞书 webhook token 分离
     const apiBase = process.env.API_INTERNAL_BASE ?? 'http://api:3000';
-    const callbackUrl = `${apiBase}/lark/render-callback?token=${encodeURIComponent(expected)}`;
+    const cbSecret = process.env.RENDER_CALLBACK_SECRET;
+    const callbackUrl = `${apiBase}/lark/render-callback?token=${encodeURIComponent(cbSecret ?? '')}`;
     const { jobId, status } = await this.render.enqueue(null, {
       templateId: dto.templateId,
       data: dto.data,
@@ -128,8 +139,7 @@ export class LarkBitableController {
   @Post('render-callback')
   @HttpCode(HttpStatus.OK)
   async renderCallback(@Query('token') token: string, @Body() raw: unknown): Promise<{ ok: true }> {
-    const expected = process.env.LARK_BITABLE_VERIFICATION_TOKEN;
-    if (!expected || token !== expected) {
+    if (!safeEqual(token, process.env.RENDER_CALLBACK_SECRET)) {
       throw new UnauthorizedException('verification_token_mismatch');
     }
 
