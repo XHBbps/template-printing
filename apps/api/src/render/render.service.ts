@@ -93,11 +93,12 @@ export class RenderService {
       { jobId: job.id, ownerId: ownerId ?? null },
       {
         jobId: job.id,
-        // iter 31 T2：渲染失败按指数退避重试 3 次（2s / 4s / 8s）
+        // iter 31 T2：渲染失败重试 3 次；批次4 P1a 改 custom + ±50% jitter
+        // （退避策略在 render worker settings.backoffStrategy，base 也在 worker）
         // 永久错误（template_not_found / schema 错误等）worker 会主动抛
         // UnrecoverableError 跳过剩余 attempts
         attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
+        backoff: { type: 'custom' },
         removeOnComplete: { count: 1000 },
         removeOnFail: { count: 1000 },
       },

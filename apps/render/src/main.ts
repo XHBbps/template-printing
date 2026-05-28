@@ -3,6 +3,8 @@ import { UnrecoverableError, Worker } from 'bullmq';
 // eslint-disable-next-line import/no-unresolved
 import IORedis from 'ioredis';
 
+// eslint-disable-next-line import/no-unresolved
+import { jitterBackoff } from './backoff.js';
 import {
   fetchJob,
   fetchTemplate,
@@ -130,6 +132,7 @@ async function main(): Promise<void> {
       lockDuration: LOCK_DURATION_MS,
       stalledInterval: 30_000,
       maxStalledCount: 1,
+      settings: { backoffStrategy: (attemptsMade: number) => jitterBackoff(attemptsMade) },
     },
   );
 
