@@ -12,14 +12,12 @@ import {
   List as ListIcon,
   Globe,
 } from 'lucide-vue-next';
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import BrandPagination from '../components/BrandPagination.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import PublicTemplatePreviewDialog from '../components/PublicTemplatePreviewDialog.vue';
-import DesignerHeader from '../designer/DesignerHeader.vue';
-import VersionDialog from '../designer/VersionDialog.vue';
 import { apiFetch } from '../lib/api';
 import { defaultTemplate } from '../stores/designer';
 import {
@@ -28,8 +26,13 @@ import {
   type PublicTemplateListItem,
 } from '../stores/templates';
 import { useAuthStore } from '../stores/auth';
-import DesignerView from './DesignerView.vue';
 import TemplateThumb from './TemplateThumb.vue';
+
+// 设计器仅在「编辑/新建」时使用，异步分包以便从 /templates 列表态首屏拆出（F2）。
+// DesignerHeader / VersionDialog 同样仅在编辑态（mode !== 'list'）渲染，一并异步加载。
+const DesignerView = defineAsyncComponent(() => import('./DesignerView.vue'));
+const DesignerHeader = defineAsyncComponent(() => import('../designer/DesignerHeader.vue'));
+const VersionDialog = defineAsyncComponent(() => import('../designer/VersionDialog.vue'));
 
 const templates = useTemplatesStore();
 const auth = useAuthStore();
