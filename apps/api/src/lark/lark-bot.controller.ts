@@ -126,6 +126,20 @@ export class LarkBotController {
     private readonly render: RenderService,
   ) {}
 
+  /**
+   * 机器人模板选择器的列表查询：仅返回「公共且已发布」的模板。
+   * 避免飞书用户列出/选择并渲染他人的私有（即便已发布）模板。
+   * 两处 picker（event 入口、card-action select）都必须走这里。
+   */
+  listBotTemplates(): Promise<Array<{ id: string; name: string }>> {
+    return this.prisma.template.findMany({
+      where: { visibility: 'public', publishedVersion: { not: null } },
+      select: { id: true, name: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
+  }
+
   /** 返回 true 表示首次见到（应处理）；false 表示重推（应跳过）*/
   private isFirstSeenEvent(eventId: string | undefined): boolean {
     if (!eventId) return true;
@@ -228,11 +242,7 @@ export class LarkBotController {
 
     // 8. 拉模板列表 + 发卡片
     try {
-      const templates = await this.prisma.template.findMany({
-        select: { id: true, name: true },
-        orderBy: { updatedAt: 'desc' },
-        take: 50,
-      });
+      const templates = await this.listBotTemplates();
       if (templates.length === 0) {
         await this.bot.sendTextWithMention({
           chatId: message.chat_id,
@@ -323,8 +333,11 @@ export class LarkBotController {
     if (session.state === 'select_template' && action === 'template_selected') {
       const templateId = body.event.action.option;
       if (!templateId) return { toast: { type: 'error', content: '未选择模板' } };
-      const tpl = await this.prisma.template.findUnique({ where: { id: templateId } });
-      if (!tpl) return { toast: { type: 'error', content: '模板已删除' } };
+      // 仅允许选择「公共且已发布」模板，防止越权渲染他人私有模板
+      const tpl = await this.prisma.template.findFirst({
+        where: { id: templateId, visibility: 'public', publishedVersion: { not: null } },
+      });
+      if (!tpl) return { toast: { type: 'error', content: '模板不可用或未发布' } };
 
       await this.prisma.larkBotSession.update({
         where: { id: session.id },
@@ -349,10 +362,17 @@ export class LarkBotController {
     // --- fill_fields + submit_render ---
     // (field_change 不再使用 — form 容器在 submit 时打包所有字段到 action.form_value)
     if (session.state === 'fill_fields' && action === 'submit_render') {
+      // 渲染前再次校验：仅「公共且已发布」可入队，防止越权渲染他人私有模板
       const tpl = session.templateId
-        ? await this.prisma.template.findUnique({ where: { id: session.templateId } })
+        ? await this.prisma.template.findFirst({
+            where: {
+              id: session.templateId,
+              visibility: 'public',
+              publishedVersion: { not: null },
+            },
+          })
         : null;
-      if (!tpl) return { toast: { type: 'error', content: '模板已删除' } };
+      if (!tpl) return { toast: { type: 'error', content: '模板不可用或未发布' } };
 
       const fields = extractFields(tpl.data);
       // form_value 由飞书 form 容器在 submit 时打包；fallback 到 session.formData
