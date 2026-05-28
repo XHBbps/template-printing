@@ -90,7 +90,7 @@ API 侧 cron(`render-cleanup.service.ts`)按 env 周期清理长期增长的存�
 | Env | 默认 | 说明 |
 |---|---|---|
 | `RENDER_CLEANUP_DAYS` | 30 | 渲染产物(`cleanupOldOutputs`)保留天数,删 `STORAGE_ROOT/uploads/render/` 下 N 天前文件。≤0=关。 |
-| `UPLOAD_ORPHAN_GRACE_DAYS` | 7 | 孤儿上传图片清理宽限。删 `STORAGE_ROOT/uploads/` 顶层中未被任何模板引用、且 mtime 早于 N 天的文件(render/ 子目录不在此列)。0=关。 |
+| `UPLOAD_ORPHAN_GRACE_DAYS` | 7 | 孤儿上传图片清理宽限。删 `STORAGE_ROOT/uploads/` 顶层中未被任何模板引用、且 mtime 早于 N 天的文件(render/ 子目录不在此列)。≤0=关。 |
 | `AUDIT_LOG_RETENTION_DAYS` | 90 | 审计日志(`audit_log`)保留天数,删 `createdAt` 早于 N 天的行。≤0=关。 |
 | `BOT_SESSION_RETENTION_DAYS` | 30 | 飞书机器人会话(`lark_bot_sessions`)中 `done`/`failed` 终态保留天数,删 `updatedAt` 早于 N 天的行(进行中会话不删)。≤0=关。 |
 
