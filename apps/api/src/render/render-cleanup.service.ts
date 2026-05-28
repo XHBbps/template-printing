@@ -143,6 +143,86 @@ export class RenderCleanupService {
   }
 
   /**
+   * P1b(批次4):回调失败补发。对已终态、有 callbackUrl、callbackStatus='failed'、
+   * 且未超 CALLBACK_RESEND_MAX_ATTEMPTS(默认5,≤0关)的 job,按指数退避重发。
+   * 退避资格:completedAt + 5 * 2^callbackAttempts 分钟 <= now(base=5min=cron粒度;
+   * 实际落在 completedAt 后 5/10/20/40/80min,horizon≈80min,5 次耗尽即永久 failed)。
+   * 计数:仅本 cron 每发一次 callbackAttempts += 1(worker 初发/sendStuckCallback 不动它)。
+   * 注:飞书内部回调始终 HTTP 200(写失败也 ack)→ 本 cron 实际只服务"外部 callbackUrl 返 5xx/超时"的调用方。
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async resendFailedCallbacks(): Promise<void> {
+    const max = Number(process.env.CALLBACK_RESEND_MAX_ATTEMPTS ?? 5);
+    if (!Number.isFinite(max) || max <= 0) return;
+    const candidates = await this.prisma.renderJob.findMany({
+      where: {
+        status: { in: ['done', 'failed'] },
+        callbackUrl: { not: null },
+        callbackStatus: 'failed',
+        callbackAttempts: { lt: max },
+      },
+      select: {
+        id: true,
+        status: true,
+        pdfUrl: true,
+        pngUrl: true,
+        errorMsg: true,
+        callbackUrl: true,
+        completedAt: true,
+        callbackAttempts: true,
+      },
+    });
+    const now = Date.now();
+    for (const job of candidates) {
+      if (!job.completedAt || !job.callbackUrl) continue;
+      const eligibleAt = job.completedAt.getTime() + 5 * Math.pow(2, job.callbackAttempts) * 60_000;
+      if (now < eligibleAt) continue;
+      await this.resendOne(
+        job.id,
+        job.callbackUrl,
+        job.status,
+        job.pdfUrl,
+        job.pngUrl,
+        job.errorMsg,
+      );
+    }
+  }
+
+  /** 与 worker webhook.ts payload 对齐;发后必 callbackAttempts+1,2xx→sent 否则 failed。 */
+  private async resendOne(
+    jobId: string,
+    callbackUrl: string,
+    status: string,
+    pdfUrl: string | null,
+    pngUrl: string | null,
+    errorMsg: string | null,
+  ): Promise<void> {
+    const payload = {
+      jobId,
+      status,
+      pdfUrl: this.fileSig.signUrl(pdfUrl),
+      pngUrl: this.fileSig.signUrl(pngUrl),
+      errorMsg,
+    };
+    let ok = false;
+    try {
+      const res = await fetch(callbackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10_000),
+      });
+      ok = res.ok;
+    } catch {
+      ok = false;
+    }
+    await this.prisma.renderJob.update({
+      where: { id: jobId },
+      data: { callbackStatus: ok ? 'sent' : 'failed', callbackAttempts: { increment: 1 } },
+    });
+  }
+
+  /**
    * P1(系统 review):清理无任何模板引用的孤儿上传图片,防 /storage/uploads 无限增长。
    * 内容寻址(sha256 文件名)→ 引用集 = templates.data + template_versions.data 中所有 /uploads/<file>。
    * 仅删「不在引用集 且 mtime 早于 UPLOAD_ORPHAN_GRACE_DAYS(默认7,0=关)」的顶层文件;
