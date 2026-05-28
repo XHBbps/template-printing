@@ -14,7 +14,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { FileSigService } from '../uploads/file-sig.service.js';
 
 const STORAGE_ROOT = process.env.STORAGE_ROOT ?? '/storage';
-const RENDER_DIR = path.join(STORAGE_ROOT, 'render');
+const RENDER_DIR = path.join(STORAGE_ROOT, 'uploads', 'render');
 
 /**
  * iter 31 T5：自动清理 N 天前的渲染输出文件，防止磁盘打满。

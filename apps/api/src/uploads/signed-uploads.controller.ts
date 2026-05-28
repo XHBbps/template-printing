@@ -22,7 +22,7 @@ import { Public } from '../auth/decorators/public.decorator.js';
 import { FileSigService } from './file-sig.service.js';
 
 const STORAGE_ROOT = process.env.STORAGE_ROOT ?? '/storage';
-const RENDER_DIR = path.join(STORAGE_ROOT, 'render');
+const RENDER_DIR = path.join(STORAGE_ROOT, 'uploads', 'render');
 
 const MIME: Record<string, string> = {
   pdf: 'application/pdf',
