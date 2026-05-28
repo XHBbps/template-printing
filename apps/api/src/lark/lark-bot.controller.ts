@@ -36,6 +36,9 @@ import { LarkBotService } from './lark-bot.service.js';
 
 const STORAGE_ROOT = process.env.STORAGE_ROOT ?? '/storage';
 
+/** 飞书机器人可见模板过滤:仅公共且已发布(防越权渲染他人/未发布模板)。 */
+const BOT_TEMPLATE_WHERE = { visibility: 'public', publishedVersion: { not: null } } as const;
+
 // ---------------- Event payload schema ----------------
 
 const EventChallenge = z.object({
@@ -133,7 +136,7 @@ export class LarkBotController {
    */
   listBotTemplates(): Promise<Array<{ id: string; name: string }>> {
     return this.prisma.template.findMany({
-      where: { visibility: 'public', publishedVersion: { not: null } },
+      where: BOT_TEMPLATE_WHERE,
       select: { id: true, name: true },
       orderBy: { updatedAt: 'desc' },
       take: 50,
@@ -335,7 +338,7 @@ export class LarkBotController {
       if (!templateId) return { toast: { type: 'error', content: '未选择模板' } };
       // 仅允许选择「公共且已发布」模板，防止越权渲染他人私有模板
       const tpl = await this.prisma.template.findFirst({
-        where: { id: templateId, visibility: 'public', publishedVersion: { not: null } },
+        where: { id: templateId, ...BOT_TEMPLATE_WHERE },
       });
       if (!tpl) return { toast: { type: 'error', content: '模板不可用或未发布' } };
 
@@ -365,11 +368,7 @@ export class LarkBotController {
       // 渲染前再次校验：仅「公共且已发布」可入队，防止越权渲染他人私有模板
       const tpl = session.templateId
         ? await this.prisma.template.findFirst({
-            where: {
-              id: session.templateId,
-              visibility: 'public',
-              publishedVersion: { not: null },
-            },
+            where: { id: session.templateId, ...BOT_TEMPLATE_WHERE },
           })
         : null;
       if (!tpl) return { toast: { type: 'error', content: '模板不可用或未发布' } };
