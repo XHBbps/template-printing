@@ -3,6 +3,12 @@ import { fileURLToPath, URL } from 'node:url';
 // eslint-disable-next-line import/no-unresolved
 import vue from '@vitejs/plugin-vue';
 // eslint-disable-next-line import/no-unresolved
+import ElementPlus from 'unplugin-element-plus/vite';
+// eslint-disable-next-line import/no-unresolved
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
+// eslint-disable-next-line import/no-unresolved
+import Components from 'unplugin-vue-components/vite';
+// eslint-disable-next-line import/no-unresolved
 import { defineConfig } from 'vite';
 
 // Proxy target: defaults to host-side localhost (works when running `pnpm dev` on host).
@@ -10,7 +16,7 @@ import { defineConfig } from 'vite';
 const apiTarget = process.env.VITE_API_PROXY ?? 'http://localhost:3000';
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), ElementPlus({}), Components({ resolvers: [ElementPlusResolver()], dts: false })],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

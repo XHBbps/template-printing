@@ -1,13 +1,9 @@
-// eslint-disable-next-line import/no-unresolved
-import 'element-plus/dist/index.css';
 import './styles/theme.css';
 import './styles/yangli/colors_and_type.css';
 import './styles/yangli/app-shell.css';
 import './styles/transitions.css';
 import './styles/print.css';
 
-// eslint-disable-next-line import/no-unresolved
-import ElementPlus from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import { createPinia } from 'pinia';
 // eslint-disable-next-line import/no-unresolved
@@ -21,7 +17,6 @@ const app = createApp(App);
 app.use(createPinia());
 installCsrfHook();
 app.use(router);
-app.use(ElementPlus);
 
 // Wait until the initial route is fully resolved (incl. all beforeEach guards)
 // before mounting. Otherwise AppShell renders with `route.meta` unset, briefly
