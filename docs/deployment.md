@@ -83,6 +83,21 @@ vi .env.prod   # 填入实际值（密钥、域名等）
 - **Chromium 省内存**:已默认带 `--disable-dev-shm-usage`、`--disable-extensions`;`--js-flags=--max-old-space-size` **谨慎可选**(截图 OOM 主因是光栅/GPU 缓冲,不在 V8 堆,限 old-space 压不住、反而可能让重模板提前 JS OOM),真正有效的是降并发 / 降 `deviceScaleFactor`。
 - 对账 cron **只标失败 + 补发通知,不自动重排**(渲染非幂等),调用方按需重试。
 
+## 存储清理与保留(批次3)
+
+API 侧 cron(`render-cleanup.service.ts`)按 env 周期清理长期增长的存储/表,默认值适合大多数部署,设 0/≤0 即关闭该项。相关 env(见 `.env.example`):
+
+| Env | 默认 | 说明 |
+|---|---|---|
+| `RENDER_CLEANUP_DAYS` | 30 | 渲染产物(`cleanupOldOutputs`)保留天数,删 `STORAGE_ROOT/uploads/render/` 下 N 天前文件。≤0=关。 |
+| `UPLOAD_ORPHAN_GRACE_DAYS` | 7 | 孤儿上传图片清理宽限。删 `STORAGE_ROOT/uploads/` 顶层中未被任何模板引用、且 mtime 早于 N 天的文件(render/ 子目录不在此列)。0=关。 |
+| `AUDIT_LOG_RETENTION_DAYS` | 90 | 审计日志(`audit_log`)保留天数,删 `createdAt` 早于 N 天的行。≤0=关。 |
+| `BOT_SESSION_RETENTION_DAYS` | 30 | 飞书机器人会话(`lark_bot_sessions`)中 `done`/`failed` 终态保留天数,删 `updatedAt` 早于 N 天的行(进行中会话不删)。≤0=关。 |
+
+注意事项:
+- **路径修正(批次3)**:本批修复了 `RENDER_DIR` 漏 `uploads/` 的路径 bug —— 渲染产物清理(`cleanupOldOutputs`)与签名下载现正确指向 `STORAGE_ROOT/uploads/render/`(此前清理删错路径、签名下载 404)。
+- 清理 cron 与渲染对账 cron 同在 API 进程内调度;render worker 不参与清理。
+
 ## 本地开发端口约定
 
 `docker-compose.dev.yml` 为了避开 Windows 常见保留端口段，将基础服务映射到非默认宿主机端口：

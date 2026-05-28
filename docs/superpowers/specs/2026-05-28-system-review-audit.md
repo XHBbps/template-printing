@@ -36,7 +36,7 @@
 1. ✅ **远程可触达核心漏洞(批次1 已修)**:V1(IDOR,叙述去"枚举即得")→ V3(路径穿越,token 门控)→ V4(CORS)→ **V8(SVG 公开服务,提级)**;V2 改写后并入(他人已发布私有模板);V5 降 Medium 单列。
 2. ✅ **上线即崩/渲染全废(真 P0)— 批次2 已修(2026-05-28)**:D1(JWT_SECRET/MASTER_KEY/FILE_SIG_SECRET)、D2(WEB_BASE)、D3(storage 卷)、D4(密钥一致,compose 共享 .env.prod 满足)、D6(统一 Dockerfile **且让 CI 跑 prod 镜像**)+ B3(mem_limit)+ V7(/metrics 白名单)。D5/D7 移出 P0(D7 已删,D5 降 Low)。**实建/起栈验证额外发现并修复 3 个原审计未覆盖的真实部署阻断**:**GAP#1** api prod 镜像 pnpm 悬空依赖(`Dockerfile.prod` 改 `pnpm deploy --prod` + undici 误标 devDep 修正)、**GAP#2** compose `${REGISTRY}/${TAG}` 插值需 shell/根 `.env`(部署脚本 `set -a; . .env.prod`)、**GAP#3** 空库首次部署迁移顺序(`init/update.sh` 改 `run --rm migrate` 前置 + `EmergencyAdminBootstrap` 容忍空库)。开发机起 prod 栈渲染往返通过。计划见 `docs/superpowers/plans/2026-05-28-batch2-prod-deploy-artifacts.md`。
 3. **凭证加密未实现(D-A2)**:功能缺失 + 文档失真,需产品决策。
-4. **存储无限增长**:P1(orphan uploads)、P2(audit_log)。
+4. ✅ **存储无限增长 — 批次3 已修(2026-05-28)**:P1(orphan uploads)、P2(audit_log)、P12(飞书会话)三个清理 cron 全部实现并通过 e2e + `env-example-sync`(三个新 env `UPLOAD_ORPHAN_GRACE_DAYS`/`AUDIT_LOG_RETENTION_DAYS`/`BOT_SESSION_RETENTION_DAYS`,默认 7/90/30,0/≤0=关)。**规划期额外发现并修复** `RENDER_DIR` 漏 `uploads/` 路径 bug:`render-cleanup.service.ts` 的渲染产物清理(`cleanupOldOutputs`)与签名下载此前指向不存在的 `STORAGE_ROOT/render/` → 删错路径 + 签名下载 404,改为正确的 `STORAGE_ROOT/uploads/render/`。
 5. **首屏快赢**:F1、F7、(改写后的)`reloadActive` 并行。
 
 ---
@@ -85,8 +85,8 @@
 
 | # | 影响 | 标题 | 位置 | 修复方向 |
 |---|---|---|---|---|
-| P1 | High | **上传图片永不清理**,`/storage/uploads/` 无限增长 | `uploads/uploads.service.ts:91-95` + cleanup 仅清 render | 加 UploadedImage 跟踪表 + orphan 清理 cron;或扫 `templates.data` 引用后删 7 天前未引用文件 |
-| P2 | High | `audit_log` 无任何保留/清理 → 无限增长 | `audit/audit-log.service.ts`(无 prune)、`schema.prisma:200` | 加清理 cron `deleteMany(createdAt < cutoff)`,`AUDIT_LOG_RETENTION_DAYS` 默认 90;与 D-B12 同项 |
+| P1 | High | ✅ 批次3 已修 · **上传图片永不清理**,`/storage/uploads/` 无限增长 | `uploads/uploads.service.ts:91-95` + cleanup 仅清 render | ✅ 新增 `cleanupOrphanUploads()` cron:扫 `templates.data` 引用后删 mtime 早于 `UPLOAD_ORPHAN_GRACE_DAYS`(默认7,0=关)的顶层孤儿文件 |
+| P2 | High | ✅ 批次3 已修 · `audit_log` 无任何保留/清理 → 无限增长 | `audit/audit-log.service.ts`(无 prune)、`schema.prisma:200` | ✅ 新增 `cleanupAuditLog()` cron:`deleteMany(createdAt < cutoff)`,`AUDIT_LOG_RETENTION_DAYS` 默认 90(≤0=关);与 D-B12 同项 |
 | P3 | High | 日配额 `count`(join templates)每次入队同步执行,无缓存 | `render.service.ts:266-296` | Redis 缓存当日计数(TTL 至午夜);或 `render_jobs` 反范式 `ownerId` 列 + 索引 |
 | P4 | Med | `listVersions` 无分页上限 | `templates.service.ts:129-133` | 加 `take:100` + cursor |
 | P5 | Med | 清理 cron 一次性把所有旧 job 读进内存 | `render-cleanup.service.ts:45-52` | 分批 `take:500` 循环 |
@@ -96,7 +96,7 @@
 | P9 | Med | `markFailed`(Bitable+Bot)update 前冗余 `findUnique` | `lark-bitable.controller.ts:188`、`lark-bot.controller.ts:472` | 复用调用方已取的记录,免重复查 |
 | P10 | Med | 缺 `render_jobs(status, startedAt)` 索引(对账 cron 用) | `schema.prisma:108-111` | 加 `@@index([status, startedAt])` |
 | P11 | Low | `listJobs` 返回每行完整 `data` JSON blob | `render.service.ts:249` | 移除 data 或 `?includeData=true` 选项 |
-| P12 | Low | `lark_bot_sessions` done/failed 永不清理 | `schema.prisma:135` | cleanup cron 删 30 天前 done/failed |
+| P12 | Low | ✅ 批次3 已修 · `lark_bot_sessions` done/failed 永不清理 | `schema.prisma:135` | ✅ 新增 `cleanupBotSessions()` cron:删 `done`/`failed` 且 `updatedAt` 早于 `BOT_SESSION_RETENTION_DAYS`(默认30,≤0=关)的行 |
 | P13 | Low(未来) | `render_jobs` 行永不删,长期百万行 | 设计选择 | 6-12 月后归档/按月分区 |
 
 ---
