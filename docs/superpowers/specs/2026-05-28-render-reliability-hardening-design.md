@@ -50,35 +50,42 @@
 ## P1b — 回调失败补发
 
 1. **schema/migration:** `RenderJob` 加 `callbackAttempts Int @default(0) @map("callback_attempts")`;`prisma migrate dev --name add_callback_attempts`(仓库内不 reset,只新增列)。
-2. **计数:** worker `webhook.ts` 与 API `sendStuckCallback` 每次发回调后 `callback_attempts += 1`(`markCallbackStatus` 扩展或新增 raw UPDATE)。
-3. **补发 cron(API,`render-cleanup.service.ts`):** 新增 `resendFailedCallbacks()` @Cron(频率 plan 定,如 EVERY_5_MINUTES 或 10_MINUTES):
-   - 扫 `status IN ('done','failed') AND callbackUrl IS NOT NULL AND callbackStatus='failed' AND callbackAttempts < CALLBACK_RESEND_MAX_ATTEMPTS`;
-   - 退避(**不加新时间列**):资格 = `completedAt + (2^callbackAttempts) 分钟 <= now`。`callbackAttempts` 每次补发 +1 → 阈值随尝试次数指数后移(attempts=1→completedAt+2min、=2→+4min、=3→+8min…),用既有 `completedAt` 即可实现指数间隔,无需 `lastCallbackAt` 列。可在 SQL where 直接算或取候选后 JS 过滤(plan 定,语义以本式为准)。
-   - 复用 worker 同款 payload(signed URL),`sent` 即停、`failed` 则 attempts+1;
+2. **计数语义(钉死):** `callbackAttempts` = **补发 cron 已发的次数**(默认 0)。worker `webhook.ts` 初次发回调、API `sendStuckCallback` **只置 `callbackStatus`(sent/failed),不动 `callbackAttempts`**;**仅补发 cron 每发一次 `callbackAttempts += 1`**。这样计数只表达"已补发几次",公式才干净。
+3. **补发 cron(API,`render-cleanup.service.ts`):** 新增 `resendFailedCallbacks()` @Cron(**EVERY_5_MINUTES**):
+   - 扫 `status IN ('done','failed') AND callbackUrl IS NOT NULL AND callbackStatus='failed' AND callbackAttempts < CALLBACK_RESEND_MAX_ATTEMPTS(5)`;
+   - 退避公式(**钉死,不加新时间列**):资格 = `completedAt + (5 * 2^callbackAttempts) 分钟 <= now`。base 设为 5min(= cron 粒度)才让间隔真有意义,否则 <5min 的档全塌到同一 tick。`callbackAttempts` 0→4 共 5 次补发,实际落在 **completedAt + 5/10/20/40/80 分钟**,总 horizon **≈80min**。可在候选 SQL 取回后 JS 过滤(语义以本式为准)。
+   - 复用 worker 同款 payload(signed URL);POST 后:2xx → `callbackStatus='sent'`(下次扫不到,停);非 2xx/超时 → 保持 `failed` 且 `callbackAttempts += 1`。
    - 与 `reconcileStuckJobs` 对称,best-effort、不抛。
+   - **取舍(已确认):** horizon ≈80min,够扛飞书/外部 webhook 偶发 5xx;消费方宕机超 80min 则 5 次耗尽 → 永久 `failed` 不再补发(扛不住长时间宕机,可接受)。
 4. **env:** `CALLBACK_RESEND_MAX_ATTEMPTS`(默认 5,≤0 关)入 `.env.example`/`.env.prod.example` + `env-example-sync.spec.ts` 的 `NON_ENVTS_ALLOWED`(process.env-only,同批次3 模式)。
-5. **幂等前提:** 接收方需按 jobId 幂等——飞书侧由 P0 的 `callbackStatus='done'` 守卫保证;外部 API 调用方在 `deployment.md` 文档明确要求"按 jobId 幂等去重"。
-6. **测试:** e2e——造 `callbackStatus='failed'` + `callbackAttempts<MAX` 的 done job + mock 回调端点,cron 跑后回调被重发、成功则 `callbackStatus='sent'`;超 MAX 不再发;`callbackUrl IS NULL` 跳过。
+5. **P1b 真实受益方 = 外部 API 调用方,不是飞书(精度注解):** `lark-bitable.controller.ts` 的 `renderCallback` **即便内部 bitable 写失败也 `return {ok:true}`(HTTP 200)**(`:191-198`)→ worker 记 `callbackStatus='sent'` → **P1b 永远不会对飞书路径触发**。所以 P1b 只服务"外部 callbackUrl 端点返回 5xx/超时"的调用方;飞书侧的内部写失败是另一类(handler 已 best-effort 写"失败"状态,不在本批)。**P1b 测试必须以外部 mock 端点为对象,别用飞书 handler 验。** 与 P0 第 4 步飞书幂等守卫(防 stalled 重投/重复 POST 的二次上传)服务**不同投递路径**,两者都保留。
+6. **幂等前提:** 外部调用方需按 jobId 幂等去重(补发 + stalled 都可能重复投递)——`deployment.md` 文档明确要求。
+7. **测试:** e2e——造 `callbackStatus='failed'` + `callbackAttempts<MAX` 且 `completedAt` 已过退避档的 done job + **外部 mock 回调端点**,cron 跑后回调被重发、2xx 则 `callbackStatus='sent'`、非 2xx 则 `callbackAttempts+1`;超 MAX 不再发;未到退避档不发;`callbackUrl IS NULL` 跳过。
 
 ---
 
-## P2a — 永久错误细分(方案 γ:worker zod 预校验 + web 错误上报切片)
+## P2a-worker — 永久错误细分:worker zod 预校验(✅ 本批 / Plan 1)
 
-**目标:** 把"模板结构非法"、"条码/二维码编码非法"从"白重试 3 次"降为立即 `UnrecoverableError`。图片 404 暂留瞬时(多为临时,且需逐图 onerror 跟踪较碎,本批不做)。
+**目标:** 把"模板结构非法"从"白重试 3 次 × 各占 60s 渲染槽"降为立即 `UnrecoverableError`。确定性、纯 Node、零设计器风险——这是 P2a 里的大头(畸形模板远比"合法结构 + 非法条码内容"常见)。
 
-1. **worker zod 预校验(in-process,抓 schema_invalid):**
-   - `apps/render` 加 workspace 依赖 `@template-printing/schema`。
-   - `main.ts` 取到 `tpl.data` 后、`markProcessing` 前:`const v = TemplateSchema.safeParse(tpl.data); if (!v.success) { await markFailed(jobId, 'schema_invalid', attemptNo); await sendCallback(...); throw new UnrecoverableError('schema_invalid'); }`(与 `template_not_found` 同形)。
-2. **web 渲染抛错上报(抓渲染期同步抛错):**
-   - `PrintHeadlessView.vue` 加 `onErrorCaptured((err)=>{ window.__renderError = { permanent:true, reason:'render_error', detail: err.message }; return false; })` —— 捕获 `TemplateRenderer` 子树**同步渲染/ setup 抛错**(通用安全网)。
-3. **条码/二维码错误上报(改吞为报):**
-   - `BarcodeElement.vue` / `QrElement.vue`:catch 块除 `console.error` 外,**非 designMode 时**通过 `inject` 的错误 sink 上报(如 `inject('renderErrorSink', null)?.( {reason:'barcode_invalid', detail} )`);designMode(设计器内)行为不变(仍只 console,显占位,不打断编辑)。
-   - `PrintHeadlessView.vue` `provide('renderErrorSink', fn)`,fn 设 `window.__renderError = {permanent:true, reason, detail}`。
-   - 注意:这两个元件在 `template-renderer` 包,被设计器与打印共用——改动必须 designMode 门控,不回归设计器。
-4. **worker 读错误信号:**
-   - `renderer.ts` 的 `waitForFunction` 改为 `() => window.__renderReady === true || window.__renderError != null`;返回后读 `window.__renderError`,非空则把 `{reason}` 透出。
-   - `main.ts`:渲染返回带永久错误 → `markFailed(jobId, reason, attemptNo)` + `sendCallback` + `throw new UnrecoverableError(reason)`。
-5. **测试:** worker 单测——非法 `tpl.data` → zod 短路、UnrecoverableError、不重试;web 组件测试——非法条码触发 sink → `__renderError` 置位;(端到端"非法条码 job → failed 不重试"可作 render 包 e2e,plan 定可行性)。
+- `apps/render` 加 workspace 依赖 `@template-printing/schema`(纯 zod,无 Vue,可在 Node worker 内用)。
+- `main.ts` 取到 `tpl.data` 后、`markProcessing` 前:`const v = TemplateSchema.safeParse(tpl.data); if (!v.success) { await markFailed(jobId, 'schema_invalid', attemptNo); await sendCallback(...); throw new UnrecoverableError('schema_invalid'); }`(与 `template_not_found` 同形;`markFailed` 此刻 `pending→failed`,P0 粘性守卫放行)。
+- **测试:** worker 单测——非法 `tpl.data` → zod 短路、`UnrecoverableError`、不重试;合法 `tpl.data` 不受影响。
+
+## P2a-web — 条码/渲染期错误细分(⏸ 延后到 Plan 2,不在本批)
+
+**为何延后(用户 review 新发现的设计风险):**
+1. **检测寄生在 50ms 心跳上 → 本身 racy。** worker 读 `window.__renderError` 的时机由 `waitForFunction(__renderReady || __renderError)` 决定,而 `__renderReady` 是 `PrintHeadlessView.vue:25-43` 固定 50ms 定时器**无条件**置的,不等异步元件渲染完。Barcode 的 `render()` 在 `await nextTick()` 后的 async watch 里跑,bwip-js 抛错→sink 上报的时刻**不保证早于 50ms**。结果:模板重一点 / CI 慢一点,worker 先看到 `__renderReady=true` 就 `page.pdf`,漏掉 `__renderError`。→ **会做出一个时灵时不灵的非确定性永久错误分类器,比不做更糟。**
+2. **要做对得先修"渲染真正结束"的 barrier**(元件上报渲染完成 / render-settle 信号,替代 50ms 心跳)——这触碰 headless 渲染的核心**就绪契约**,比"加 sink + 读信号"大一圈。
+3. **产品口径取舍待定:** 非法条码现状是"出 PDF、条码留空";P2a-web 会升级成"整个 job failed"。打印场景下少个条码的标签或许确实不该印(fail-fast 更对),但这是有意识取舍,需产品确认要"失败"而非"出带空条码 PDF"。
+4. **价值最低、爆炸半径最大:** "合法结构 + 非法条码内容"较罕见;改动落在 `template-renderer` 共享包(设计器 + 打印共用)→ 唯一有设计器回归风险的一项。
+
+**Plan 2 的内容(留作后续,先记录设计点位,避免重走):**
+- 先修就绪 barrier:`PrintHeadlessView` 改为等"所有异步元件 settle"再置 `__renderReady`(或元件上报完成计数),消除 50ms race —— **这是 Plan 2 的实现前置条件**。
+- `BarcodeElement.vue` / `QrElement.vue`:`inject` **必须在 setup 顶层** `const sink = inject(renderErrorSinkKey, null)`,catch 内调 `sink?.({reason, detail})`(不能在 catch 里 `inject(...)`,inject 只能 setup 顶层调);`renderErrorSinkKey` 用 `template-renderer` 导出的 typed `InjectionKey` 保证两端契约;**非 designMode 才上报**(两元件已有 `designMode` prop:`BarcodeElement.vue:15`/`QrElement.vue:11`,门控不用新增 prop)。
+- `PrintHeadlessView` `provide(renderErrorSinkKey, fn)`,fn 设 `window.__renderError`;`onErrorCaptured` 兜同步渲染抛错。
+- worker `renderer.ts` `waitForFunction(__renderReady || __renderError)` + `main.ts` 读到永久错误 → `UnrecoverableError(reason)`。
+- 必带**设计器手动走查**硬门(改了共享元件)。
 
 ---
 
@@ -96,7 +103,12 @@
 - `lockDuration ≥ RENDER_ACQUIRE_TIMEOUT_MS + RENDER_JOB_TIMEOUT_MS + 余量`(现状已守)。
 - `RENDER_STUCK_TIMEOUT_MIN(10min)` 须 > bullmq 重试窗口(2+4+8s + 渲染耗时),否则 cron 误杀重试中 job(现状已守;jitter 略增窗口但仍 ≪ 10min)。
 - P0 终态粘性后,边界 3"单 job 实际执行 >3 次"(stalled 独立计数)从"可能脏写"降为"无害空转"。
-- P2a 错误上报必须 designMode 门控,不回归设计器编辑体验。
+- (Plan 2)P2a-web 错误上报必须 designMode 门控,不回归设计器编辑体验;且须先修 50ms 就绪 barrier。
+
+## Plan 拆分(按"碰不碰 `template-renderer` 共享包"切爆炸半径)
+
+- **Plan 1(服务端,低回归,先发):** P0 + P1a + P1b + **P2a-worker(zod)** + P2b。验证统一为 typecheck / 单测 / 渲染往返 + cron e2e,**无设计器手测依赖**。P0 是 correctness bug,应尽早上线,不被回归风险项拖累。→ 本 spec 收尾即进 Plan 1 的 writing-plans。
+- **Plan 2(唯一设计器回归项,需先解就绪 barrier):** P2a-web。需修 50ms render-settle 契约 + 设计器手动走查 + 单独可回滚 + 产品确认"非法条码 → fail-fast"口径。单独 plan、单独发布。
 
 ## 文档同步(AGENTS.md §9)
 
@@ -104,4 +116,6 @@
 
 ## 任务分解预判(交 writing-plans)
 
-T1 P0 db.ts 粘性 + rowCount → T2 P0 main.ts 短路/rowCount 回调 → T3 P0 cron updateMany 守卫 → T4 P0 飞书 handler 幂等 → T5 P1a jitter → T6 P1b 列+migration+计数+补发 cron+env → T7 P2a worker zod 预校验 → T8 P2a web 错误上报(PrintHeadlessView + Barcode/Qr sink + worker 读信号)→ T9 P2b stuck_timeout metric → T10 文档 + 全量回归。(P0 四步可视耦合度合并;P2a-web 是最大/最有回归风险的一项。)
+**Plan 1(本批):** T1 P0 db.ts 粘性 + rowCount → T2 P0 main.ts 短路(`return` 非 throw)/rowCount 决定 `sendCallback` → T3 P0 cron updateMany 守卫(`count===1` 才回调)→ T4 P0 飞书 handler 幂等守卫(bitable + bot)→ T5 P1a jitter → T6 P1b 列+migration+补发 cron(计数语义/退避公式见 P1b)+env → T7 P2a-worker zod 预校验 → T8 P2b stuck_timeout metric → T9 文档 + 全量回归。(P0 四步耦合度高,plan 期可酌情合并 task。)
+
+**Plan 2(后续):** 就绪 barrier 修复 → Barcode/Qr sink + PrintHeadlessView provide/onErrorCaptured + worker 读信号 → 设计器走查。
