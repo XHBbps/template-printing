@@ -58,8 +58,15 @@ services:
     image: ${REGISTRY:-ghcr.io/your-org}/tp-render:${TAG:-latest}
     env_file: .env.prod
     environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-template_printing}
       REDIS_URL: redis://redis:6379
+      WEB_BASE: http://web:80
+      STORAGE_ROOT: /storage
+    volumes:
+      - ./data/storage:/storage
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
