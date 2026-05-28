@@ -1,18 +1,28 @@
 # syntax=docker/dockerfile:1
-# Multi-stage production build for NestJS API
+# Multi-stage production build for the NestJS API.
+#
+# Monorepo note (GAP#1 fix): this is a pnpm workspace. apps/api/node_modules/<dep> are
+# SYMLINKS into the root /app/node_modules/.pnpm store. Copying only that symlink farm into
+# the runtime image leaves every link DANGLING (Cannot find module @sentry/node, bullmq, ...).
+# So — exactly like docker/render.Dockerfile — we use `pnpm deploy --prod` to produce a flat,
+# SELF-CONTAINED node_modules (real files, prod deps + workspace packages, no .pnpm symlinks).
+#
+# The api additionally needs the `prisma` CLI at runtime for `npx prisma migrate deploy`
+# (scripts/deploy/{init,update}.sh). `prisma` is a devDependency that `--prod` strips, so we
+# add it back as real files and run `prisma generate` inside the deployed tree.
 
 # ---- Stage 1: deps ----
 FROM node:20-alpine AS deps
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .npmrc ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/types/package.json ./packages/types/
 COPY packages/schema/package.json ./packages/schema/
 COPY packages/template-renderer/package.json ./packages/template-renderer/
 RUN pnpm install --frozen-lockfile
 
-# ---- Stage 2: build ----
+# ---- Stage 2: build + prod-prune (this whole stage is discarded) ----
 FROM node:20-alpine AS build
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
@@ -20,20 +30,38 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=deps /app/packages ./packages
 COPY . .
+# Generate the Prisma client (incl. the linux-musl-openssl-3.0.x engine, see schema.prisma
+# binaryTargets) and compile TS -> apps/api/dist.
 RUN pnpm --filter @template-printing/api db:generate
 RUN pnpm --filter @template-printing/api build
+# Produce a self-contained prod deployment: bundles workspace deps, strips devDependencies,
+# writes REAL files instead of pnpm-store symlinks. Target is OUTSIDE the workspace so
+# `pnpm deploy` doesn't refuse an in-workspace path.
+RUN pnpm --filter @template-printing/api deploy --prod /prod/api
+# `--prod` dropped the `prisma` CLI (a devDependency) but `npx prisma migrate deploy` needs it
+# at runtime. Install it (and its deps) as REAL files in an isolated dir — installing into
+# /prod/api directly fails because the deployed package.json still carries `workspace:*`
+# specifiers that npm can't resolve — then merge that flat node_modules into the deployed tree.
+RUN mkdir -p /tmp/prisma-cli \
+    && npm install --prefix /tmp/prisma-cli --no-save --no-package-lock prisma@5.16.2 \
+    && cp -R /tmp/prisma-cli/node_modules/. /prod/api/node_modules/
+# Ensure the built dist and the prisma schema/migrations are present in the deployed tree.
+RUN cp -R /app/apps/api/dist /prod/api/dist \
+    && cp -R /app/apps/api/prisma /prod/api/prisma
+# Generate the Prisma client into the deployed node_modules (uses the binaryTargets above).
+RUN cd /prod/api && node_modules/.bin/prisma generate
 
-# ---- Runtime stage ----
+# ---- Stage 3: runtime ----
 FROM node:20-alpine
 WORKDIR /app
 
-RUN apk add --no-cache tini
+# tini = PID 1 / signal handling. openssl = lets Prisma detect the OpenSSL 3 runtime so it
+# loads the linux-musl-openssl-3.0.x query engine (the image's libssl is 3.x); without it
+# Prisma defaults to the openssl-1.1.x engine and fails with "engines not compatible".
+RUN apk add --no-cache tini openssl
 
-COPY --from=build /app/apps/api/dist ./dist
-COPY --from=build /app/apps/api/node_modules ./node_modules
-COPY --from=build /app/apps/api/prisma ./prisma
-COPY --from=build /app/apps/api/package.json ./
-COPY --from=build /app/packages ./packages
+# /prod/api is fully self-contained: package.json + flat node_modules (real files) + dist + prisma.
+COPY --from=build /prod/api ./
 
 EXPOSE 3000
 ENV NODE_ENV=production
