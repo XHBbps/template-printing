@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-27（render 生产镜像 Alpine 瘦身：~2.1GB → ~1.0GB 解压 / ~429MB 压缩，pnpm deploy 自包含 + 系统 Chromium）
+**最近更新**：2026-05-27（安全加固 V1：GET /render/:jobId 加归属校验，修跨用户 IDOR）
 
 ---
 
@@ -319,6 +319,7 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 
 ### 2026-05-27
 
+- **fix(api)：渲染任务读取加归属校验,修 `GET /render/:jobId` IDOR(安全加固 V1)** —— 原 `RenderService.get(jobId)` 仅 `findUnique({where:{id}})` 无任何归属/角色校验即返回 24h 签名下载 URL,任何持有 jobId 的登录用户/API token 都能读他人渲染任务及其下载链接(`listJobs` 早已按 owner 收敛,单条 GET 漏了)。`get` 改为接收调用方 `{sub,role}`:非 admin/emergency_admin 仅当 `job.template.ownerId === sub` 才可读,否则抛 404(不泄露存在性,与"不存在"同 404 而非 403);controller 复用已有的 `@CurrentUser()`/`JwtClaims` 传入。返回对象 shape 不变。e2e(`render-get-ownership.e2e.spec.ts`):B 读 A 的 job→404、A 读自己→200、admin→200。不动 `listJobs`/`enqueue`/其他端点。
 - **fix:渲染页跳过 boot hydrate,消除 headless 渲染日志 401 噪声** —— `print-headless` 路由(`requiresAuth:false`,只渲染注入的 `__renderInput`)在 `router.beforeEach` 顶部早返回放行,跳过 boot 期 `auth.hydrate()`;否则无 cookie 的 headless 浏览器会发 `GET /users/me`(及其 401 触发的 `/auth/refresh`)产生两条 401 日志噪声 + 无用请求。原现象不影响出图(hydrate 吞掉 401),纯去噪 + 省请求。精确按 `to.name === 'print-headless'` 短路(不一刀切 `requiresAuth:false`,以免破坏 `/login` 首跳"已登录→重定向"依赖的 hydrate)。
 - **feat:渲染 worker 健壮性强化(大批量并发)** —— ① `PuppeteerPool` 坏页/坏浏览器回收重建(per-slot 锁、同步清 idleQueue 旧页防并发 re-dispatch 死页、launch 退避重试、最终失败 reject waiter)+ acquire 超时 + 用量计数(防内存蠕变)+ closing 守卫,8 例单测(注入 fake launch,无需 Chromium);② worker 单 job 硬超时(成功 release/失败 recycle,recycle 再套 15s 超时防 page.close 卡死)+ bullmq `lockDuration` 对齐(不变量 lock≥acquire+render+余量,杜绝超时 job 被 stalled 重复派发);③ API 侧僵尸 `processing` 对账 cron(每 5 分钟,超 `RENDER_STUCK_TIMEOUT_MIN` 标 `stuck_timeout` + 补发回调,payload/callbackStatus/超时对齐 worker)+ e2e;④ `deviceScaleFactor` env 可配 + `--disable-extensions` + 并发/内存文档。双层防御(worker 实时自愈 + cron 兜底),不引入新依赖、不动 `--no-sandbox`/入队 attempts/渲染视觉结果。
 - **fix：设计器缩放改为纯视觉缩放(通用)** —— 画布元素改为固定 intrinsic 比例(`PX_PER_MM=4`)渲染、整张纸套 `transform: scale(zoom)`(外层 frame 预留缩放尺寸,`paperRef` 仍指向被 transform 的纸),修复非 100%(如 66%)缩放时字体不随盒子缩放导致的文本重叠/异常换行。任何比例下排版与 100%(=实际打印产出)完全一致;拖拽/缩放/拖放/吸附/属性编辑不受影响(坐标基于屏幕像素÷(4×zoom),对缩放方式不敏感);打印前已强制 zoom=1(transform=none),无副作用。不改渲染器/预览/打印/模板数据。

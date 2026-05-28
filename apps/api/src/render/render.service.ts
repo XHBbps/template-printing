@@ -120,7 +120,10 @@ export class RenderService {
     return { jobId: job.id, status: job.status };
   }
 
-  async get(jobId: string): Promise<{
+  async get(
+    jobId: string,
+    user: { sub: string; role: string },
+  ): Promise<{
     jobId: string;
     status: string;
     pdfUrl: string | null;
@@ -131,8 +134,16 @@ export class RenderService {
     cleanedAt: Date | null;
     templateVersion: number | null;
   }> {
-    const job = await this.prisma.renderJob.findUnique({ where: { id: jobId } });
+    const isAdmin = user.role === 'admin' || user.role === 'emergency_admin';
+    const job = await this.prisma.renderJob.findUnique({
+      where: { id: jobId },
+      include: { template: { select: { ownerId: true } } },
+    });
     if (!job) throw new NotFoundException('job_not_found');
+    // V1 IDOR fix：非 admin 只能读自己 owner 模板触发的 job；不泄露存在性（404 not 403）
+    if (!isAdmin && job.template?.ownerId !== user.sub) {
+      throw new NotFoundException('job_not_found');
+    }
     return {
       jobId: job.id,
       status: job.status,

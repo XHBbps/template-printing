@@ -78,7 +78,10 @@ export class RenderController {
   }
 
   @Get(':jobId')
-  async get(@Param('jobId') jobId: string): Promise<{
+  async get(
+    @CurrentUser() me: JwtClaims,
+    @Param('jobId') jobId: string,
+  ): Promise<{
     jobId: string;
     status: string;
     pdfUrl: string | null;
@@ -89,6 +92,6 @@ export class RenderController {
     cleanedAt: Date | null;
     templateVersion: number | null;
   }> {
-    return this.svc.get(jobId);
+    return this.svc.get(jobId, { sub: me.sub, role: me.role });
   }
 }
