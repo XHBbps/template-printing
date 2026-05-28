@@ -4,7 +4,7 @@
 > **变动频率**：每次迭代收尾或重要修复后追加。
 > 详细协作规则见 [`AGENTS.md`](../AGENTS.md)。
 
-**最近更新**：2026-05-28（批次4 Plan2 渲染可靠性续:P1a 自定义退避 + jitter(`RENDER_BACKOFF_BASE_MS` 默认2000、退避 base×2^(n-1)×[0.5,1.5) 防惊群、api+render 同版本部署耦合)+ P2a-worker zod 预校验(`schema_invalid`)+ P2a-web 永久错误 fail-fast(`barcode_invalid`/`qr_invalid`/`image_404`/`render_error` 立即失败不重试不出残图);前为登录页:CN/EN 整页切换接上 + 底部三栏改公开弹窗(系统状态/变更日志/API 文档)、删副标题文字保留占位;前为批次4 Plan1 渲染可靠性加固完成:P0 状态机单调性(终态粘性 db + main 短路 + 对账 cron `count===1` 守卫 + 飞书 handler 幂等)+ P1b 回调失败补发(`CALLBACK_RESEND_MAX_ATTEMPTS` 默认5,退避 5/10/20/40/80min)+ P2b stuck_timeout 指标与 Prometheus 告警;P1a jitter 暂缓(bullmq 5.10.4 无 jitter 选项,需自定义 backoffStrategy 跨进程)、P2a 永久错误细分留待 Plan 2;前为批次3 存储清理完成:修 `RENDER_DIR` 漏 uploads/ 路径 bug + P1 孤儿上传清理 / P2 审计日志保留 / P12 飞书会话清理三个清理 cron 及 env;前为批次2 生产部署产物修正:D6 统一 Dockerfile / D1 env 对齐 / D2·D3 render WEB_BASE+卷 / B3 mem_limit / V7 metrics 白名单;build/run 实证发现并修 GAP#1 api 镜像 pnpm 依赖、GAP#2 compose 插值、GAP#3 首部署迁移顺序;开发机起 prod 栈渲染往返成功——服务器填 .env.prod 密钥即可一把跑通）
+**最近更新**：2026-05-29（批次5 前端首屏快赢:F1 Element Plus 按需引入(去全量 JS/CSS)+ F7 vite manualChunks 拆 vue-vendor/element-plus 长缓存 vendor + F5 TemplatesView reloadActive 两请求 Promise.all 并行;实测 entry `index.js` 930KB/307gz → 29.30KB/9.67gz、全量 `index.css` 351KB/50gz 拆为按需 CSS chunk;F3 904KB TemplateRenderer(bwip-js/qrcode)基本不变、与 F2/F4/F6 留后续批;前为批次4 Plan2 渲染可靠性续:P1a 自定义退避 + jitter(`RENDER_BACKOFF_BASE_MS` 默认2000、退避 base×2^(n-1)×[0.5,1.5) 防惊群、api+render 同版本部署耦合)+ P2a-worker zod 预校验(`schema_invalid`)+ P2a-web 永久错误 fail-fast(`barcode_invalid`/`qr_invalid`/`image_404`/`render_error` 立即失败不重试不出残图);前为登录页:CN/EN 整页切换接上 + 底部三栏改公开弹窗(系统状态/变更日志/API 文档)、删副标题文字保留占位;前为批次4 Plan1 渲染可靠性加固完成:P0 状态机单调性(终态粘性 db + main 短路 + 对账 cron `count===1` 守卫 + 飞书 handler 幂等)+ P1b 回调失败补发(`CALLBACK_RESEND_MAX_ATTEMPTS` 默认5,退避 5/10/20/40/80min)+ P2b stuck_timeout 指标与 Prometheus 告警;P1a jitter 暂缓(bullmq 5.10.4 无 jitter 选项,需自定义 backoffStrategy 跨进程)、P2a 永久错误细分留待 Plan 2;前为批次3 存储清理完成:修 `RENDER_DIR` 漏 uploads/ 路径 bug + P1 孤儿上传清理 / P2 审计日志保留 / P12 飞书会话清理三个清理 cron 及 env;前为批次2 生产部署产物修正:D6 统一 Dockerfile / D1 env 对齐 / D2·D3 render WEB_BASE+卷 / B3 mem_limit / V7 metrics 白名单;build/run 实证发现并修 GAP#1 api 镜像 pnpm 依赖、GAP#2 compose 插值、GAP#3 首部署迁移顺序;开发机起 prod 栈渲染往返成功——服务器填 .env.prod 密钥即可一把跑通）
 
 ---
 
@@ -316,6 +316,10 @@ DB migration：`add_render_attempts_and_cleanup`（attempts_made + cleaned_at +
 ## 3. 近期变更
 
 > 按时间倒序，最近 ~15 次重大变更。详细 commit 见 `git log --oneline`。
+
+### 2026-05-29
+
+- **批次5:前端首屏快赢(F1 / F5 / F7)完成** —— 三项不动业务逻辑、纯加载/打包优化,显著压缩首屏字节并把框架/组件库移入长缓存 vendor chunk。**F1 Element Plus 按需引入**(`apps/web`,commit `c39dc90a`):接入 `unplugin-element-plus`(按需注入组件 CSS)+ `unplugin-vue-components` 的 `ElementPlusResolver`(自动按用到的组件 import),移除 `main.ts` 的 `app.use(ElementPlus)` 全量注册 + 全量 `element-plus/dist/index.css` 引入 —— 去掉了整库 JS 与整库 CSS 的无差别打包。**F7 vite `manualChunks`**(commit `11b4d7b0`):`vite.config.ts` 增加 `build.rollupOptions.output.manualChunks`,把 `vue`/`vue-router`/`pinia` 等框架拆到 `vue-vendor`、Element Plus 拆到独立 `element-plus` chunk,二者内容稳定 → 长缓存命中、业务代码变更不再使其失效。**F5 `TemplatesView.reloadActive` 并行**(commit `a506f040`):原先串行 `await` 的两个请求改为 `Promise.all` 并发,缩短模板中心激活态刷新等待。**体积对比(生产构建,raw / gz)**:entry `index.js` **930KB/307gz → 29.30KB/9.67gz**(瘦身后仅含应用骨架);全量 `index.css` **351KB/50gz** → 拆为按需 CSS chunk(入口 `index.css` 37.54KB/7.95gz + 各视图/组件独立 CSS,如 `el-overlay` 4.49KB/1.07gz);**新增长缓存 vendor**:`vue-vendor` 98.13KB/38.65gz、`element-plus` 236.11KB/78.36gz;`TemplatesView` 115.02KB/35.94gz(JS 基本持平,CSS 87.61KB/12.44gz 拆出);`TemplateRenderer` **904.93KB/255.64gz 基本不变**(F3 含 bwip-js/qrcode 未做,留后续批)。**首屏 gz 总量(entry + 其首屏依赖 vue-vendor + element-plus + 入口 CSS):≈357gz(整体 monolithic entry+全量 CSS)→ ≈134.6gz(9.67+38.65+78.36+7.95),首屏 gz 下降 ≈222gz(约 -62%)**;且框架/组件库已分离为长缓存,后续业务迭代不再重复下发。**留后续批**:F3(904KB TemplateRenderer 拆 bwip-js/qrcode 异步)、F2(设计器静态引入改异步)、F4(hydrate 瀑布)、F6(缩略图 N+1)等单独成批。**验证**:已生产构建实证以上体积(`pnpm run build`,3357 modules,9.03s);F1 已构建验证 + 经人工视觉走查(待视觉确认)。
 
 ### 2026-05-28
 
