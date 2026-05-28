@@ -62,18 +62,22 @@ export async function markDone(
   pdfUrl: string | null,
   pngUrl: string | null,
   attemptsMade = 1,
-): Promise<void> {
-  await pool.query(
-    'UPDATE render_jobs SET status = $1, pdf_url = $2, png_url = $3, completed_at = NOW(), attempts_made = $4 WHERE id = $5',
-    ['done', pdfUrl, pngUrl, attemptsMade, id],
+): Promise<number> {
+  const r = await pool.query(
+    `UPDATE render_jobs SET status = 'done', pdf_url = $1, png_url = $2, completed_at = NOW(), attempts_made = $3
+     WHERE id = $4 AND status NOT IN ('done','failed')`,
+    [pdfUrl, pngUrl, attemptsMade, id],
   );
+  return r.rowCount ?? 0;
 }
 
-export async function markFailed(id: string, errorMsg: string, attemptsMade = 1): Promise<void> {
-  await pool.query(
-    'UPDATE render_jobs SET status = $1, error_msg = $2, completed_at = NOW(), attempts_made = $3 WHERE id = $4',
-    ['failed', errorMsg, attemptsMade, id],
+export async function markFailed(id: string, errorMsg: string, attemptsMade = 1): Promise<number> {
+  const r = await pool.query(
+    `UPDATE render_jobs SET status = 'failed', error_msg = $1, completed_at = NOW(), attempts_made = $2
+     WHERE id = $3 AND status NOT IN ('done','failed')`,
+    [errorMsg, attemptsMade, id],
   );
+  return r.rowCount ?? 0;
 }
 
 export async function markCallbackStatus(id: string, status: 'sent' | 'failed'): Promise<void> {
