@@ -150,13 +150,14 @@ async function refreshRecentId(): Promise<void> {
 
 /** 刷新当前激活视图（首次进入 / 搜索 / 排序变化时回到起点）。 */
 async function reloadActive(): Promise<void> {
-  if (viewMode.value === 'grid') {
-    gridPage.value = 1;
-    await loadGridPage(1);
-  } else {
-    await loadListInitial();
-  }
-  await refreshRecentId();
+  const active =
+    viewMode.value === 'grid'
+      ? (() => {
+          gridPage.value = 1;
+          return loadGridPage(1);
+        })()
+      : loadListInitial();
+  await Promise.all([active, refreshRecentId()]);
 }
 
 /** 增删改后刷新：网格保持当前页（删空则回退一页），列表回到首批。 */
