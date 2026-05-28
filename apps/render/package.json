@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@template-printing/schema": "workspace:*",
     "@template-printing/types": "workspace:*",
     "bullmq": "5.10.4",
     "ioredis": "5.4.1",

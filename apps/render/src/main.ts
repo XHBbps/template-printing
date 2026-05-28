@@ -19,6 +19,8 @@ import { PuppeteerPool } from './puppeteer-pool.js';
 // eslint-disable-next-line import/no-unresolved
 import { renderJobOnPage, resolvePaperMm } from './renderer.js';
 // eslint-disable-next-line import/no-unresolved
+import { isValidTemplate } from './schema-precheck.js';
+// eslint-disable-next-line import/no-unresolved
 import { sendCallback } from './webhook.js';
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
@@ -85,6 +87,15 @@ async function main(): Promise<void> {
         const changed = await markFailed(jobId, 'template_not_found', attemptNo);
         if (changed > 0) await sendCallback(jobId, job.callback_url);
         throw new UnrecoverableError('template_not_found');
+      }
+
+      const check = isValidTemplate(tpl.data);
+      if (!check.ok) {
+        // eslint-disable-next-line no-console
+        console.warn(`[render] job ${jobId} template schema_invalid: ${check.reason}`);
+        const changed = await markFailed(jobId, 'schema_invalid', attemptNo);
+        if (changed > 0) await sendCallback(jobId, job.callback_url);
+        throw new UnrecoverableError('schema_invalid');
       }
 
       await markProcessing(jobId);
