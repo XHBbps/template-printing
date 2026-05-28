@@ -87,7 +87,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/api.Dockerfile
+          file: apps/api/Dockerfile.prod
           push: false
           tags: template-printing-api:ci
 
@@ -95,7 +95,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/web.Dockerfile
+          file: apps/web/Dockerfile.prod
           push: false
           tags: template-printing-web:ci
 
