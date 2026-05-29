@@ -99,14 +99,14 @@ export function fromWsCardAction(d: Record<string, unknown>): NormalizedCardActi
   );
 }
 export function fromHttpMessage(b: {
-  header?: { event_id?: string };
+  header?: Record<string, unknown>;
   event: { sender?: RawSender; message: RawMessage };
 }): NormalizedMessageEvent {
-  return normMessage(b.event.sender, b.event.message, b.header?.event_id);
+  return normMessage(b.event.sender, b.event.message, b.header?.event_id as string | undefined);
 }
 export function fromHttpCardAction(b: {
-  header?: { event_id?: string };
+  header?: Record<string, unknown>;
   event: { operator?: { open_id?: string }; action: RawAction };
 }): NormalizedCardAction {
-  return normAction(b.event.operator, b.event.action, b.header?.event_id);
+  return normAction(b.event.operator, b.event.action, b.header?.event_id as string | undefined);
 }

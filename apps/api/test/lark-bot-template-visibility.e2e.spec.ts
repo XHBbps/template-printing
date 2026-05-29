@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 // eslint-disable-next-line import/no-unresolved
 import { AppModule } from '../src/app.module.js';
 // eslint-disable-next-line import/no-unresolved
-import { LarkBotController } from '../src/lark/lark-bot.controller.js';
+import { LarkBotDispatchService } from '../src/lark/lark-bot-dispatch.service.js';
 
 const VER_DATA = {
   id: 'v',
@@ -26,7 +26,7 @@ const VER_DATA = {
 
 describe('Lark bot template visibility e2e', () => {
   let app: INestApplication;
-  let controller: LarkBotController;
+  let dispatch: LarkBotDispatchService;
   const prisma = new PrismaClient();
   const OWNER = 'e2e_larkvis_owner';
   const PW = 'pw-e2e-larkvis-1';
@@ -85,7 +85,7 @@ describe('Lark bot template visibility e2e', () => {
     const m = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = m.createNestApplication();
     await app.init();
-    controller = app.get(LarkBotController);
+    dispatch = app.get(LarkBotDispatchService);
   });
 
   afterAll(async () => {
@@ -102,7 +102,7 @@ describe('Lark bot template visibility e2e', () => {
   });
 
   it('listBotTemplates returns ONLY public+published templates', async () => {
-    const templates = await controller.listBotTemplates();
+    const templates = await dispatch.listBotTemplates();
     const ids = templates.map((t) => t.id);
     expect(ids).toContain(publicPublishedId);
     expect(ids).not.toContain(privatePublishedId);
