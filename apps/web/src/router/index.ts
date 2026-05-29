@@ -121,20 +121,25 @@ const router = createRouter({
 
 let hasHydratedOnce = false;
 
-router.beforeEach(async (to) => {
+// 注意:此 guard 不再 async/await。首屏 boot 时把 hydrate 放后台跑,立即放行,
+// 由 AppShell 的全屏骨架遮住 RouterView(防未授权内容外泄),hydrate 完成后
+// 再由 AppShell 的 enforceAfterHydrate() 纠正重定向。详见 AppShell.vue。
+router.beforeEach((to) => {
   // 渲染页(headless 浏览器)只渲染注入的 __renderInput、永不需要鉴权 —— 直接放行,
   // 跳过 boot 期 hydrate,避免无 cookie 时 GET /users/me（及其 401 触发的 /auth/refresh）
   // 产生 401 噪声 + 无用请求。该路由 requiresAuth:false 且无 adminOnly,早返回不绕过任何实际守卫。
   if (to.name === 'print-headless') return true;
   const auth = useAuthStore();
-  // First-time hydrate on app boot (always).
-  // Re-hydrate when entering a protected route with unknown auth (catches
-  // bfcache restore where module state persists but session may have changed).
-  const shouldHydrate = !hasHydratedOnce || (to.meta.requiresAuth && !auth.isAuthenticated);
-  if (shouldHydrate) {
-    await auth.hydrate();
+  // First navigation on app boot: kick off hydrate in the background (no await)
+  // and optimistically allow the navigation. The boot skeleton in AppShell
+  // covers RouterView until hydrate settles, then enforceAfterHydrate() fixes
+  // any required redirect. This avoids blocking the first paint on 1–3 RTTs.
+  if (!hasHydratedOnce) {
     hasHydratedOnce = true;
+    void auth.hydrate();
+    return true;
   }
+  // Subsequent navigations: synchronous enforcement against known auth state.
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { path: '/login', query: { continue: to.fullPath } };
   }

@@ -39,6 +39,9 @@ export const useAuthStore = defineStore('auth', {
     user: null as AuthUser | null,
     csrf: null as string | null,
     loading: true,
+    // True once the first boot hydrate() has settled (success or failure).
+    // Used by AppShell to know the optimistic boot phase is over.
+    hydrated: false,
   }),
   getters: {
     isAuthenticated: (s): boolean => s.user !== null,
@@ -60,6 +63,7 @@ export const useAuthStore = defineStore('auth', {
         }
       } finally {
         this.loading = false;
+        this.hydrated = true;
       }
     },
     async tryRefresh(): Promise<void> {
