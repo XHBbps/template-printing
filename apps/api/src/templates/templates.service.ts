@@ -129,6 +129,7 @@ export class TemplatesService {
     const versions = await this.prisma.templateVersion.findMany({
       where: { templateId: id },
       orderBy: { version: 'desc' },
+      take: 100,
       select: { version: true, publishedAt: true, publishedBy: true, restoredFrom: true },
     });
     return {

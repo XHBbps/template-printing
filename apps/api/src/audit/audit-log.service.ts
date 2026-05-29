@@ -134,11 +134,8 @@ export class AuditLogService {
   }
 
   async distinctActions(): Promise<string[]> {
-    const rows = await this.prisma.auditLog.findMany({
-      distinct: ['action'],
-      select: { action: true },
-      orderBy: { action: 'asc' },
-    });
+    const rows = await this.prisma.$queryRaw<Array<{ action: string }>>`
+      SELECT DISTINCT action FROM audit_log ORDER BY action ASC`;
     return rows.map((r) => r.action);
   }
 }
