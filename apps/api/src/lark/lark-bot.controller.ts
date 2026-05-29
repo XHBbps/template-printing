@@ -207,7 +207,9 @@ export class LarkBotController {
 
     if (dto.status === 'done' && dto.pdfUrl) {
       try {
-        const relative = dto.pdfUrl.startsWith('/') ? dto.pdfUrl.slice(1) : dto.pdfUrl;
+        // worker 回调的 pdfUrl 带签名 query(?token=...);先去掉 query,否则文件名含 ?token → ENOENT。
+        const cleanPath = dto.pdfUrl.split('?')[0] ?? '';
+        const relative = cleanPath.startsWith('/') ? cleanPath.slice(1) : cleanPath;
         const filePath = path.join(STORAGE_ROOT, relative);
         // 防 path traversal: 解析后路径必须在 STORAGE_ROOT 内（+ sep 防 /storageEVIL 同前缀绕过）
         if (!path.resolve(filePath).startsWith(path.resolve(STORAGE_ROOT) + path.sep)) {
