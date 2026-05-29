@@ -98,7 +98,11 @@ export class AuthController {
     // 禁用用户即使持有有效 refresh token 也不得续签（防御纵深；不止依赖 disable 时的 revokeAllForUser）
     if (user.disabledAt) throw new UnauthorizedException('account_disabled');
 
-    await this.refresh.revoke(v.id);
+    // 原子吊销旧 token + 防分叉:verify→revoke→create 非原子,同一 token 并发两次 refresh 时
+    // 两请求都能 verify 通过 → 各自 create → 分叉出两套有效会话。改 CAS:仅赢得吊销者继续签发,
+    // 输家说明 token 已被并发请求消费 → 401(也兼具 token 重用检测的最小形态)。
+    const won = await this.refresh.revokeIfActive(v.id);
+    if (!won) throw new UnauthorizedException('Refresh token already used');
     const { plaintext: newRefresh } = await this.refresh.create(user.id);
     const { token: newAccess, csrf } = this.jwt.sign({
       sub: user.id,
