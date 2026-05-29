@@ -82,3 +82,39 @@ describe('LarkBotDispatchService.handleMessageReceive', () => {
     expect(create).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('LarkBotDispatchService.handleCardAction — submit_render 字段归一化', () => {
+  it('date 字段去掉飞书 date_picker 的 +0800 时区,只留 YYYY-MM-DD', async () => {
+    const enqueue = jest.fn(async () => ({ jobId: 'j1' }));
+    const tplData = {
+      schema: { out_date: { type: 'date', label: '出门日期', required: false } },
+    };
+    const prisma = {
+      larkBotSession: {
+        findUnique: jest.fn(async () => ({
+          id: 's1',
+          state: 'fill_fields',
+          templateId: 't1',
+          formData: {},
+        })),
+        update: jest.fn(async () => ({})),
+      },
+      template: { findFirst: jest.fn(async () => ({ id: 't1', name: 'tpl', data: tplData })) },
+    } as never;
+    const svc = new LarkBotDispatchService(prisma, {} as never, { enqueue } as never);
+
+    await svc.handleCardAction({
+      eventId: 'card-date-1',
+      action: {
+        value: { sessionId: 's1', action: 'submit_render' },
+        formValue: { out_date: '2026-05-29 +0800' },
+      },
+    });
+
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    const args = (
+      enqueue.mock.calls[0] as unknown as [unknown, { data: Record<string, unknown> }]
+    )[1];
+    expect(args.data.out_date).toBe('2026-05-29');
+  });
+});

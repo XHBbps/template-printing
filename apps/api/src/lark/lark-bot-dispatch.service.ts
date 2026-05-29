@@ -204,14 +204,17 @@ export class LarkBotDispatchService {
             toast: { type: 'error', content: `必填未填:${missing.map((m) => m.label).join('、')}` },
           };
         }
-        // 转换 boolean/number 字段
+        // 转换 boolean/number/日期 字段
         const data: Record<string, unknown> = {};
         for (const f of fields) {
           const v = formData[f.key];
           if (v === undefined) continue;
           if (f.type === 'boolean') data[f.key] = v === 'true';
           else if (f.type === 'number' && typeof v === 'string') data[f.key] = Number(v);
-          else data[f.key] = v;
+          else if ((f.type === 'date' || f.type === 'datetime') && typeof v === 'string') {
+            // 飞书 date_picker 返回如 "2026-05-29 +0800";去掉尾部时区偏移,date 只留 YYYY-MM-DD。
+            data[f.key] = v.replace(/\s*[+-]\d{2}:?\d{2}$/, '').trim();
+          } else data[f.key] = v;
         }
         const apiBase = process.env.API_INTERNAL_BASE ?? 'http://api:3000';
         const token = process.env.LARK_BOT_VERIFICATION_TOKEN ?? '';
