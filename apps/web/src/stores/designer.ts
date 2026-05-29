@@ -16,6 +16,10 @@ type FieldDef = z.infer<typeof FieldDefSchema>;
 const STORAGE_KEY = 'tp_designer_draft';
 const HISTORY_LIMIT = 50;
 
+// Debounce timer for snapshot()'s persist — high-frequency edits batch their
+// localStorage writes. undo/redo/load/reset still persist immediately.
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
 // Pixels-per-mm. With 4 px/mm and the paper sizes below, both canvas dimensions
 // share a healthy common-divisor set so cell w/h have many valid options.
 const PX_PER_MM = 4;
@@ -217,7 +221,7 @@ export const useDesignerStore = defineStore('designer', {
         this.historyIndex++;
       }
       this.dirty = true;
-      this.persist();
+      this.persistDebounced();
     },
     undo(): void {
       if (!this.canUndo) return;
@@ -237,6 +241,16 @@ export const useDesignerStore = defineStore('designer', {
       } catch {
         // Ignore quota / privacy-mode failures
       }
+    },
+    // Debounced persist used by snapshot() so high-frequency edits batch their
+    // localStorage writes into one ~500ms after edits settle. The arrow callback
+    // captures `this` (the Pinia store instance) from the enclosing action.
+    persistDebounced(): void {
+      if (persistTimer) clearTimeout(persistTimer);
+      persistTimer = setTimeout(() => {
+        this.persist();
+        persistTimer = null;
+      }, 500);
     },
     restore(): boolean {
       try {
