@@ -45,47 +45,54 @@ export class RenderCleanupService {
       return;
     }
     const cutoff = new Date(Date.now() - days * 86400 * 1000);
-    const oldJobs = await this.prisma.renderJob.findMany({
-      where: {
-        createdAt: { lt: cutoff },
-        cleanedAt: null,
-        status: { in: ['done', 'failed'] },
-      },
-      select: { id: true, pdfUrl: true, pngUrl: true },
-    });
-    if (oldJobs.length === 0) {
-      this.log.log(`cleanup: no jobs older than ${days}d`);
-      return;
-    }
 
+    const BATCH = 500;
+    let totalJobs = 0;
     let deletedFiles = 0;
-    for (const job of oldJobs) {
-      // pdfUrl 形如 /uploads/render/<id>.pdf — 仅取文件名拼到本地
-      for (const url of [job.pdfUrl, job.pngUrl]) {
-        if (!url) continue;
-        const filename = path.basename(url.split('?')[0] ?? '');
-        if (!filename) continue;
-        const full = path.join(RENDER_DIR, filename);
-        try {
-          await fs.unlink(full);
-          deletedFiles++;
-        } catch (e) {
-          // ENOENT 是常见的（文件已被人手动清理）— 不算错误
-          const code = (e as NodeJS.ErrnoException).code;
-          if (code !== 'ENOENT') {
-            this.log.warn(`unlink ${full} failed: ${(e as Error).message}`);
+    for (;;) {
+      const oldJobs = await this.prisma.renderJob.findMany({
+        where: {
+          createdAt: { lt: cutoff },
+          cleanedAt: null,
+          status: { in: ['done', 'failed'] },
+        },
+        select: { id: true, pdfUrl: true, pngUrl: true },
+        take: BATCH,
+      });
+      if (oldJobs.length === 0) break;
+      for (const job of oldJobs) {
+        // pdfUrl 形如 /uploads/render/<id>.pdf — 仅取文件名拼到本地
+        for (const url of [job.pdfUrl, job.pngUrl]) {
+          if (!url) continue;
+          const filename = path.basename(url.split('?')[0] ?? '');
+          if (!filename) continue;
+          const full = path.join(RENDER_DIR, filename);
+          try {
+            await fs.unlink(full);
+            deletedFiles++;
+          } catch (e) {
+            // ENOENT 是常见的（文件已被人手动清理）— 不算错误
+            const code = (e as NodeJS.ErrnoException).code;
+            if (code !== 'ENOENT') {
+              this.log.warn(`unlink ${full} failed: ${(e as Error).message}`);
+            }
           }
         }
       }
+      await this.prisma.renderJob.updateMany({
+        where: { id: { in: oldJobs.map((j) => j.id) } },
+        data: { cleanedAt: new Date(), pdfUrl: null, pngUrl: null },
+      });
+      totalJobs += oldJobs.length;
+      if (oldJobs.length < BATCH) break;
     }
 
-    await this.prisma.renderJob.updateMany({
-      where: { id: { in: oldJobs.map((j) => j.id) } },
-      data: { cleanedAt: new Date(), pdfUrl: null, pngUrl: null },
-    });
-
+    if (totalJobs === 0) {
+      this.log.log(`cleanup: no jobs older than ${days}d`);
+      return;
+    }
     this.log.log(
-      `cleanup done: ${oldJobs.length} jobs marked cleaned, ${deletedFiles} files removed (cutoff: ${cutoff.toISOString()})`,
+      `cleanup done: ${totalJobs} jobs marked cleaned, ${deletedFiles} files removed (cutoff: ${cutoff.toISOString()})`,
     );
   }
 
