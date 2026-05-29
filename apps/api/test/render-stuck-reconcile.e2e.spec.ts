@@ -9,7 +9,7 @@
  */
 import * as http from 'node:http';
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import { PrismaClient } from '@prisma/client';
 
 // eslint-disable-next-line import/no-unresolved
@@ -26,6 +26,11 @@ const fakeFileSig = {
     return url;
   },
 } as never;
+
+// 运行时告警用的 LarkImService 桩:sendTextToChat 记录调用。默认 .env.test 无 LARK_ALERT_CHAT_ID,
+// 故除"告警"专用 describe 外不会被调用。
+const sendTextToChat = jest.fn(async () => true);
+const fakeLarkIm = { sendTextToChat } as never;
 
 // ──────────────────────────────────────────
 // Tiny HTTP server to receive webhook callbacks
@@ -175,8 +180,8 @@ describe('RenderCleanupService.reconcileStuckJobs (e2e)', () => {
       },
     });
 
-    // Instantiate service with racing prisma proxy + fake FileSig + real Metrics
-    service = new RenderCleanupService(racingPrisma as never, fakeFileSig, metrics);
+    // Instantiate service with racing prisma proxy + fake FileSig + real Metrics + fake LarkIm
+    service = new RenderCleanupService(racingPrisma as never, fakeFileSig, metrics, fakeLarkIm);
   });
 
   // Helper: extract the numeric value of tp_render_jobs_total{status="stuck_timeout",...}
@@ -330,7 +335,7 @@ describe('RenderCleanupService.reconcileStuckJobs — multi-job bulk flip (e2e)'
     });
     freshId = fresh.id;
 
-    service = new RenderCleanupService(prisma as never, fakeFileSig, metrics);
+    service = new RenderCleanupService(prisma as never, fakeFileSig, metrics, fakeLarkIm);
   });
 
   function stuckTimeoutCount(text: string): number {
@@ -432,7 +437,7 @@ describe('reconcile 竞态:cron 先翻 stuck,慢 worker 随后 markDone 不能�
       },
     });
     jobId = job.id;
-    service = new RenderCleanupService(prisma as never, fakeFileSig, metrics);
+    service = new RenderCleanupService(prisma as never, fakeFileSig, metrics, fakeLarkIm);
   });
 
   afterAll(async () => {
@@ -468,5 +473,60 @@ describe('reconcile 竞态:cron 先翻 stuck,慢 worker 随后 markDone 不能�
     const callsForJob = cbCalls.filter((c) => (c.body as Record<string, unknown>).jobId === jobId);
     expect(callsForJob.length).toBe(1);
     expect((callsForJob[0]!.body as Record<string, unknown>).errorMsg).toBe('stuck_timeout');
+  });
+});
+
+/**
+ * 运行时告警:reconcile 翻转 stuck job 时推飞书运维群(LARK_ALERT_CHAT_ID 配了才发,@所有人)。
+ */
+describe('reconcileStuckJobs → 运行时告警推送 (e2e)', () => {
+  const prisma = new PrismaClient();
+  const metrics = new MetricsService();
+  let service: RenderCleanupService;
+  let ownerId: string;
+  let templateId: string;
+  const CHAT_ID = 'oc_e2e_alert_chat';
+
+  beforeAll(async () => {
+    process.env.LARK_ALERT_CHAT_ID = CHAT_ID;
+    await prisma.user.deleteMany({ where: { localUsername: 'e2e_stuck_alert_owner' } });
+    const owner = await prisma.user.create({
+      data: { localUsername: 'e2e_stuck_alert_owner', role: 'user', name: 'Stuck Alert Owner' },
+    });
+    ownerId = owner.id;
+    const tpl = await prisma.template.create({
+      data: { name: 'e2e stuck alert tpl', data: {}, ownerId: owner.id },
+    });
+    templateId = tpl.id;
+    // callbackUrl 留空 → 不发 HTTP 回调,聚焦告警行为。
+    await prisma.renderJob.create({
+      data: {
+        templateId,
+        data: {},
+        formats: ['pdf'],
+        status: 'processing',
+        startedAt: new Date(Date.now() - 30 * 60_000),
+      },
+    });
+    service = new RenderCleanupService(prisma as never, fakeFileSig, metrics, fakeLarkIm);
+  });
+
+  afterAll(async () => {
+    delete process.env.LARK_ALERT_CHAT_ID;
+    await prisma.renderJob.deleteMany({ where: { templateId } });
+    await prisma.template.deleteMany({ where: { id: templateId } });
+    await prisma.user.deleteMany({ where: { id: ownerId } });
+    await prisma.$disconnect();
+  });
+
+  it('翻转 stuck job → 调 sendTextToChat(目标群 + @所有人 + stuck_timeout 文案)', async () => {
+    sendTextToChat.mockClear();
+    await service.reconcileStuckJobs();
+
+    expect(sendTextToChat).toHaveBeenCalledTimes(1);
+    const [chatIdArg, textArg] = sendTextToChat.mock.calls[0] as unknown as [string, string];
+    expect(chatIdArg).toBe(CHAT_ID);
+    expect(textArg).toContain('<at user_id="all">'); // @所有人
+    expect(textArg).toContain('stuck_timeout');
   });
 });

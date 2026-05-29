@@ -9,6 +9,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { fetch } from 'undici';
 
 // eslint-disable-next-line import/no-unresolved
+import { LarkImService } from '../lark/lark-im.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { MetricsService } from '../metrics/metrics.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -35,7 +37,21 @@ export class RenderCleanupService {
     private readonly prisma: PrismaService,
     private readonly fileSig: FileSigService,
     private readonly metrics: MetricsService,
+    // LarkImService 由 @Global LarkModule 导出,直接注入(无需 import LarkModule,避免与其循环依赖)。
+    private readonly larkIm: LarkImService,
   ) {}
+
+  /**
+   * 运行时告警 → 飞书运维群(chat_id 由 LARK_ALERT_CHAT_ID 配,空=关闭,fail-safe)。
+   * 文本前缀 `<at user_id="all"></at>` = @所有人。fire-and-forget,告警失败绝不影响业务。
+   */
+  private async sendOpsAlert(text: string): Promise<void> {
+    const chatId = process.env.LARK_ALERT_CHAT_ID;
+    if (!chatId) return;
+    await this.larkIm
+      .sendTextToChat(chatId, `<at user_id="all"></at>\n${text}`)
+      .catch((e) => this.log.warn(`ops alert send failed: ${(e as Error).message}`));
+  }
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async cleanupOldOutputs(): Promise<void> {
@@ -136,6 +152,10 @@ export class RenderCleanupService {
       this.metrics.renderJobs.inc({ status: 'stuck_timeout', source: 'cron' });
       await this.sendStuckCallback(job.id, job.callbackUrl);
     }
+    // 运行时告警:本轮翻转了 stuck job → 推运维群(借 cron 5min 周期天然聚合,不刷屏)。
+    await this.sendOpsAlert(
+      `⚠️ [模板打印] 渲染任务卡死告警\n本轮对账发现 ${count} 个任务超时(stuck_timeout),可能是 render worker OOM/崩溃/挂死。\n请检查 render 容器与队列积压。`,
+    );
   }
 
   /** 与 worker webhook.ts 对齐：payload 形状 + callbackStatus + 10s 超时。 */
@@ -197,11 +217,12 @@ export class RenderCleanupService {
       },
     });
     const now = Date.now();
+    const exhausted: string[] = [];
     for (const job of candidates) {
       if (!job.completedAt || !job.callbackUrl) continue;
       const eligibleAt = job.completedAt.getTime() + 5 * Math.pow(2, job.callbackAttempts) * 60_000;
       if (now < eligibleAt) continue;
-      await this.resendOne(
+      const ok = await this.resendOne(
         job.id,
         job.callbackUrl,
         job.status,
@@ -209,10 +230,17 @@ export class RenderCleanupService {
         job.pngUrl,
         job.errorMsg,
       );
+      // 本次是最后一次尝试(+1 后达上限)且仍失败 → 永久放弃,记入本轮耗尽集。
+      if (!ok && job.callbackAttempts + 1 >= max) exhausted.push(job.id);
+    }
+    if (exhausted.length > 0) {
+      await this.sendOpsAlert(
+        `⚠️ [模板打印] 回调补发耗尽\n${exhausted.length} 个任务的回调重试 ${max} 次后仍失败,已永久放弃(调用方需自行按 jobId 兜底)。\njobIds: ${exhausted.join(', ')}`,
+      );
     }
   }
 
-  /** 与 worker webhook.ts payload 对齐;发后必 callbackAttempts+1,2xx→sent 否则 failed。 */
+  /** 与 worker webhook.ts payload 对齐;发后必 callbackAttempts+1,2xx→sent 否则 failed。返回本次是否成功。 */
   private async resendOne(
     jobId: string,
     callbackUrl: string,
@@ -220,7 +248,7 @@ export class RenderCleanupService {
     pdfUrl: string | null,
     pngUrl: string | null,
     errorMsg: string | null,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const payload = {
       jobId,
       status,
@@ -244,6 +272,7 @@ export class RenderCleanupService {
       where: { id: jobId },
       data: { callbackStatus: ok ? 'sent' : 'failed', callbackAttempts: { increment: 1 } },
     });
+    return ok;
   }
 
   /**

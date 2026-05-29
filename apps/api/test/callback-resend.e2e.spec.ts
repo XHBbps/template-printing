@@ -29,6 +29,9 @@ const fakeFileSig = {
   },
 } as never;
 
+// LARK_ALERT_CHAT_ID 未设 → sendOpsAlert 早返回,此桩不会被调用;仅为满足构造器签名。
+const fakeLarkIm = { sendTextToChat: async (): Promise<boolean> => true } as never;
+
 // ──────────────────────────────────────────
 // External mock callback endpoint (随机端口, 记录收到的 POST)
 // ──────────────────────────────────────────
@@ -187,7 +190,12 @@ describe('RenderCleanupService.resendFailedCallbacks (e2e)', () => {
     });
     jobSentId = jobS.id;
 
-    service = new RenderCleanupService(prisma as never, fakeFileSig, new MetricsService());
+    service = new RenderCleanupService(
+      prisma as never,
+      fakeFileSig,
+      new MetricsService(),
+      fakeLarkIm,
+    );
 
     // Run once; then give the mock server a tiny window to flush POST bodies.
     await service.resendFailedCallbacks();

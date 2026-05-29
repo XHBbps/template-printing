@@ -38,6 +38,7 @@ const NON_ENVTS_ALLOWED = new Set([
   'UPLOAD_ORPHAN_GRACE_DAYS',
   'AUDIT_LOG_RETENTION_DAYS',
   'BOT_SESSION_RETENTION_DAYS',
+  'LARK_ALERT_CHAT_ID', // 运行时告警群 chat_id,服务直接读 process.env(不进 env.ts schema)
 ]);
 
 const shape = EnvSchema.shape as Record<

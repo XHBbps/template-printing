@@ -84,14 +84,16 @@
 - [ ] `INITIAL_ADMIN_LARK_USER_IDS` / `INITIAL_ADMIN_LOCAL_PASSWORD`(可选,设则 bootstrap 超管,首登强制改密)
 - [ ] **启用多维表格集成时**:`LARK_BITABLE_VERIFICATION_TOKEN` + `RENDER_CALLBACK_SECRET`(`openssl rand -hex 16`)——⚠️ **配了 bitable token 却漏 `RENDER_CALLBACK_SECRET`,生产会启动断言失败拒绝启动**(回调永久 401、状态卡处理中的 fail-fast 保护)
 - [ ] **启用机器人时**:`LARK_BOT_VERIFICATION_TOKEN` + `LARK_BOT_OPEN_ID`(漏 open_id 群消息被静默吞,启动期 warn)
+- [ ] **运行时告警**(可选):`LARK_ALERT_CHAT_ID=oc_...`(运维群 chat_id)——配了则渲染卡死(stuck_timeout)/ 回调补发耗尽时,后端经飞书应用机器人 @所有人 推到该群;空=关闭(见下方"飞书运维群")
 - [ ] `REGISTRY=ghcr.io/<org>` / `TAG=<要部署的版本>`
 - [ ] (可选,有默认)渲染调优 / 清理 cron / Sentry:`RENDER_*`、`UPLOAD_ORPHAN_GRACE_DAYS`、`AUDIT_LOG_RETENTION_DAYS`、`BOT_SESSION_RETENTION_DAYS`、`SENTRY_DSN`、`APP_VERSION` —— 见 `.env.prod.example` 与 `docs/deployment.md`
 
-## 飞书运维群(部署通知)
+## 飞书运维群(部署通知 + 运行时告警)
 
-> `deploy.yml` 已接入:部署成功/失败时 POST 文案到飞书机器人(text 消息)。配了 `LARK_DEPLOY_WEBHOOK` 才推送,不配自动跳过、不影响部署。
+> 两类通知,目标可为同一个运维群:
+> - **部署通知**(CI 侧):`deploy.yml` 成功/失败 POST 文案到**自定义机器人 webhook**(`LARK_DEPLOY_WEBHOOK`),不配自动跳过。
+> - **运行时告警**(后端侧):渲染卡死(stuck_timeout)/ 回调补发耗尽时,经**飞书应用机器人**(复用 SSO app 的 tenant token)@所有人 发到群 **chat_id**(`LARK_ALERT_CHAT_ID`,服务器 `.env.prod`),不配则关闭。借对账 cron 5min 周期天然聚合,不刷屏。
 
 - [ ] 创建运维群
-- [ ] 添加飞书自定义机器人,复制 webhook URL
-- [ ] 机器人安全设置:用「自定义关键词」并加入关键词 **`部署`**(通知文案含该词即可通过);若改用「加签」则需另行在 workflow 补签名逻辑
-- [ ] 把 webhook URL 配到 GitHub Secret `LARK_DEPLOY_WEBHOOK`
+- [ ] **部署通知**:添加飞书**自定义机器人** → 安全设置用「自定义关键词」加关键词 **`部署`**(文案含该词即通过;若用「加签」需另补签名)→ webhook URL 配到 GitHub Secret `LARK_DEPLOY_WEBHOOK`
+- [ ] **运行时告警**:把本企业应用机器人加进该群 → 取群 **chat_id**(`oc_...`)填服务器 `.env.prod` 的 `LARK_ALERT_CHAT_ID`(应用机器人需有发消息权限;@所有人需群允许)

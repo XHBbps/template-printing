@@ -85,4 +85,43 @@ export class LarkImService {
       return false;
     }
   }
+
+  /**
+   * Send a text message to a group chat by chat_id (oc_...).
+   * 文本里可含 `<at user_id="all"></at>` 实现 @所有人。
+   * Returns true on success, false on failure (errors are logged, not thrown).
+   */
+  async sendTextToChat(chatId: string, text: string): Promise<boolean> {
+    try {
+      const token = await this.getTenantAccessToken();
+      const res = await fetch(
+        `${this.cfg.openBase}/open-apis/im/v1/messages?receive_id_type=chat_id`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            receive_id: chatId,
+            msg_type: 'text',
+            content: JSON.stringify({ text }),
+          }),
+        },
+      );
+      if (!res.ok) {
+        this.logger.warn(`IM chat send failed http=${res.status}`);
+        return false;
+      }
+      const body = (await res.json()) as { code: number; msg: string };
+      if (body.code !== 0) {
+        this.logger.warn(`IM chat send code=${body.code}: ${body.msg}`);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      this.logger.error(`IM chat send exception: ${(e as Error).message}`);
+      return false;
+    }
+  }
 }
