@@ -87,17 +87,17 @@
 |---|---|---|---|---|
 | P1 | High | ✅ 批次3 已修 · **上传图片永不清理**,`/storage/uploads/` 无限增长 | `uploads/uploads.service.ts:91-95` + cleanup 仅清 render | ✅ 新增 `cleanupOrphanUploads()` cron:扫 `templates.data` 引用后删 mtime 早于 `UPLOAD_ORPHAN_GRACE_DAYS`(默认7,0=关)的顶层孤儿文件 |
 | P2 | High | ✅ 批次3 已修 · `audit_log` 无任何保留/清理 → 无限增长 | `audit/audit-log.service.ts`(无 prune)、`schema.prisma:200` | ✅ 新增 `cleanupAuditLog()` cron:`deleteMany(createdAt < cutoff)`,`AUDIT_LOG_RETENTION_DAYS` 默认 90(≤0=关);与 D-B12 同项 |
-| P3 | High | 日配额 `count`(join templates)每次入队同步执行,无缓存 | `render.service.ts:266-296` | Redis 缓存当日计数(TTL 至午夜);或 `render_jobs` 反范式 `ownerId` 列 + 索引 |
-| P4 | Med | `listVersions` 无分页上限 | `templates.service.ts:129-133` | 加 `take:100` + cursor |
-| P5 | Med | 清理 cron 一次性把所有旧 job 读进内存 | `render-cleanup.service.ts:45-52` | 分批 `take:500` 循环 |
-| P6 | Med | `reconcileStuckJobs` N 条逐条 update(N 次往返) | `render-cleanup.service.ts:98-115` | 状态用 `updateMany` 批量,仅回调逐条 |
-| P7 | Med | 上传 PNG/JPEG `sharp` 解码两次 | `uploads.service.ts:59-77` | 用 `toBuffer({resolveWithObject:true})` 的 info,metadata 同实例链式 |
-| P8 | Med | `distinctActions` 全表扫描无日期窗 | `audit-log.service.ts:136` | 改 `$queryRaw SELECT DISTINCT`,或硬编已知 action 枚举 |
-| P9 | Med | `markFailed`(Bitable+Bot)update 前冗余 `findUnique` | `lark-bitable.controller.ts:188`、`lark-bot.controller.ts:472` | 复用调用方已取的记录,免重复查 |
-| P10 | Med | 缺 `render_jobs(status, startedAt)` 索引(对账 cron 用) | `schema.prisma:108-111` | 加 `@@index([status, startedAt])` |
-| P11 | Low | `listJobs` 返回每行完整 `data` JSON blob | `render.service.ts:249` | 移除 data 或 `?includeData=true` 选项 |
+| P3 | High | ✅ 批次8 已修 · 日配额 `count`(join templates)每次入队同步执行,无缓存 | `render.service.ts:266-296` | ✅ Redis 缓存当日计数(GET 命中/miss 跑 DB + SETEX 至午夜 + enqueue 后 incr;**Redis 错误 fail-open 回 DB**,软配额不阻塞入队);未做反范式 `ownerId`(缓存原查询语义零变更,优先低风险) |
+| P4 | Med | ✅ 批次8 已修 · `listVersions` 无分页上限 | `templates.service.ts:129-133` | ✅ 加 `take:100`(orderBy version desc,取最新 100 版) |
+| P5 | Med | ✅ 批次8 已修 · 清理 cron 一次性把所有旧 job 读进内存 | `render-cleanup.service.ts:45-52` | ✅ 分批 `take:500` 循环(每批置 cleanedAt 单调推进) |
+| P6 | Med | ✅ 批次8 已修 · `reconcileStuckJobs` N 条逐条 update(N 次往返) | `render-cleanup.service.ts:98-115` | ✅ 单条 bulk `updateMany` 翻转 + 回查本次翻转行回调(N→2 往返),**保批次4 竞态安全** |
+| P7 | Med | ✅ 批次8 已修 · 上传 PNG/JPEG `sharp` 解码两次 | `uploads.service.ts:59-77` | ✅ 复用单 `sharp` 实例(`metadata()` 取 density + `.toBuffer()` 取宽高),免输入二次解码 |
+| P8 | Med | ✅ 批次8 已修 · `distinctActions` 全表扫描无日期窗 | `audit-log.service.ts:136` | ✅ 改 `$queryRaw SELECT DISTINCT action FROM audit_log ORDER BY action ASC`(去 Prisma distinct 全行 hydrate) |
+| P9 | Med | ⬜ 待办 · `markFailed`(Bitable+Bot)update 前冗余 `findUnique` | `lark-bitable.controller.ts:188`、`lark-bot.controller.ts:472` | 复用调用方已取的记录,免重复查（批次8 未纳入，独立小项） |
+| P10 | Med | ✅ 批次8 已修 · 缺 `render_jobs(status, startedAt)` 索引(对账 cron 用) | `schema.prisma:108-111` | ✅ 加 `@@index([status, startedAt])` + migration `add_renderjob_status_startedat_index` |
+| P11 | Low | ✅ 评估后维持现状(2026-05-29) · `listJobs` 返回每行完整 `data` JSON blob | `render.service.ts:249` | 详情弹窗直接复用 list 行 `data`（`GET /:jobId` 不返回 data）;单组织 + 分页(默认 20 / 上限 100)下边际成本小,精简需详情面板改按需拉取(动可用功能 + 加 loading,低 ROI)→ **决定维持现状**,见 PROGRESS 2026-05-29 |
 | P12 | Low | ✅ 批次3 已修 · `lark_bot_sessions` done/failed 永不清理 | `schema.prisma:135` | ✅ 新增 `cleanupBotSessions()` cron:删 `done`/`failed` 且 `updatedAt` 早于 `BOT_SESSION_RETENTION_DAYS`(默认30,≤0=关)的行 |
-| P13 | Low(未来) | `render_jobs` 行永不删,长期百万行 | 设计选择 | 6-12 月后归档/按月分区 |
+| P13 | Low(未来) | ✅ 决策落定(2026-05-29) · `render_jobs` 行永不删,长期百万行 | 设计选择 | **维持现状不删**;部署上量后按"行数 / 表体积阈值"再做按月分区或归档,6-12 月评估,**不提前实现**,见 PROGRESS 2026-05-29 |
 
 ---
 
