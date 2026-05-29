@@ -88,7 +88,9 @@ describe('RenderService 日配额缓存（dailyUsed）', () => {
     // SETEX：key 含 owner + 当日日期，值=count，EX + 正整数 TTL
     expect(redis.set).toHaveBeenCalledTimes(1);
     const [key, value, exFlag, ttl] = redis.set.mock.calls[0] as [string, number, string, number];
-    expect(key).toBe('render-quota:owner-2:2026-05-29');
+    // 期望 key 用与被测代码同款构造动态算（start.toISOString() 是 UTC 切片），
+    // 避免在 UTC+ 时区 / TZ 不固定的 CI 下硬编码日期段失配。
+    expect(key).toBe(`render-quota:owner-2:${start.toISOString().slice(0, 10)}`);
     expect(value).toBe(7);
     expect(exFlag).toBe('EX');
     expect(typeof ttl).toBe('number');
