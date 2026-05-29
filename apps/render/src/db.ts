@@ -50,11 +50,15 @@ export async function fetchTemplateVersion(
   return r.rows[0] ?? null;
 }
 
-export async function markProcessing(id: string): Promise<void> {
-  await pool.query('UPDATE render_jobs SET status = $1, started_at = NOW() WHERE id = $2', [
-    'processing',
-    id,
-  ]);
+export async function markProcessing(id: string): Promise<number> {
+  // 终态守卫:已 done/failed 的行不再被拉回 processing,与 markDone/markFailed 一致维护终态粘性。
+  // 返回 rowCount,=0 时调用方应放弃本次渲染(行已被对账 cron 标 failed 等)。
+  const r = await pool.query(
+    `UPDATE render_jobs SET status = 'processing', started_at = NOW()
+     WHERE id = $1 AND status NOT IN ('done','failed')`,
+    [id],
+  );
+  return r.rowCount ?? 0;
 }
 
 export async function markDone(

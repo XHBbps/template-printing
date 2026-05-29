@@ -98,7 +98,14 @@ async function main(): Promise<void> {
         throw new UnrecoverableError('schema_invalid');
       }
 
-      await markProcessing(jobId);
+      // P0:终态守卫——若行已被对账 cron 标终态(done/failed),markProcessing 不会翻转(rowCount=0),
+      // 此时直接放弃本次渲染,与第 76 行"已终态跳过"语义对齐,杜绝拉回 processing 撕开幂等。
+      const claimed = await markProcessing(jobId);
+      if (claimed === 0) {
+        // eslint-disable-next-line no-console
+        console.log(`[render] job ${jobId} reached terminal state before claim — skip`);
+        return;
+      }
       const page = await pool.acquire();
       let ok = false;
       let doneChanged = 0;

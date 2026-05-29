@@ -80,4 +80,27 @@ describe('db 终态粘性 (markDone/markFailed)', () => {
     expect(doneAffected).toBe(0);
     expect(await statusOf(jobB)).toBe('failed');
   });
+
+  it('P0:markProcessing 对已 failed 终态行返回 0 且不拉回 processing', async () => {
+    // 构造一个已被对账 cron 标 failed 的终态行,再走一次 worker 的 markProcessing。
+    const jobC = `${PREFIX}-jobC`;
+    await makeProcessingJob(jobC);
+    expect(await markFailed(jobC, 'stuck_timeout', 1)).toBe(1);
+    expect(await statusOf(jobC)).toBe('failed');
+
+    const claimed = await markProcessing(jobC);
+    expect(claimed).toBe(0);
+    expect(await statusOf(jobC)).toBe('failed');
+  });
+
+  it('markProcessing 命中非终态行返回 1 且翻 processing', async () => {
+    const jobD = `${PREFIX}-jobD`;
+    await pool.query(
+      `INSERT INTO render_jobs (id, template_id, data, formats, status) VALUES ($1, $2, $3, $4, $5)`,
+      [jobD, templateId, JSON.stringify({}), ['pdf'], 'pending'],
+    );
+    const claimed = await markProcessing(jobD);
+    expect(claimed).toBe(1);
+    expect(await statusOf(jobD)).toBe('processing');
+  });
 });
