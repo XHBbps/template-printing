@@ -56,7 +56,6 @@ This checklist tracks the **out-of-code** preparation that must happen in parall
 - [ ] `ALIYUN_ACR_PASSWORD`
 - [ ] `ECS_SSH_PRIVATE_KEY`
 - [ ] `ECS_HOST`
-- [ ] `MASTER_KEY`（32 字节 hex，`openssl rand -hex 32`）
 - [ ] `JWT_SECRET`（≥ 32 字符，`openssl rand -hex 32`）
 - [ ] `FILE_SIG_SECRET`（≥ 32 字符，同上）
 - [ ] `DATABASE_URL`（生产 PG 连接串）

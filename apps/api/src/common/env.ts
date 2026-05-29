@@ -12,7 +12,6 @@ export const EnvSchema = z.object({
   JWT_TTL_SECONDS: z.coerce.number().int().positive().default(86400), // 24h
   REFRESH_TTL_SECONDS: z.coerce.number().int().positive().default(2_592_000), // 30d
   FILE_SIG_SECRET: z.string().min(32, 'FILE_SIG_SECRET must be at least 32 chars'),
-  MASTER_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'MASTER_KEY must be 64 hex chars (32 bytes)'),
 
   LARK_SSO_APP_ID: z.string().min(1),
   LARK_SSO_APP_SECRET: z.string().min(1),

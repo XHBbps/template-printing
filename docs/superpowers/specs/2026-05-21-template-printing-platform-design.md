@@ -860,6 +860,7 @@ template_access_log         (id, template_id, user_id, opened_at)     -- 编辑�
 **关键约束**：
 
 - `lark_credentials.app_secret_encrypted`：AES-256-GCM 加密，密钥从 env `MASTER_KEY` 派生。DB 落库不见明文。
+  > ⚠️ 未实现：经 2026-05-29 决策（review D-A2），单组织单飞书 app 用 env 注入 `LARK_SSO_APP_SECRET`，不建加密凭证表；`MASTER_KEY` 已移除。
 - `template_versions`：append-only。删除模板只软删 `templates.deleted_at`，版本表保留以便已发出的 PrintJob 仍能溯源到当时的模板内容。
 - `print_jobs.retention_until`：默认 +24h。过期清理 job 行但保留 audit log（轻量）。
 - `sequences`：用 `SELECT FOR UPDATE` 加行锁，保证并发自增不漏号。
@@ -893,6 +894,7 @@ template_access_log         (id, template_id, user_id, opened_at)     -- 编辑�
 ```
 # 核心密钥
 MASTER_KEY                       # 飞书凭证加密用主密钥（32 字节十六进制）
+                                 # ⚠️ 未实现：经 2026-05-29 决策（review D-A2），不建加密凭证表，MASTER_KEY 已移除
 JWT_SECRET                       # JWT 签名
 FILE_SIG_SECRET                  # 文件签名 URL
 

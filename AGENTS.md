@@ -187,7 +187,7 @@ template_printing/
 - DTO 校验优先用 zod（与 `packages/schema` 共享） + `ZodValidationPipe`，避免与 class-validator 混用
 - 鉴权统一走 `@CurrentUser()` / `JwtAuthGuard` / `RolesGuard`；公共端点显式 `@Public()`
 - 长任务（PDF / PNG 渲染）一律入 bullmq 队列，**不在请求线程内同步执行**
-- 飞书 API 调用方传 `credentialId` 而非明文 secret，secret 存 DB 时用 `MASTER_KEY` 加密
+- 飞书 app secret 经 env `LARK_SSO_APP_SECRET` 注入（单一全局 app），不入 DB / 不入仓库；敏感字段（password / secret / token）不打日志
 - 日志用 `nestjs-pino`；敏感字段（password / secret / token）不打日志
 
 ### 6.6 渲染 worker 约定
@@ -350,7 +350,7 @@ AGENTS.md                                  (长期稳定)
 ## 11. 仓库约束
 
 - **`.env` 文件永不入库**；仓库只保留 `.env.example`。新增 env 变量必须同步更新 `.env.example` 并在 `docs/deployment.md` 中说明
-- **飞书 secret 等敏感字段**在 DB 中用 `MASTER_KEY` 加密存储；调用方只传 `credentialId` 不传明文
+- **飞书 app secret**经 env `LARK_SSO_APP_SECRET` 注入（单一全局 app，单组织内部工具，12-factor 配置），不入 DB、不入仓库；不实现 per-tenant 加密凭证库（见 2026-05-29 review D-A2）
 - **emergency_admin 路径权限与 admin 相同**：所有 `adminOnly` 路由对 `'admin'` 与 `'emergency_admin'` 两个 role 同时开放
 - **SSO 自动建账号**：飞书首次登录时自动创建用户，本地随机密码 + 通过飞书 IM 通知，**禁止硬编码默认密码**
 - **Designer Template JSON**：mm-anchor schema 中 `canvas.cell.{w,h}` 与 `anchor` 单位一律为 mm；不能在代码中随意切到 px

@@ -21,7 +21,6 @@ describe('validateEnv', () => {
     process.env.REDIS_URL = 'redis://localhost:6379';
     process.env.JWT_SECRET = 'a'.repeat(32);
     process.env.FILE_SIG_SECRET = 'a'.repeat(32);
-    process.env.MASTER_KEY = 'a'.repeat(64); // 32 bytes hex = 64 chars
     process.env.LARK_SSO_APP_ID = 'cli_test';
     process.env.LARK_SSO_APP_SECRET = 'secret_test';
     process.env.LARK_SSO_REDIRECT_URI = 'http://localhost:3000/auth/lark/callback';
@@ -38,12 +37,6 @@ describe('validateEnv', () => {
     setMinimalEnv();
     delete process.env.DATABASE_URL;
     expect(() => validateEnv()).toThrow(/DATABASE_URL/);
-  });
-
-  it('throws when MASTER_KEY is too short', () => {
-    setMinimalEnv();
-    process.env.MASTER_KEY = 'short';
-    expect(() => validateEnv()).toThrow(/MASTER_KEY/);
   });
 
   it('throws when JWT_SECRET is too short', () => {

@@ -6,7 +6,6 @@ export type TemplateId = Brand<string, 'TemplateId'>;
 export type PrintJobId = Brand<string, 'PrintJobId'>;
 export type FileId = Brand<string, 'FileId'>;
 export type ApiKeyId = Brand<string, 'ApiKeyId'>;
-export type CredentialId = Brand<string, 'CredentialId'>;
 
 // User role enum
 export const USER_ROLES = ['admin', 'user', 'emergency_admin'] as const;

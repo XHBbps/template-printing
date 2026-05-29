@@ -33,7 +33,7 @@
 ### 安全 / 禁止操作
 
 - ❌ 提交 `.env` / `storage/` / `.pgdata/` / `.redisdata/` / `node_modules/`
-- ❌ 飞书 secret 等敏感字段以明文存储；调用方接口只允许传 `credentialId`
+- ❌ 把飞书 app secret / DB 密码 / JWT secret 写进代码或可提交文档；敏感凭证一律经 env 注入（飞书为单一全局 `LARK_SSO_APP_SECRET`），`.env` 已 gitignore
 - ❌ SSO 自动建账号使用硬编码默认密码（必须随机 + 飞书 IM 通知）
 - ❌ 强制推送 main / master（`git push --force`）
 - ❌ 跳过 git hooks（`--no-verify`）/ 跳过签名（`-c commit.gpgsign=false`）
