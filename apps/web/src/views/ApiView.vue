@@ -469,6 +469,77 @@ print(job['status'], job['pdfUrl'])`,
     },
   },
   {
+    id: 'ep-list-jobs',
+    method: 'get',
+    path: '/api/render/jobs',
+    desc: '列出渲染任务（分页）',
+    intro:
+      '分页查询渲染任务列表。admin / emergency_admin 看全部；普通用户 / API Token 仅看自己模板的任务。',
+    reqHeaders: [{ code: 'Authorization', req: true, desc: 'Bearer <token>' }],
+    reqTitle: '查询参数 · Query',
+    reqRows: [
+      { code: 'page', type: 'number', req: false, desc: '页码，默认 1' },
+      { code: 'pageSize', type: 'number', req: false, desc: '每页条数，默认 20，上限 100' },
+      {
+        code: 'status',
+        type: 'string',
+        req: false,
+        desc: '按状态过滤：pending / processing / done / failed',
+      },
+      { code: 'source', type: 'string', req: false, desc: '按来源过滤：api / bot / bitable' },
+      { code: 'templateName', type: 'string', req: false, desc: '按模板名模糊搜索' },
+    ],
+    respRows: [
+      { code: 'items', type: 'object[]', desc: '任务列表，单项字段见下方示例' },
+      { code: 'total', type: 'number', desc: '匹配的总条数' },
+      { code: 'page', type: 'number', desc: '当前页码' },
+      { code: 'pageSize', type: 'number', desc: '每页条数' },
+    ],
+    respExample: `{
+  "items": [
+    {
+      "id": "abc-123-...",
+      "templateId": "e0798b17-...",
+      "templateName": "扬力出门证",
+      "status": "done",
+      "source": "api",
+      "createdAt": "2026-05-29T10:30:00Z",
+      "completedAt": "2026-05-29T10:30:02Z",
+      "cleanedAt": null,
+      "durationMs": 2010,
+      "pdfUrl": "/uploads/render/abc-123.pdf",
+      "pngUrl": null,
+      "errorMsg": null
+    }
+  ],
+  "total": 42,
+  "page": 1,
+  "pageSize": 20
+}`,
+    errors: [
+      { http: '400', code: 'BAD_REQUEST', reason: 'page / pageSize 非法（如 ?page=abc）' },
+      { http: '401', code: 'UNAUTHORIZED', reason: '无 Bearer / token 失效 / cookie 无效' },
+    ],
+    samples: {
+      curl: `curl 'https://api.yangli.local/api/render/jobs?page=1&pageSize=20&source=api' \\
+  -H 'Authorization: Bearer tpkn_a1b2c3d4...'`,
+      node: `const res = await fetch('https://api.yangli.local/api/render/jobs?page=1&pageSize=20', {
+  headers: { Authorization: 'Bearer tpkn_a1b2c3d4...' },
+});
+const { items, total } = await res.json();
+console.log(total, items.length);`,
+      python: `import requests
+
+res = requests.get(
+    'https://api.yangli.local/api/render/jobs',
+    params={'page': 1, 'pageSize': 20, 'source': 'api'},
+    headers={'Authorization': 'Bearer tpkn_a1b2c3d4...'},
+)
+body = res.json()
+print(body['total'], len(body['items']))`,
+    },
+  },
+  {
     id: 'ep-lark-trigger',
     method: 'post',
     path: '/lark/print-trigger',
