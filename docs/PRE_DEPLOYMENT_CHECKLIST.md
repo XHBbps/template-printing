@@ -68,6 +68,7 @@
 - [ ] `DEPLOY_HOST`(ECS 公网 IP / 域名)
 - [ ] `DEPLOY_USER`(部署用户,如 `deploy`)
 - [ ] `DEPLOY_SSH_KEY`(对应私钥)
+- [ ] `LARK_DEPLOY_WEBHOOK`(可选)飞书运维群机器人 webhook;配了则部署成功/失败推送通知,不配自动跳过(见下方"飞书运维群")
 
 ## 服务器 `.env.prod`(应用密钥与配置)
 
@@ -86,10 +87,11 @@
 - [ ] `REGISTRY=ghcr.io/<org>` / `TAG=<要部署的版本>`
 - [ ] (可选,有默认)渲染调优 / 清理 cron / Sentry:`RENDER_*`、`UPLOAD_ORPHAN_GRACE_DAYS`、`AUDIT_LOG_RETENTION_DAYS`、`BOT_SESSION_RETENTION_DAYS`、`SENTRY_DSN`、`APP_VERSION` —— 见 `.env.prod.example` 与 `docs/deployment.md`
 
-## 飞书运维群(部署/告警通知)
+## 飞书运维群(部署通知)
 
-> ⚠️ 现状:`deploy.yml` 的成功/失败通知仍是 `# TODO: 接入飞书 webhook`,**尚未实现**。建群+机器人可先备好,接入待后续补。
+> `deploy.yml` 已接入:部署成功/失败时 POST 文案到飞书机器人(text 消息)。配了 `LARK_DEPLOY_WEBHOOK` 才推送,不配自动跳过、不影响部署。
 
 - [ ] 创建运维群
 - [ ] 添加飞书自定义机器人,复制 webhook URL
-- [ ] (待实现)在 `deploy.yml` 接入 webhook 通知,并约定对应 GitHub Secret 名
+- [ ] 机器人安全设置:用「自定义关键词」并加入关键词 **`部署`**(通知文案含该词即可通过);若改用「加签」则需另行在 workflow 补签名逻辑
+- [ ] 把 webhook URL 配到 GitHub Secret `LARK_DEPLOY_WEBHOOK`

@@ -12,6 +12,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # 飞书运维群自定义机器人 webhook(可选)。未配则通知步骤自动跳过,不影响部署。
+    # 机器人安全设置建议用「自定义关键词」并加入关键词「部署」(下方文案含该词即可通过)。
+    env:
+      LARK_DEPLOY_WEBHOOK: ${{ secrets.LARK_DEPLOY_WEBHOOK }}
     steps:
       - name: Determine tag
         id: tag
@@ -33,14 +37,24 @@ jobs:
             git fetch --tags
             ./scripts/deploy/update.sh ${{ steps.tag.outputs.tag }}
 
-      - name: Notify on success
-        if: success()
+      - name: Notify Lark on success
+        if: ${{ success() && env.LARK_DEPLOY_WEBHOOK != '' }}
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          echo "✓ Deploy ${{ steps.tag.outputs.tag }} 成功"
-          # TODO: 接入飞书 webhook 通知
+          text="✅ [模板打印] 部署成功\n版本: ${TAG}\n仓库: ${{ github.repository }}\n触发: ${{ github.actor }}\n详情: ${RUN_URL}"
+          curl -sS -X POST "$LARK_DEPLOY_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"${text}\"}}"
 
-      - name: Notify on failure
-        if: failure()
+      - name: Notify Lark on failure
+        if: ${{ failure() && env.LARK_DEPLOY_WEBHOOK != '' }}
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          echo "✗ Deploy ${{ steps.tag.outputs.tag }} 失败"
-          # TODO: 接入飞书 webhook 通知
+          text="❌ [模板打印] 部署失败\n版本: ${TAG}\n仓库: ${{ github.repository }}\n触发: ${{ github.actor }}\n查看日志: ${RUN_URL}"
+          curl -sS -X POST "$LARK_DEPLOY_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"${text}\"}}"
