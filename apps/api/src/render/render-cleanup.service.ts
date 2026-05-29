@@ -104,21 +104,30 @@ export class RenderCleanupService {
     const cutoff = new Date(Date.now() - min * 60_000);
     const stuck = await this.prisma.renderJob.findMany({
       where: { status: 'processing', startedAt: { lt: cutoff } },
-      select: { id: true, callbackUrl: true },
+      select: { id: true },
     });
     if (stuck.length === 0) return;
-    this.log.warn(`reconcile: ${stuck.length} stuck job(s) → failed`);
-    for (const job of stuck) {
-      const { count } = await this.prisma.renderJob.updateMany({
-        where: { id: job.id, status: 'processing' },
-        data: { status: 'failed', errorMsg: 'stuck_timeout', completedAt: new Date() },
-      });
-      if (count === 1) {
-        // P2b：API 侧对账 cron 真翻转一个 stuck job 时，inc 渲染任务终态指标。
-        // worker 是独立进程无 metrics 端点，stuck_timeout 只能在此处计数/告警。
-        this.metrics.renderJobs.inc({ status: 'stuck_timeout', source: 'cron' });
-        await this.sendStuckCallback(job.id, job.callbackUrl);
-      }
+    const ids = stuck.map((j) => j.id);
+    // P6：单条批量翻转，N 次往返降为 2。只翻仍 processing 的行 —— 竞态中被 worker
+    // 抢先 markDone 的行此刻已是 done，updateMany 的 status='processing' 守卫天然把它们排除，不被覆盖。
+    const { count } = await this.prisma.renderJob.updateMany({
+      where: { id: { in: ids }, status: 'processing' },
+      data: { status: 'failed', errorMsg: 'stuck_timeout', completedAt: new Date() },
+    });
+    if (count === 0) return;
+    this.log.warn(`reconcile: ${count} stuck job(s) → failed`);
+    // 本次真翻转的行：id ∈ ids 且现为 failed/stuck_timeout。ids 当初全是 processing，
+    // 故集合内不含历史 failed-stuck 行 → 此查询精确锁定本 cron 翻成 stuck_timeout 的集合，
+    // 回调 / 计数不重不漏；被 worker 抢先 markDone 的行 status=done，不在其中，不会被错误回调。
+    const flipped = await this.prisma.renderJob.findMany({
+      where: { id: { in: ids }, status: 'failed', errorMsg: 'stuck_timeout' },
+      select: { id: true, callbackUrl: true },
+    });
+    for (const job of flipped) {
+      // P2b：API 侧对账 cron 真翻转一个 stuck job 时，inc 渲染任务终态指标。
+      // worker 是独立进程无 metrics 端点，stuck_timeout 只能在此处计数/告警。
+      this.metrics.renderJobs.inc({ status: 'stuck_timeout', source: 'cron' });
+      await this.sendStuckCallback(job.id, job.callbackUrl);
     }
   }
 

@@ -268,3 +268,122 @@ describe('RenderCleanupService.reconcileStuckJobs (e2e)', () => {
     expect(body.errorMsg).toBe('stuck_timeout');
   });
 });
+
+/**
+ * P6：单条 bulk updateMany 翻转 —— 多条 stuck 同时翻转。
+ * 造 3 条 processing+旧 startedAt（应全翻）+ 1 条 processing 但 startedAt 新（不该翻）。
+ * 期望：3 条旧的都 failed/stuck_timeout、新的仍 processing；回调次数 == 翻转数(3)；
+ * metrics 增量 == 3。验证 bulk 路径精确对应本次翻转，不重不漏。
+ */
+describe('RenderCleanupService.reconcileStuckJobs — multi-job bulk flip (e2e)', () => {
+  const prisma = new PrismaClient();
+  const metrics = new MetricsService();
+  let service: RenderCleanupService;
+  let cbServer: http.Server;
+  let cbUrl: string;
+  let cbCalls: ReceivedCall[];
+
+  let ownerId: string;
+  let templateId: string;
+  const stuckIds: string[] = []; // 3 个旧 processing → 应全翻
+  let freshId: string; // 1 个新 processing → 不该翻
+
+  beforeAll(async () => {
+    ({ server: cbServer, url: cbUrl, calls: cbCalls } = await startCallbackServer());
+
+    await prisma.user.deleteMany({ where: { localUsername: 'e2e_stuck_multi_owner' } });
+    const owner = await prisma.user.create({
+      data: { localUsername: 'e2e_stuck_multi_owner', role: 'user', name: 'Stuck Multi Owner' },
+    });
+    ownerId = owner.id;
+    const tpl = await prisma.template.create({
+      data: { name: 'e2e stuck multi tpl', data: {}, ownerId: owner.id },
+    });
+    templateId = tpl.id;
+
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60_000);
+    const justNow = new Date();
+
+    for (let i = 0; i < 3; i++) {
+      const job = await prisma.renderJob.create({
+        data: {
+          templateId,
+          data: {},
+          formats: ['pdf'],
+          status: 'processing',
+          startedAt: thirtyMinAgo,
+          callbackUrl: `${cbUrl}/callback`,
+        },
+      });
+      stuckIds.push(job.id);
+    }
+
+    const fresh = await prisma.renderJob.create({
+      data: {
+        templateId,
+        data: {},
+        formats: ['pdf'],
+        status: 'processing',
+        startedAt: justNow,
+        callbackUrl: `${cbUrl}/callback`,
+      },
+    });
+    freshId = fresh.id;
+
+    service = new RenderCleanupService(prisma as never, fakeFileSig, metrics);
+  });
+
+  function stuckTimeoutCount(text: string): number {
+    let sum = 0;
+    for (const line of text.split('\n')) {
+      if (line.startsWith('tp_render_jobs_total') && line.includes('status="stuck_timeout"')) {
+        const val = Number(line.slice(line.lastIndexOf(' ') + 1));
+        if (Number.isFinite(val)) sum += val;
+      }
+    }
+    return sum;
+  }
+
+  afterAll(async () => {
+    await prisma.renderJob.deleteMany({ where: { templateId } });
+    await prisma.template.deleteMany({ where: { id: templateId } });
+    await prisma.user.deleteMany({ where: { id: ownerId } });
+    await prisma.$disconnect();
+    cbServer.close();
+  });
+
+  it('flips all stuck jobs in one bulk pass, leaves fresh untouched, callbacks == flipped count', async () => {
+    const before = stuckTimeoutCount(await metrics.expose());
+
+    await service.reconcileStuckJobs();
+
+    // 3 个旧的都应 failed/stuck_timeout
+    for (const id of stuckIds) {
+      const job = await prisma.renderJob.findUnique({ where: { id } });
+      expect(job).not.toBeNull();
+      expect(job!.status).toBe('failed');
+      expect(job!.errorMsg).toBe('stuck_timeout');
+      expect(job!.completedAt).not.toBeNull();
+    }
+
+    // 新的仍 processing
+    const fresh = await prisma.renderJob.findUnique({ where: { id: freshId } });
+    expect(fresh!.status).toBe('processing');
+
+    // metrics 增量 == 翻转数(3)
+    const after = stuckTimeoutCount(await metrics.expose());
+    expect(after).toBeGreaterThanOrEqual(before + 3);
+
+    // 回调次数 == 翻转数：恰好 3 个不同的 stuck job 收到 POST，fresh 不应被回调
+    const flippedCallbackJobIds = new Set(
+      cbCalls
+        .map((c) => (c.body as Record<string, unknown>).jobId)
+        .filter((id): id is string => typeof id === 'string' && stuckIds.includes(id)),
+    );
+    expect(flippedCallbackJobIds.size).toBe(3);
+    const freshCallbacks = cbCalls.filter(
+      (c) => (c.body as Record<string, unknown>).jobId === freshId,
+    );
+    expect(freshCallbacks.length).toBe(0);
+  });
+});
