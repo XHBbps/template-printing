@@ -86,6 +86,8 @@ export class UsersController {
   @Post(':id/reset-password')
   async resetPassword(@CurrentUser() me: JwtClaims, @Param('id') id: string, @Req() req: Request) {
     const result = await this.svc.resetPassword(id);
+    // 重置后 mustChangePassword=true,evict 缓存让强制改密闸下一请求即生效(与 disable/role 一致)。
+    this.userState.evict(id);
     void this.audit.log({
       actor: { id: me.sub, name: null },
       action: 'user.password.reset',

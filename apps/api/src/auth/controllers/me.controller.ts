@@ -24,7 +24,11 @@ import { isInternal } from '../account-kind.js';
 // eslint-disable-next-line import/no-unresolved
 import { CurrentUser } from '../decorators/current-user.decorator.js';
 // eslint-disable-next-line import/no-unresolved
+import { AllowDuringPasswordChange } from '../guards/password-change-gate.js';
+// eslint-disable-next-line import/no-unresolved
 import type { JwtClaims } from '../jwt/jwt.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { UserStateService } from '../user-state.service.js';
 
 export interface MeResponse {
   id: string;
@@ -82,9 +86,11 @@ export class MeController {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly audit: AuditLogService,
+    private readonly userState: UserStateService,
   ) {}
 
   @Get('me')
+  @AllowDuringPasswordChange()
   async me(@CurrentUser() jwt: JwtClaims): Promise<{ ok: true; user: MeResponse }> {
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
     if (!user) throw new NotFoundException('User not found');
@@ -125,6 +131,7 @@ export class MeController {
   }
 
   @Patch('me/password')
+  @AllowDuringPasswordChange()
   async setPassword(@CurrentUser() jwt: JwtClaims, @Body() rawBody: unknown, @Req() req: Request) {
     const dto = SetPasswordDtoSchema.parse(rawBody);
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
@@ -138,6 +145,8 @@ export class MeController {
       where: { id: jwt.sub },
       data: { localPasswordHash: hash, mustChangePassword: false },
     });
+    // 改密成功 → 立即 evict 缓存,强制改密闸下一请求即放行(否则 TTL 内仍 403)。
+    this.userState.evict(jwt.sub);
     void this.audit.log({
       actor: { id: user.id, name: user.name },
       action: 'user.password.change',

@@ -30,6 +30,7 @@ export interface VerifiedToken {
   id: string;
   role: string;
   larkOpenId: string | null;
+  mustChangePassword: boolean;
 }
 
 @Injectable()
@@ -103,7 +104,17 @@ export class ApiTokenService {
 
     const row = await this.prisma.apiToken.findUnique({
       where: { tokenHash },
-      include: { user: { select: { id: true, role: true, disabledAt: true, larkOpenId: true } } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            role: true,
+            disabledAt: true,
+            larkOpenId: true,
+            mustChangePassword: true,
+          },
+        },
+      },
     });
     if (!row) return null;
     if (row.revokedAt) return null;
@@ -114,7 +125,12 @@ export class ApiTokenService {
       .update({ where: { id: row.id }, data: { lastUsedAt: new Date() } })
       .catch((e) => this.logger.warn(`failed to update lastUsedAt: ${(e as Error).message}`));
 
-    return { id: row.user.id, role: row.user.role, larkOpenId: row.user.larkOpenId };
+    return {
+      id: row.user.id,
+      role: row.user.role,
+      larkOpenId: row.user.larkOpenId,
+      mustChangePassword: row.user.mustChangePassword,
+    };
   }
 
   async revokeAllForUser(userId: string): Promise<void> {

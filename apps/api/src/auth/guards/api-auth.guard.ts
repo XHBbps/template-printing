@@ -6,6 +6,8 @@ import {
   UnauthorizedException,
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
+// eslint-disable-next-line import/no-unresolved
+import { Reflector } from '@nestjs/core';
 
 // eslint-disable-next-line import/no-unresolved
 import { isExternal } from '../account-kind.js';
@@ -19,6 +21,9 @@ import { ACCESS_COOKIE } from '../jwt/jwt-cookie.helper.js';
 import { JwtAuthService } from '../jwt/jwt.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { UserStateService } from '../user-state.service.js';
+
+// eslint-disable-next-line import/no-unresolved
+import { assertPasswordChanged } from './password-change-gate.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -37,6 +42,7 @@ export class ApiAuthGuard implements CanActivate {
     private readonly tokens: ApiTokenService,
     private readonly jwt: JwtAuthService,
     private readonly userState: UserStateService,
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -57,6 +63,7 @@ export class ApiAuthGuard implements CanActivate {
         role: user.role as 'emergency_admin' | 'user' | 'admin',
         csrf: '',
       };
+      assertPasswordChanged(this.reflector, ctx, user.mustChangePassword);
       return true;
     }
 
@@ -77,6 +84,7 @@ export class ApiAuthGuard implements CanActivate {
       throw new UnauthorizedException('account_disabled_or_missing');
     }
     req.user = { ...claims, role: state.role };
+    assertPasswordChanged(this.reflector, ctx, state.mustChangePassword);
 
     // CSRF double-submit for unsafe methods on cookie path
     if (!SAFE_METHODS.has(req.method)) {

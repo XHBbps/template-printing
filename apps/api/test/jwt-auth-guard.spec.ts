@@ -19,7 +19,7 @@ describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
 
   beforeEach(() => {
-    stateValue = { role: 'admin', disabledAt: null };
+    stateValue = { role: 'admin', disabledAt: null, mustChangePassword: false };
     guard = new JwtAuthGuard(reflector, jwt, userState);
   });
 
@@ -45,7 +45,7 @@ describe('JwtAuthGuard', () => {
 
   it('attaches user and overrides role from DB state', async () => {
     const { token } = jwt.sign({ sub: 'u-1', role: 'user' });
-    stateValue = { role: 'admin', disabledAt: null };
+    stateValue = { role: 'admin', disabledAt: null, mustChangePassword: false };
     const ctx = mockCtx({ [ACCESS_COOKIE]: token });
     expect(await guard.canActivate(ctx)).toBe(true);
     const req = ctx.switchToHttp().getRequest() as { user?: { sub: string; role: string } };
@@ -61,7 +61,7 @@ describe('JwtAuthGuard', () => {
 
   it('rejects disabled user', async () => {
     const { token } = jwt.sign({ sub: 'u-2', role: 'admin' });
-    stateValue = { role: 'admin', disabledAt: new Date() };
+    stateValue = { role: 'admin', disabledAt: new Date(), mustChangePassword: false };
     await expect(guard.canActivate(mockCtx({ [ACCESS_COOKIE]: token }))).rejects.toThrow(
       UnauthorizedException,
     );

@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export interface UserState {
   role: 'admin' | 'user' | 'emergency_admin';
   disabledAt: Date | null;
+  mustChangePassword: boolean;
 }
 
 interface CacheEntry {
@@ -29,10 +30,14 @@ export class UserStateService {
 
     const row = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true, disabledAt: true },
+      select: { role: true, disabledAt: true, mustChangePassword: true },
     });
     const value: UserState | null = row
-      ? { role: row.role as UserState['role'], disabledAt: row.disabledAt }
+      ? {
+          role: row.role as UserState['role'],
+          disabledAt: row.disabledAt,
+          mustChangePassword: row.mustChangePassword,
+        }
       : null;
     this.cache.set(userId, { value, expiresAt: Date.now() + TTL_MS });
     return value;

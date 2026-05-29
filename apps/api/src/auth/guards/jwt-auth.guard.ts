@@ -12,6 +12,9 @@ import { JwtAuthService } from '../jwt/jwt.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { UserStateService } from '../user-state.service.js';
 
+// eslint-disable-next-line import/no-unresolved
+import { assertPasswordChanged } from './password-change-gate.js';
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
@@ -44,6 +47,8 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('account_disabled_or_missing');
     }
     req.user = { ...claims, role: state.role };
+    // 强制改密闸:除白名单(读 me / 改密)外,mustChangePassword 用户一律 403。
+    assertPasswordChanged(this.reflector, context, state.mustChangePassword);
     return true;
   }
 }
