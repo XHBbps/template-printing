@@ -13,10 +13,15 @@ import {
 } from 'element-plus';
 import { ref, computed } from 'vue';
 // eslint-disable-next-line import/no-unresolved
-import { Plus, Pencil, Trash2, Search } from 'lucide-vue-next';
+import { Plus, Pencil, Trash2, Search, Braces } from 'lucide-vue-next';
 
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import { useDesignerStore } from '../stores/designer';
+// eslint-disable-next-line import/no-unresolved
+import {
+  buildRenderPayload,
+  type RenderPayloadTarget,
+} from '@template-printing/schema/render-payload';
 
 type FieldType = 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'enum' | 'image' | 'array';
 
@@ -33,6 +38,23 @@ const filteredFields = computed(() => {
 });
 const dialogOpen = ref(false);
 const dialogMode = ref<'add' | 'edit'>('add');
+
+const payloadDialogOpen = ref(false);
+const payloadTarget = ref<RenderPayloadTarget>('render');
+const generatedPayload = computed(() =>
+  buildRenderPayload(store.templateId, store.fieldDefs, payloadTarget.value),
+);
+function openPayload(): void {
+  payloadDialogOpen.value = true;
+}
+async function copyPayload(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(generatedPayload.value);
+    ElMessage.success('已复制入参格式');
+  } catch {
+    ElMessage.error('复制失败,请手动选择文本复制');
+  }
+}
 
 interface FormShape {
   key: string;
@@ -170,6 +192,9 @@ function confirmRemove(): void {
           <span class="han">共 {{ store.fieldDefs.length }} 个</span>
         </div>
       </div>
+      <button class="tp-sub-add" title="生成入参格式" @click="openPayload">
+        <Braces :size="14" :stroke-width="1.5" />
+      </button>
       <button class="tp-sub-add" title="添加变量" @click="openAdd">
         <Plus :size="14" :stroke-width="1.5" />
       </button>
@@ -307,6 +332,21 @@ function confirmRemove(): void {
       @confirm="confirmRemove"
     />
   </div>
+
+  <ElDialog v-model="payloadDialogOpen" title="生成入参格式" width="560px">
+    <ElSelect v-model="payloadTarget" style="width: 100%; margin-bottom: 12px">
+      <ElOption label="渲染 API (POST /api/render)" value="render" />
+      <ElOption label="多维表格 webhook (POST /lark/print-trigger)" value="bitable" />
+    </ElSelect>
+    <p v-if="!store.templateId" class="payload-hint">
+      模板未保存,templateId 为占位,保存后替换为真实值。
+    </p>
+    <pre class="payload-json">{{ generatedPayload }}</pre>
+    <template #footer>
+      <ElButton @click="payloadDialogOpen = false">关闭</ElButton>
+      <ElButton type="primary" @click="copyPayload">复制</ElButton>
+    </template>
+  </ElDialog>
 </template>
 
 <style scoped>
@@ -479,6 +519,24 @@ function confirmRemove(): void {
   display: flex;
   align-items: center;
   margin-bottom: 4px;
+}
+.payload-json {
+  max-height: 320px;
+  overflow: auto;
+  background: var(--ink);
+  color: var(--paper-white);
+  padding: 12px;
+  border-radius: var(--radius-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  margin: 0;
+}
+.payload-hint {
+  margin: 0 0 8px;
+  color: var(--iron);
+  font-size: 12px;
 }
 /* 搜索框 — 1px stone + radius 2 + focus red（brief §5.5） */
 .fm-search {
