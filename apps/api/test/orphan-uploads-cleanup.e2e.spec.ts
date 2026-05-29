@@ -49,6 +49,11 @@ const KEEP_FILE = `${tag}-keep.png`;
 const ORPHAN_FILE = `${tag}-orphan.png`;
 const RECENT_FILE = `${tag}-recent.png`;
 const SUBDIR_FILE = `${tag}-subdir-guard.pdf`;
+// review 第 7 节 #3:确认引用扫描正则 /\/uploads\/([A-Za-z0-9._-]+)/ 对"非 /uploads/ 开头"
+// 的存储形态(绝对 URL / 带 query string)是否漏算导致误删。这两个文件 mtime 设 30 天前
+// (超宽限期),若正则漏算就会被当孤儿删除 —— 断言它们存活即证明不漏算。
+const KEEP_ABS_FILE = `${tag}-keep-abs.png`; // 模板里以 https://cdn/uploads/<file> 绝对 URL 引用
+const KEEP_QS_FILE = `${tag}-keep-qs.png`; // 模板里以 /uploads/<file>?v=2 带 query 引用
 
 async function exists(p: string): Promise<boolean> {
   try {
@@ -88,21 +93,34 @@ describe('orphan uploads cleanup (e2e)', () => {
     const tpl = await prisma.template.create({
       data: {
         name: 'e2e orphan-uploads tpl',
-        data: { elements: [{ type: 'image', url: `/uploads/${KEEP_FILE}` }] },
+        data: {
+          elements: [
+            { type: 'image', url: `/uploads/${KEEP_FILE}` },
+            // 绝对 URL 形态:正则非锚定,应仍能命中其中的 /uploads/<file> 子串
+            { type: 'image', url: `https://cdn.example.com/uploads/${KEEP_ABS_FILE}` },
+            // 带 query string 形态:[A-Za-z0-9._-]+ 在 '?' 处停止,捕获到纯文件名
+            { type: 'image', url: `/uploads/${KEEP_QS_FILE}?v=2` },
+          ],
+        },
         ownerId: owner.id,
       },
     });
     templateId = tpl.id;
 
-    // 造三个顶层文件 + 一个子目录文件
+    // 造顶层文件 + 一个子目录文件
     await fs.writeFile(path.join(UPLOADS_DIR, KEEP_FILE), Buffer.from('keep-png'));
     await fs.writeFile(path.join(UPLOADS_DIR, ORPHAN_FILE), Buffer.from('orphan-png'));
     await fs.writeFile(path.join(UPLOADS_DIR, RECENT_FILE), Buffer.from('recent-png'));
+    await fs.writeFile(path.join(UPLOADS_DIR, KEEP_ABS_FILE), Buffer.from('keep-abs-png'));
+    await fs.writeFile(path.join(UPLOADS_DIR, KEEP_QS_FILE), Buffer.from('keep-qs-png'));
     await fs.writeFile(path.join(RENDER_DIR, SUBDIR_FILE), Buffer.from('%PDF-1.4 subdir'));
 
-    // orphan 的 atime/mtime 设为 30 天前 → 超出默认 7 天宽限期
+    // orphan + 两个被引用文件的 mtime 都设 30 天前(超宽限期)。
+    // orphan 应被删;两个被引用的(绝对URL / query)应存活 —— 证明正则不漏算。
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400 * 1000);
     await fs.utimes(path.join(UPLOADS_DIR, ORPHAN_FILE), thirtyDaysAgo, thirtyDaysAgo);
+    await fs.utimes(path.join(UPLOADS_DIR, KEEP_ABS_FILE), thirtyDaysAgo, thirtyDaysAgo);
+    await fs.utimes(path.join(UPLOADS_DIR, KEEP_QS_FILE), thirtyDaysAgo, thirtyDaysAgo);
   });
 
   afterAll(async () => {
@@ -113,6 +131,8 @@ describe('orphan uploads cleanup (e2e)', () => {
     await fs.rm(path.join(UPLOADS_DIR, KEEP_FILE), { force: true }).catch(() => {});
     await fs.rm(path.join(UPLOADS_DIR, ORPHAN_FILE), { force: true }).catch(() => {});
     await fs.rm(path.join(UPLOADS_DIR, RECENT_FILE), { force: true }).catch(() => {});
+    await fs.rm(path.join(UPLOADS_DIR, KEEP_ABS_FILE), { force: true }).catch(() => {});
+    await fs.rm(path.join(UPLOADS_DIR, KEEP_QS_FILE), { force: true }).catch(() => {});
     await fs.rm(path.join(RENDER_DIR, SUBDIR_FILE), { force: true }).catch(() => {});
     await app.close();
   });
@@ -128,5 +148,13 @@ describe('orphan uploads cleanup (e2e)', () => {
     expect(await exists(path.join(UPLOADS_DIR, RECENT_FILE))).toBe(true);
     // 4. render/ 子目录文件 → 不被扫到，保留
     expect(await exists(path.join(RENDER_DIR, SUBDIR_FILE))).toBe(true);
+  });
+
+  it('#3 引用扫描正则不漏算:绝对 URL / 带 query 引用的旧文件仍被保留(非误删)', async () => {
+    // cleanup 已在上个用例跑过;两个被引用文件(mtime 30 天前)若被正则漏算就会在那次被删。
+    // 绝对 URL https://cdn/uploads/<file>:正则非锚定,命中 /uploads/<file> 子串 → 保留。
+    expect(await exists(path.join(UPLOADS_DIR, KEEP_ABS_FILE))).toBe(true);
+    // /uploads/<file>?v=2:捕获组 [A-Za-z0-9._-]+ 到 '?' 停止 → 纯文件名命中 → 保留。
+    expect(await exists(path.join(UPLOADS_DIR, KEEP_QS_FILE))).toBe(true);
   });
 });

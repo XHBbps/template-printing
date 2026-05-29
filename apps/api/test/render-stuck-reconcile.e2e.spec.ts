@@ -387,3 +387,86 @@ describe('RenderCleanupService.reconcileStuckJobs — multi-job bulk flip (e2e)'
     expect(freshCallbacks.length).toBe(0);
   });
 });
+
+/**
+ * review 第 7 节「需进一步验证项」#2:渲染耗时逼近 RENDER_STUCK_TIMEOUT_MIN 时
+ * cron 与 worker 的状态竞态 —— cron 先翻 stuck_timeout、慢 worker 随后才完成的方向。
+ *
+ * 结论(确认非真实双回调 bug):批次1 的终态守卫(render db.ts markProcessing/markDone 带
+ * `WHERE status NOT IN ('done','failed')`)+ 本服务 reconcile 的 `status='processing'` 守卫,
+ * 使得 cron 翻 failed 后,慢 worker 的 markDone 影响 0 行(终态粘性)、且 worker 仅在 rowCount>0
+ * 时才发 done 回调 → 全程只有 cron 的 1 次 stuck 回调,无双回调 / 双计数。
+ * (代价:确实成功但超时的慢 job 会被判 failed —— 这是 10min 超时的设计取舍,非 bug。)
+ */
+describe('reconcile 竞态:cron 先翻 stuck,慢 worker 随后 markDone 不能覆盖终态 (e2e)', () => {
+  const prisma = new PrismaClient();
+  const metrics = new MetricsService();
+  let service: RenderCleanupService;
+  let cbServer: http.Server;
+  let cbUrl: string;
+  let cbCalls: ReceivedCall[];
+  let ownerId: string;
+  let templateId: string;
+  let jobId: string;
+
+  beforeAll(async () => {
+    ({ server: cbServer, url: cbUrl, calls: cbCalls } = await startCallbackServer());
+    await prisma.user.deleteMany({ where: { localUsername: 'e2e_stuck_race_owner' } });
+    const owner = await prisma.user.create({
+      data: { localUsername: 'e2e_stuck_race_owner', role: 'user', name: 'Stuck Race Owner' },
+    });
+    ownerId = owner.id;
+    const tpl = await prisma.template.create({
+      data: { name: 'e2e stuck race tpl', data: {}, ownerId: owner.id },
+    });
+    templateId = tpl.id;
+    // 11 分钟前开始(略超默认 10min 阈值)—— 模拟渲染耗时逼近超时。
+    const job = await prisma.renderJob.create({
+      data: {
+        templateId,
+        data: {},
+        formats: ['pdf'],
+        status: 'processing',
+        startedAt: new Date(Date.now() - 11 * 60_000),
+        callbackUrl: `${cbUrl}/callback`,
+      },
+    });
+    jobId = job.id;
+    service = new RenderCleanupService(prisma as never, fakeFileSig, metrics);
+  });
+
+  afterAll(async () => {
+    await prisma.renderJob.deleteMany({ where: { templateId } });
+    await prisma.template.deleteMany({ where: { id: templateId } });
+    await prisma.user.deleteMany({ where: { id: ownerId } });
+    await prisma.$disconnect();
+    cbServer.close();
+  });
+
+  it('cron 翻 stuck_timeout 后,worker 守卫式 markDone 影响 0 行,只发 1 次回调', async () => {
+    // 1) cron 先赢:翻 failed/stuck_timeout + 发 stuck 回调
+    await service.reconcileStuckJobs();
+    const afterCron = await prisma.renderJob.findUnique({ where: { id: jobId } });
+    expect(afterCron!.status).toBe('failed');
+    expect(afterCron!.errorMsg).toBe('stuck_timeout');
+
+    // 2) 慢 worker 随后完成,执行与 render db.ts markDone 完全一致的守卫式更新:
+    //    WHERE status NOT IN ('done','failed') —— 终态粘性使其影响 0 行。
+    const { count } = await prisma.renderJob.updateMany({
+      where: { id: jobId, status: { notIn: ['done', 'failed'] } },
+      data: { status: 'done', completedAt: new Date(), pdfUrl: '/uploads/render/late.pdf' },
+    });
+    expect(count).toBe(0); // markDone 影响 0 行 → worker 不会发 done 回调(仅 rowCount>0 才发)
+
+    // 3) 终态未被覆盖,仍是 cron 写的 failed/stuck_timeout
+    const finalJob = await prisma.renderJob.findUnique({ where: { id: jobId } });
+    expect(finalJob!.status).toBe('failed');
+    expect(finalJob!.errorMsg).toBe('stuck_timeout');
+    expect(finalJob!.pdfUrl).toBeNull();
+
+    // 4) 全程只有 cron 的 1 次 stuck 回调,无双回调
+    const callsForJob = cbCalls.filter((c) => (c.body as Record<string, unknown>).jobId === jobId);
+    expect(callsForJob.length).toBe(1);
+    expect((callsForJob[0]!.body as Record<string, unknown>).errorMsg).toBe('stuck_timeout');
+  });
+});
