@@ -79,7 +79,10 @@
 | F10 | Med | 公共模板 tab `limit=100` 无虚拟化/分页 | `TemplatesView.vue:177-189` | 分页或"加载更多" + 缩略图懒加载 | 中 |
 | F11 | Low | `snapshot()` 每次元素变更都 `JSON.stringify`+localStorage 写 | `stores/designer.ts:210-220` | persist 与 snapshot 解耦,localStorage 写 debounce ~500ms | 低 |
 
-> 其余小项:`refreshRecentId` 可前端从已取列表算出省一个请求(F-#13);`/auth/refresh` 可直接返回 user 省二次 `/users/me`(F-#14,后端);`AuditLogView` 挂载两请求可并行(F-#17)。
+> 其余小项(均 2026-05-29 处理):
+> - ✅ **F-#14 已修**(commit `e5a96d41`):`/auth/refresh` 直接返回 `user`(后端共享 `buildMeResponse`,csrf 仍保留顶层向后兼容),前端 `tryRefresh` 省去二次 `/users/me`——每次续签(401 重试 / boot 回退)少一次往返。
+> - ✅ **F-#17 已满足(无需改动)**:`AuditLogView` `onMounted` 已是 `void loadActionOptions(); void refresh();`,两请求 fire-and-forget 并发(无 await 串行),复核确认本就并行。
+> - ✅ **F-#13 评估后维持现状**:`refreshRecentId` 已与激活列表加载 `Promise.all` 并行(无额外延迟);且它取的是「当前筛选下全局 updatedAt 最大」的 id,**不能从任意 sort/page 的当前列表算出**(否则会误标「最近编辑」),保留独立的 `limit:1` 查询是正确的。
 
 ### 2B 后端 API 性能 / 存储清理
 
