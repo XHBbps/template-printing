@@ -241,6 +241,7 @@ export const FieldDefSchema = z.discriminatedUnion('type', [
     itemSchema: z.record(z.unknown()).optional(),
   }),
 ]);
+export type FieldDef = z.infer<typeof FieldDefSchema>;
 
 export const TemplateMetaSchema = z.object({
   name: z.string().min(1).max(120),
