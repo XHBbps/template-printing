@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from '@jest/globals';
+import { describe, it, expect, afterEach, jest } from '@jest/globals';
 
 // eslint-disable-next-line import/no-unresolved
 import { validateEnv } from '../src/common/env.js';
@@ -43,5 +43,33 @@ describe('validateEnv', () => {
     setMinimalEnv();
     process.env.JWT_SECRET = 'short';
     expect(() => validateEnv()).toThrow(/JWT_SECRET/);
+  });
+
+  it('生产环境:配了 bitable token 但缺 RENDER_CALLBACK_SECRET → 启动期阻断', () => {
+    setMinimalEnv();
+    process.env.NODE_ENV = 'production';
+    process.env.LARK_BITABLE_VERIFICATION_TOKEN = 'a'.repeat(16);
+    delete process.env.RENDER_CALLBACK_SECRET;
+    expect(() => validateEnv()).toThrow(/RENDER_CALLBACK_SECRET/);
+  });
+
+  it('非生产:配了 bitable token 但缺 RENDER_CALLBACK_SECRET → warn 不阻断', () => {
+    setMinimalEnv(); // NODE_ENV 被删 → development
+    process.env.LARK_BITABLE_VERIFICATION_TOKEN = 'a'.repeat(16);
+    delete process.env.RENDER_CALLBACK_SECRET;
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(() => validateEnv()).not.toThrow();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/RENDER_CALLBACK_SECRET/));
+    warn.mockRestore();
+  });
+
+  it('配了 bot token 但缺 LARK_BOT_OPEN_ID → warn(不阻断)', () => {
+    setMinimalEnv();
+    process.env.LARK_BOT_VERIFICATION_TOKEN = 'b'.repeat(16);
+    delete process.env.LARK_BOT_OPEN_ID;
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(() => validateEnv()).not.toThrow();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/LARK_BOT_OPEN_ID/));
+    warn.mockRestore();
   });
 });

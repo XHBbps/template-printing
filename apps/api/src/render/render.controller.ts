@@ -34,6 +34,15 @@ const EnqueueDto = z.object({
   version: z.coerce.number().int().min(1).optional(),
 });
 
+// listJobs 分页参数校验 + clamp(参照 audit-log.controller),消除 ?page=abc→NaN→Prisma 500
+const ListJobsQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.string().trim().min(1).max(40).optional(),
+  source: z.enum(['bot', 'bitable', 'api']).optional(),
+  templateName: z.string().trim().min(1).max(200).optional(),
+});
+
 // @Public() 跳过全局 JwtAuthGuard + CsrfGuard；ApiAuthGuard 接管鉴权
 // （支持 Bearer API token 与 JWT cookie 两路径，详见 api-auth.guard.ts）
 @Controller('render')
@@ -60,19 +69,17 @@ export class RenderController {
   @Get('jobs')
   async listJobs(
     @CurrentUser() me: JwtClaims,
-    @Query('page') page = '1',
-    @Query('pageSize') pageSize = '20',
-    @Query('status') status?: string,
-    @Query('source') source?: string,
-    @Query('templateName') templateName?: string,
+    @Query() rawQuery: unknown,
   ): Promise<ReturnType<RenderService['listJobs']>> {
-    const s = source === 'bot' || source === 'bitable' || source === 'api' ? source : undefined;
+    const parsed = ListJobsQuery.safeParse(rawQuery);
+    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
+    const { page, pageSize, status, source, templateName } = parsed.data;
     return this.svc.listJobs({
       user: { sub: me.sub, role: me.role },
-      page: Number(page),
-      pageSize: Number(pageSize),
+      page,
+      pageSize,
       status,
-      source: s,
+      source,
       templateName,
     });
   }

@@ -33,16 +33,29 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const resp = exception.getResponse();
-      const message =
-        typeof resp === 'string'
-          ? resp
-          : (resp as { message?: string }).message ?? exception.message;
+      let code = this.statusToCode(status);
+      let message: string;
+      let details: Record<string, unknown> | undefined;
+      if (typeof resp === 'string') {
+        message = resp;
+      } else if (resp && typeof resp === 'object') {
+        const obj = resp as Record<string, unknown>;
+        // 自定义错误码(如 { code: 'MUST_CHANGE_PASSWORD' })→ 透传到 error.code
+        if (typeof obj.code === 'string') code = obj.code;
+        if (typeof obj.message === 'string') {
+          message = obj.message;
+        } else {
+          // 无字符串 message 的 object 形态(典型:zod flatten { formErrors, fieldErrors })→
+          // 完整放进 details,前端据此拿字段级错误,而非只见笼统 "Bad Request"。
+          message = exception.message;
+          details = obj;
+        }
+      } else {
+        message = exception.message;
+      }
       body = {
         ok: false,
-        error: {
-          code: this.statusToCode(status),
-          message,
-        },
+        error: { code, message, ...(details ? { details } : {}) },
       };
     } else if (exception instanceof Error) {
       this.logger.error(`Unhandled error: ${exception.message}`, exception.stack);

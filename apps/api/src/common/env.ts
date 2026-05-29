@@ -68,5 +68,32 @@ export function validateEnv(): Env {
       .join('\n  - ');
     throw new Error(`Invalid environment configuration:\n  - ${issues}`);
   }
-  return parsed.data;
+  const env = parsed.data;
+
+  // 跨字段一致性校验:多个 secret 是 .optional(),漏配时静默退化(fail-open / 卡死),
+  // 在启动期显式告警/阻断,避免"线上才发现回调永久 401 卡处理中 / 群消息被吞"。
+
+  // 启用 bitable(配了 verification token)却没配回调 secret:render worker 回调 token 为空 →
+  // 回调永久 401、LarkPrintRequest 卡 pending(处理中)无告警。生产视为硬错误阻断启动;
+  // 非生产(dev/test)warn 即可(不阻断本地/测试 boot)。
+  if (env.LARK_BITABLE_VERIFICATION_TOKEN && !env.RENDER_CALLBACK_SECRET) {
+    const msg =
+      'LARK_BITABLE_VERIFICATION_TOKEN is set (bitable enabled) but RENDER_CALLBACK_SECRET is missing — render worker callbacks would 401 and records would stay stuck in 处理中. Set RENDER_CALLBACK_SECRET.';
+    if (env.NODE_ENV === 'production') {
+      throw new Error(`Invalid environment configuration:\n  - ${msg}`);
+    }
+    // eslint-disable-next-line no-console
+    console.warn(`[env] ${msg}`);
+  }
+
+  // 配了 bot verification token 却没配 bot open_id:群里 @ 机器人无法识别 → 静默吞掉全部群消息
+  // (fail-closed 安全但无反应)。保持 fail-closed,启动期 warn 提醒补配。
+  if (env.LARK_BOT_VERIFICATION_TOKEN && !env.LARK_BOT_OPEN_ID) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[env] LARK_BOT_VERIFICATION_TOKEN is set but LARK_BOT_OPEN_ID is missing — group @-mentions to the bot will be silently ignored. Set LARK_BOT_OPEN_ID to enable group triggers.',
+    );
+  }
+
+  return env;
 }

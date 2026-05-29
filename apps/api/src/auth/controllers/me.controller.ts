@@ -103,7 +103,9 @@ export class MeController {
     @Body() rawBody: unknown,
     @Req() req: Request,
   ): Promise<{ ok: true }> {
-    const dto = UpdateProfileDtoSchema.parse(rawBody);
+    const parsedDto = UpdateProfileDtoSchema.safeParse(rawBody);
+    if (!parsedDto.success) throw new BadRequestException(parsedDto.error.flatten());
+    const dto = parsedDto.data;
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
     if (!user) throw new UnauthorizedException();
     const data: { name?: string; email?: string | null } = {};
@@ -133,7 +135,9 @@ export class MeController {
   @Patch('me/password')
   @AllowDuringPasswordChange()
   async setPassword(@CurrentUser() jwt: JwtClaims, @Body() rawBody: unknown, @Req() req: Request) {
-    const dto = SetPasswordDtoSchema.parse(rawBody);
+    const parsedDto = SetPasswordDtoSchema.safeParse(rawBody);
+    if (!parsedDto.success) throw new BadRequestException(parsedDto.error.flatten());
+    const dto = parsedDto.data;
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
     if (!user) throw new UnauthorizedException();
     if (!user.localPasswordHash) throw new BadRequestException('no_local_password');

@@ -1,5 +1,6 @@
 /* eslint-disable import/no-unresolved */
 import {
+  BadRequestException,
   Body,
   Controller,
   HttpCode,
@@ -51,7 +52,9 @@ export class LocalController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true; csrf: string; mustChangePassword: boolean }> {
-    const body = LoginBodySchema.parse(raw);
+    const parsed = LoginBodySchema.safeParse(raw);
+    if (!parsed.success) throw new BadRequestException(parsed.error.flatten());
+    const body = parsed.data;
     const user = await this.prisma.user.findUnique({ where: { localUsername: body.username } });
     if (!user || !user.localPasswordHash) {
       throw new UnauthorizedException('Invalid username or password');
