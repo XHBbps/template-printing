@@ -25,6 +25,9 @@ export function configureApp(app: INestApplication, env: Env): void {
   };
   httpAdapter.set?.('trust proxy', 1);
 
+  // 开启 OnApplicationShutdown 钩子(否则 LarkBotWsService 等的关闭逻辑不触发)。
+  app.enableShutdownHooks();
+
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.use(cookieParser());
   app.use(

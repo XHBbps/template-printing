@@ -11,6 +11,10 @@ import { LarkBitableController } from './lark-bitable.controller.js';
 // eslint-disable-next-line import/no-unresolved
 import { LarkBitableService } from './lark-bitable.service.js';
 // eslint-disable-next-line import/no-unresolved
+import { LarkBotDispatchService } from './lark-bot-dispatch.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { LarkBotWsService } from './lark-bot-ws.service.js';
+// eslint-disable-next-line import/no-unresolved
 import { LarkBotController } from './lark-bot.controller.js';
 // eslint-disable-next-line import/no-unresolved
 import { LarkBotService } from './lark-bot.service.js';
@@ -45,6 +49,9 @@ const env = validateEnv();
         new LarkBotService(im, { openBase: env.LARK_API_BASE }),
       inject: [LarkImService],
     },
+    // bot 长连接(WS)接管事件+卡片回调:dispatch 纯业务 + ws 胶水(env 门控)。
+    LarkBotDispatchService,
+    LarkBotWsService,
   ],
   exports: [LarkImService, LarkBitableService, LarkBotService],
 })
