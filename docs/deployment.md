@@ -98,6 +98,21 @@ API 侧 cron(`render-cleanup.service.ts`)按 env 周期清理长期增长的存�
 - **路径修正(批次3)**:本批修复了 `RENDER_DIR` 漏 `uploads/` 的路径 bug —— 渲染产物清理(`cleanupOldOutputs`)与签名下载现正确指向 `STORAGE_ROOT/uploads/render/`(此前清理删错路径、签名下载 404)。
 - 清理 cron 与渲染对账 cron 同在 API 进程内调度;render worker 不参与清理。
 
+## 飞书 bot 长连接(WebSocket)
+
+bot 的事件订阅(`im.message.receive_v1`)与卡片回调(`card.action.trigger`)经 `@larksuiteoapi/node-sdk` 的 WSClient 长连接接收,在 api 进程内运行;**不需要公网回调 URL**(出站长连接,备案前即可跑通)。多维表格 `print-trigger` 与内部 `render-callback` 仍走 HTTP,不受影响。HTTP 端点 `/lark/bot/event`、`/lark/bot/card-action` 保留作 fallback(飞书配长连接时无人调用)。
+
+| Env | 默认 | 说明 |
+|---|---|---|
+| `LARK_BOT_LONG_CONN_ENABLED` | (空)=false | `true` 才在 api 进程内起 WSClient。**多副本部署时仅一个副本设 true**——进程内 event_id 去重不跨副本,多条连接会重复处理(重复建会话/渲染)。 |
+| `LARK_BOT_OPEN_ID` | (空) | 群内 @ 机器人识别所必需(WS / HTTP 皆用);漏配则群消息被静默忽略,启动期 warn。 |
+| `LARK_BOT_VERIFICATION_TOKEN` | (空) | 长连接模式**不校验**(握手期 App 凭证鉴权);保留以便临时切回 HTTP fallback 不至 fail-closed。 |
+
+注意事项:
+- **ECS 出网放行**:服务器须能主动建 **WSS 出站连接到飞书**;nginx 反代只管入站,安全组/出网策略易漏。
+- 启动失败 / 断线:SDK `autoReconnect` 自动重连;启动异常只 warn 不阻塞 api。`app.enableShutdownHooks()` 已开启以便关闭钩子生效。
+- 飞书后台「事件与回调」需配为**长连接**模式(而非回调 URL)。
+
 ## 渲染可靠性(批次4)
 
 渲染失败/异常路径的三层加固:**状态机单调性**(杜绝重复脏写)+ **回调失败补发**(扛外部 webhook 偶发 5xx)+ **stuck_timeout 告警**(暴露 worker OOM/崩溃)。相关 env(见 `.env.example`):

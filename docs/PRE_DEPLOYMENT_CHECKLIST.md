@@ -59,7 +59,8 @@
 - [ ] 复制 `App ID` 和 `App Secret` 备用(填入服务器 `.env.prod`,**非** GitHub Secrets)
 - [ ] 指定初始 admin:在飞书拿一两个 user_id(如 IT 负责人),填入 `.env.prod` 的 `INITIAL_ADMIN_LARK_USER_IDS`
 - [ ] (启用多维表格按钮触发渲染时)在飞书自动化 webhook body 填 `LARK_BITABLE_VERIFICATION_TOKEN` 同值
-- [ ] (启用机器人卡片交互时)事件订阅/卡片回调配 `LARK_BOT_VERIFICATION_TOKEN`;群内 @ 识别需 `LARK_BOT_OPEN_ID`
+- [ ] (启用机器人时)事件订阅 + 卡片回调在飞书后台均选 **长连接(WebSocket)** 模式(无需公网回调 URL,备案前即可跑通);群内 @ 识别需 `LARK_BOT_OPEN_ID`;`LARK_BOT_VERIFICATION_TOKEN` 长连接不校验但建议保留(HTTP fallback 兜底)
+- [ ] **ECS 出网放行**:服务器需能主动建 **WSS 出站连接到飞书**(长连接是出站,nginx 反代只管入站,安全组/出网策略易漏)
 
 ## GitHub Secrets(仅"连服务器")
 
@@ -83,7 +84,7 @@
 - [ ] `COOKIE_DOMAIN=print.<your-company>.com`(可选,空=用请求 host)
 - [ ] `INITIAL_ADMIN_LARK_USER_IDS` / `INITIAL_ADMIN_LOCAL_PASSWORD`(可选,设则 bootstrap 超管,首登强制改密)
 - [ ] **启用多维表格集成时**:`LARK_BITABLE_VERIFICATION_TOKEN` + `RENDER_CALLBACK_SECRET`(`openssl rand -hex 16`)——⚠️ **配了 bitable token 却漏 `RENDER_CALLBACK_SECRET`,生产会启动断言失败拒绝启动**(回调永久 401、状态卡处理中的 fail-fast 保护)
-- [ ] **启用机器人时**:`LARK_BOT_VERIFICATION_TOKEN` + `LARK_BOT_OPEN_ID`(漏 open_id 群消息被静默吞,启动期 warn)
+- [ ] **启用机器人时**:`LARK_BOT_OPEN_ID`(群 @ 检测必需,漏则群消息被静默吞,启动期 warn)+ `LARK_BOT_LONG_CONN_ENABLED=true`(长连接;**多副本时仅一个副本设 true**,否则重复处理)+ 保留 `LARK_BOT_VERIFICATION_TOKEN`(HTTP fallback 兜底)
 - [ ] **运行时告警**(可选):`LARK_ALERT_CHAT_ID=oc_...`(运维群 chat_id)——配了则渲染卡死(stuck_timeout)/ 回调补发耗尽时,后端经飞书应用机器人 @所有人 推到该群;空=关闭(见下方"飞书运维群")
 - [ ] `REGISTRY=ghcr.io/<org>` / `TAG=<要部署的版本>`
 - [ ] (可选,有默认)渲染调优 / 清理 cron / Sentry:`RENDER_*`、`UPLOAD_ORPHAN_GRACE_DAYS`、`AUDIT_LOG_RETENTION_DAYS`、`BOT_SESSION_RETENTION_DAYS`、`SENTRY_DSN`、`APP_VERSION` —— 见 `.env.prod.example` 与 `docs/deployment.md`

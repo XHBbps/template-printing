@@ -32,25 +32,22 @@
 
 设置机器人显示名和头像。
 
-### 2. 配置事件订阅
+### 2. 配置事件订阅（长连接模式）
 
-进 **事件与回调** → **事件订阅**：
+进 **事件与回调** → **事件订阅**，订阅方式选 **长连接（WebSocket）**：
 
-- **请求地址**：`https://print.<your-domain>/lark/bot/event`
-  - 开发临时用 cloudflared 隧道地址 + `/lark/bot/event`
-- **Verification Token**：点击"生成"飞书会出一个；复制下来填到服务端 `.env` 的 `LARK_BOT_VERIFICATION_TOKEN`
-- **Encrypt Key**：**不要启用**（本版本未实现 AES 解密）
-- 点击"保存"。飞书会立即对 URL 发 `url_verification` 请求验证连通性，正确响应应该立即变绿。
+- 不需要配置公网请求地址 URL（长连接由服务端主动建出站连接，无需备案域名即可跑通）。
+- 服务端需开启：`.env` 设 `LARK_BOT_LONG_CONN_ENABLED=true`（本地联调 / 生产单副本）。
+- **Encrypt Key**：**不要启用**。
 
 订阅事件：
 - ☑️ `im.message.receive_v1` — 接收消息
 
-### 3. 配置卡片回调
+> `LARK_BOT_VERIFICATION_TOKEN` 在长连接模式下不用于校验（握手期由 App 凭证鉴权），但建议仍在 `.env` 配置一个值，以便临时切回 HTTP webhook 兜底时不至 fail-closed。
 
-进 **事件与回调** → **消息卡片回调**：
+### 3. 配置卡片回调（同长连接）
 
-- **请求地址**：`https://print.<your-domain>/lark/bot/card-action`
-- Verification Token：**和上面是同一个**（共享）
+进 **事件与回调** → **消息卡片回调**，回调方式同样选 **长连接**：卡片交互（`card.action.trigger`）经同一条长连接送达，无需单独配置回调 URL。
 
 ### 4. 复制机器人 open_id
 
