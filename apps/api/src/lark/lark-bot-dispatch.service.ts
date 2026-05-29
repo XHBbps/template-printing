@@ -210,8 +210,13 @@ export class LarkBotDispatchService {
           const v = formData[f.key];
           if (v === undefined) continue;
           if (f.type === 'boolean') data[f.key] = v === 'true';
-          else if (f.type === 'number' && typeof v === 'string') data[f.key] = Number(v);
-          else if ((f.type === 'date' || f.type === 'datetime') && typeof v === 'string') {
+          else if (f.type === 'number' && typeof v === 'string') {
+            // 空输入不强转成 0(要空模板时数值字段应留空);非空才转数字,无法解析则保留原文。
+            const t = v.trim();
+            if (t === '') continue;
+            const n = Number(t);
+            data[f.key] = Number.isNaN(n) ? v : n;
+          } else if ((f.type === 'date' || f.type === 'datetime') && typeof v === 'string') {
             // 飞书 date_picker 返回如 "2026-05-29 +0800";去掉尾部时区偏移,date 只留 YYYY-MM-DD。
             data[f.key] = v.replace(/\s*[+-]\d{2}:?\d{2}$/, '').trim();
           } else data[f.key] = v;

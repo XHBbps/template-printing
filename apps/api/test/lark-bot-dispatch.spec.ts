@@ -117,4 +117,41 @@ describe('LarkBotDispatchService.handleCardAction — submit_render 字段归一
     )[1];
     expect(args.data.out_date).toBe('2026-05-29');
   });
+
+  it('number 字段空输入 → 不强转 0,留空(omitted);有值才转数字', async () => {
+    const enqueue = jest.fn(async () => ({ jobId: 'j2' }));
+    const tplData = {
+      schema: {
+        weight: { type: 'number', label: '重量', required: false },
+        num: { type: 'number', label: '数量', required: false },
+      },
+    };
+    const prisma = {
+      larkBotSession: {
+        findUnique: jest.fn(async () => ({
+          id: 's2',
+          state: 'fill_fields',
+          templateId: 't2',
+          formData: {},
+        })),
+        update: jest.fn(async () => ({})),
+      },
+      template: { findFirst: jest.fn(async () => ({ id: 't2', name: 'tpl', data: tplData })) },
+    } as never;
+    const svc = new LarkBotDispatchService(prisma, {} as never, { enqueue } as never);
+
+    await svc.handleCardAction({
+      eventId: 'card-num-1',
+      action: {
+        value: { sessionId: 's2', action: 'submit_render' },
+        formValue: { weight: '', num: '50' }, // weight 空、num 有值
+      },
+    });
+
+    const args = (
+      enqueue.mock.calls[0] as unknown as [unknown, { data: Record<string, unknown> }]
+    )[1];
+    expect(args.data.num).toBe(50); // 有值 → 数字
+    expect('weight' in args.data).toBe(false); // 空 → 不入 data(渲染留空,非 0)
+  });
 });
