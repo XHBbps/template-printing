@@ -108,6 +108,7 @@ model RenderJob {
 
   @@index([templateId, createdAt(sort: Desc)])
   @@index([status, createdAt])
+  @@index([status, startedAt])
   @@index([cleanedAt, createdAt])
   @@map("render_jobs")
 }
