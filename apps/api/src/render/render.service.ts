@@ -32,6 +32,9 @@ export interface EnqueueArgs {
 export class RenderService {
   private readonly queue: Queue;
 
+  // 批次8 P3：日配额计数缓存专用 client（独立于 bullmq queue 的 connection）
+  private readonly redis: IORedis;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileSig: FileSigService,
@@ -42,6 +45,7 @@ export class RenderService {
     this.queue = new Queue('render', {
       connection: new IORedis(url, { maxRetriesPerRequest: null }),
     });
+    this.redis = new IORedis(url, { maxRetriesPerRequest: null });
   }
 
   async enqueue(
@@ -113,6 +117,17 @@ export class RenderService {
         resourceId: job.id,
         details: { templateId: args.templateId, formats: [...formats] },
       });
+
+      // 批次8 P3：建完 render_job 后 best-effort 自增日配额缓存，保当日后续计数准确
+      const qStart = new Date();
+      qStart.setHours(0, 0, 0, 0);
+      const qKey = `render-quota:${ownerId}:${qStart.toISOString().slice(0, 10)}`;
+      this.redis
+        .multi()
+        .incr(qKey)
+        .expire(qKey, this.secondsUntilMidnight(qStart))
+        .exec()
+        .catch(() => {}); // best-effort，失败不影响入队
     }
 
     // iter 32 T3：metrics — 入队计数（source 由调用方决定，目前仅 api 路径）
@@ -281,12 +296,7 @@ export class RenderService {
 
     const start = new Date();
     start.setHours(0, 0, 0, 0);
-    const used = await this.prisma.renderJob.count({
-      where: {
-        template: { ownerId },
-        createdAt: { gte: start },
-      },
-    });
+    const used = await this.dailyUsed(ownerId, start);
     if (used >= limit) {
       const resetAt = new Date(start);
       resetAt.setDate(resetAt.getDate() + 1);
@@ -305,6 +315,36 @@ export class RenderService {
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
+    }
+  }
+
+  /** 当日午夜（次日 00:00）距现在的剩余秒数，至少 1s（用作配额缓存 TTL）。 */
+  private secondsUntilMidnight(start: Date): number {
+    const next = new Date(start);
+    next.setDate(next.getDate() + 1);
+    return Math.max(1, Math.ceil((next.getTime() - Date.now()) / 1000));
+  }
+
+  /**
+   * 批次8 P3：当日已用计数。优先读 Redis 缓存（GET 命中直接用），
+   * miss 时跑 DB count 并 SETEX 至当日午夜。
+   * 任何 Redis 错误一律 fail-open 回 DB count（保持原行为，功能不受影响）。
+   */
+  private async dailyUsed(ownerId: string, start: Date): Promise<number> {
+    const key = `render-quota:${ownerId}:${start.toISOString().slice(0, 10)}`;
+    try {
+      const cached = await this.redis.get(key);
+      if (cached !== null) return Number(cached);
+      const used = await this.prisma.renderJob.count({
+        where: { template: { ownerId }, createdAt: { gte: start } },
+      });
+      await this.redis.set(key, used, 'EX', this.secondsUntilMidnight(start));
+      return used;
+    } catch {
+      // Redis 不可用 → fail-open 回 DB count（保持原行为，功能不受影响）
+      return this.prisma.renderJob.count({
+        where: { template: { ownerId }, createdAt: { gte: start } },
+      });
     }
   }
 }
