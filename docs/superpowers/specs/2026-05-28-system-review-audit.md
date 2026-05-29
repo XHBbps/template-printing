@@ -93,7 +93,7 @@
 | P6 | Med | ✅ 批次8 已修 · `reconcileStuckJobs` N 条逐条 update(N 次往返) | `render-cleanup.service.ts:98-115` | ✅ 单条 bulk `updateMany` 翻转 + 回查本次翻转行回调(N→2 往返),**保批次4 竞态安全** |
 | P7 | Med | ✅ 批次8 已修 · 上传 PNG/JPEG `sharp` 解码两次 | `uploads.service.ts:59-77` | ✅ 复用单 `sharp` 实例(`metadata()` 取 density + `.toBuffer()` 取宽高),免输入二次解码 |
 | P8 | Med | ✅ 批次8 已修 · `distinctActions` 全表扫描无日期窗 | `audit-log.service.ts:136` | ✅ 改 `$queryRaw SELECT DISTINCT action FROM audit_log ORDER BY action ASC`(去 Prisma distinct 全行 hydrate) |
-| P9 | Med | ⬜ 待办 · `markFailed`(Bitable+Bot)update 前冗余 `findUnique` | `lark-bitable.controller.ts:188`、`lark-bot.controller.ts:472` | 复用调用方已取的记录,免重复查（批次8 未纳入，独立小项） |
+| P9 | Med | ✅ 已修(2026-05-29) · `markFailed`(Bitable+Bot)update 前冗余 `findUnique` | `lark-bitable.controller.ts:204`、`lark-bot.controller.ts:498` | ✅ `markFailed` 改收调用方(renderCallback)已取的记录(传 record 而非 id),去重复 `findUnique`;`appToken/recordId/chatId` 等创建后不可变,与重查语义等价 |
 | P10 | Med | ✅ 批次8 已修 · 缺 `render_jobs(status, startedAt)` 索引(对账 cron 用) | `schema.prisma:108-111` | ✅ 加 `@@index([status, startedAt])` + migration `add_renderjob_status_startedat_index` |
 | P11 | Low | ✅ 评估后维持现状(2026-05-29) · `listJobs` 返回每行完整 `data` JSON blob | `render.service.ts:249` | 详情弹窗直接复用 list 行 `data`（`GET /:jobId` 不返回 data）;单组织 + 分页(默认 20 / 上限 100)下边际成本小,精简需详情面板改按需拉取(动可用功能 + 加 loading,低 ROI)→ **决定维持现状**,见 PROGRESS 2026-05-29 |
 | P12 | Low | ✅ 批次3 已修 · `lark_bot_sessions` done/failed 永不清理 | `schema.prisma:135` | ✅ 新增 `cleanupBotSessions()` cron:删 `done`/`failed` 且 `updatedAt` 早于 `BOT_SESSION_RETENTION_DAYS`(默认30,≤0=关)的行 |
