@@ -47,7 +47,10 @@ function enforceAfterHydrate(): void {
     return;
   }
   if (r.path === '/login' && auth.isAuthenticated) {
-    void router.replace({ path: '/templates' });
+    // 尊重 ?continue= 回跳目标(与 LoginView 提交后的 push 一致),避免本地登录时
+    // 本纠正与 LoginView 的导航竞态落到不同目标。无 continue 则回模板中心。
+    const cont = typeof r.query.continue === 'string' ? r.query.continue : '/templates';
+    void router.replace(cont);
     return;
   }
   if (r.meta.adminOnly) {
