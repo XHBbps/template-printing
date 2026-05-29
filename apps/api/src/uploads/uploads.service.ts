@@ -56,23 +56,23 @@ export class UploadsService {
       // using `file.mimetype` from multer (extracted from Content-Type).
       try {
         if (mime === 'image/png') {
-          const out = await sharp(buffer).png().toBuffer({ resolveWithObject: true });
+          const img = sharp(buffer);
+          const meta = await img.metadata();
+          const out = await img.png().toBuffer({ resolveWithObject: true });
           cleaned = out.data;
           format = 'png';
           w_px = out.info.width;
           h_px = out.info.height;
-          const meta = await sharp(buffer).metadata();
           if (meta.density && meta.density < 200)
             dpiWarning = `DPI ${meta.density} 偏低，打印可能模糊`;
         } else if (mime === 'image/jpeg') {
-          const out = await sharp(buffer)
-            .jpeg({ quality: 90 })
-            .toBuffer({ resolveWithObject: true });
+          const img = sharp(buffer);
+          const meta = await img.metadata();
+          const out = await img.jpeg({ quality: 90 }).toBuffer({ resolveWithObject: true });
           cleaned = out.data;
           format = 'jpeg';
           w_px = out.info.width;
           h_px = out.info.height;
-          const meta = await sharp(buffer).metadata();
           if (meta.density && meta.density < 200)
             dpiWarning = `DPI ${meta.density} 偏低，打印可能模糊`;
         } else {
