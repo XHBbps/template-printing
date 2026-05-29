@@ -108,37 +108,37 @@ export class LarkController {
     const info = await this.lark.fetchUserInfo(tokenResp.access_token);
 
     const shouldBeAdmin = this.cfg.initialAdminLarkUserIds.includes(info.user_id);
-    let user = await this.prisma.user.findUnique({ where: { larkOpenId: info.open_id } });
-    // 被禁用的已有用户：在同步资料 / 更新 lastLoginAt 之前就拒绝（新建用户不可能被禁用）
-    if (user?.disabledAt) throw new UnauthorizedException('account_disabled');
-    if (user) {
-      user = await this.prisma.user.update({
-        where: { larkOpenId: info.open_id },
-        data: {
-          larkUnionId: info.union_id,
-          larkUserId: info.user_id,
-          name: info.name,
-          email: info.email ?? null,
-          mobile: info.mobile ?? null,
-          avatarUrl: info.avatar_url,
-          lastLoginAt: new Date(),
-        },
-      });
-    } else {
-      user = await this.prisma.user.create({
-        data: {
-          larkOpenId: info.open_id,
-          larkUnionId: info.union_id,
-          larkUserId: info.user_id,
-          name: info.name,
-          email: info.email ?? null,
-          mobile: info.mobile ?? null,
-          avatarUrl: info.avatar_url,
-          role: shouldBeAdmin ? 'admin' : 'user',
-          lastLoginAt: new Date(),
-        },
-      });
+    // 先只读一次:判定禁用(已有用户)与是否首登(决定欢迎语)。被禁用的已有用户在任何写入前拒绝。
+    const existing = await this.prisma.user.findUnique({ where: { larkOpenId: info.open_id } });
+    if (existing?.disabledAt) throw new UnauthorizedException('account_disabled');
+    // upsert 消除「并发首登 findUnique→create 撞 larkOpenId @unique → P2002 → 500」竞态:
+    // 第二个并发请求走 ON CONFLICT DO UPDATE 而非再次 create。
+    const user = await this.prisma.user.upsert({
+      where: { larkOpenId: info.open_id },
+      update: {
+        larkUnionId: info.union_id,
+        larkUserId: info.user_id,
+        name: info.name,
+        email: info.email ?? null,
+        mobile: info.mobile ?? null,
+        avatarUrl: info.avatar_url,
+        lastLoginAt: new Date(),
+      },
+      create: {
+        larkOpenId: info.open_id,
+        larkUnionId: info.union_id,
+        larkUserId: info.user_id,
+        name: info.name,
+        email: info.email ?? null,
+        mobile: info.mobile ?? null,
+        avatarUrl: info.avatar_url,
+        role: shouldBeAdmin ? 'admin' : 'user',
+        lastLoginAt: new Date(),
+      },
+    });
+    if (!existing) {
       // Fire-and-forget welcome IM. Don't block login on failure.
+      // (极罕见的并发首登可能各自发一次欢迎语,纯展示层、可接受;关键是不再 500。)
       this.larkIm
         .sendTextToUser(
           info.open_id,

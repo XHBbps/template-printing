@@ -88,6 +88,25 @@ export class LarkBitableController {
       throw new UnauthorizedException('verification_token_mismatch');
     }
 
+    // 0. record 级幂等:同一 (appToken,tableId,recordId) 已有进行中(callbackStatus=pending)请求 →
+    //    直接复用其 jobId,不再重复入队。挡住飞书 at-least-once 重投 / 业务连点导致的重复渲染
+    //    + 同一行多份重复 PDF 附件。(已 done/failed 的历史行不挡,允许正常重新打印。)
+    const inflight = await this.prisma.larkPrintRequest.findFirst({
+      where: {
+        appToken: dto.lark.appToken,
+        tableId: dto.lark.tableId,
+        recordId: dto.lark.recordId,
+        callbackStatus: 'pending',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (inflight) {
+      this.logger.log(
+        `print-trigger 幂等命中:record ${dto.lark.recordId} 已有进行中 job ${inflight.renderJobId},复用`,
+      );
+      return { jobId: inflight.renderJobId, status: 'pending' };
+    }
+
     // 1. 入队渲染（system 调用，跳过 ownership 检查；callbackUrl 指向自己）
     // callbackUrl 用内部专用 secret，与外部飞书 webhook token 分离
     const apiBase = process.env.API_INTERNAL_BASE ?? 'http://api:3000';
