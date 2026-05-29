@@ -2,8 +2,6 @@
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
 import { computed, ref, watch, onMounted, nextTick, inject } from 'vue';
-// eslint-disable-next-line import/no-unresolved
-import qrcode from 'qrcode-generator';
 import { renderSettleKey } from '../render-context';
 
 const props = defineProps<{
@@ -38,15 +36,32 @@ const wrapStyle = computed(() => ({
   justifyContent: 'center',
 }));
 
-function render(): void {
+async function render(): Promise<void> {
   if (!hasContent.value) {
     qrSvg.value = '';
     return;
   }
-  // 早 return(无内容)在 begin 之前 → 不算异步操作,不计;begin/end 同步配平。
+  // 早 return(无内容)在 begin 之前 → 不算异步操作,不计。
   const ctx = active();
+  // 🔴 begin() 同步先行:pending>0 必须早于 await import,settle barrier 才会
+  // 等到 qrcode-generator 懒 chunk 加载 + 生成 SVG 完成,worker 不会提前截图。
   ctx?.begin();
   try {
+    // 动态 import 把 qrcode-generator 拆成懒 chunk,无二维码页面不加载。
+    const mod = await import('qrcode-generator');
+    const qrcode = ((mod as { default?: unknown }).default ?? mod) as (
+      typeNumber: number,
+      errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H',
+    ) => {
+      addData: (data: string) => void;
+      make: () => void;
+      createSvgTag: (opts: { cellSize: number; margin: number }) => string;
+    };
+    // await 后组件可能已卸载 / 内容已清空。
+    if (!hasContent.value) {
+      qrSvg.value = '';
+      return;
+    }
     const eccMap = { L: 'L', M: 'M', Q: 'Q', H: 'H' } as const;
     const ecc = (props.element.eccLevel ?? 'M') as 'L' | 'M' | 'Q' | 'H';
     const qr = qrcode(0, eccMap[ecc]);
@@ -79,13 +94,13 @@ watch(
   async (next) => {
     if (next.isResizing) return;
     await nextTick();
-    render();
+    void render();
   },
   { deep: true, immediate: true },
 );
 
 onMounted(() => {
-  render();
+  void render();
 });
 </script>
 

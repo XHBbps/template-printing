@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, nextTick, inject } from 'vue';
 import { renderSettleKey } from '../render-context';
-// bwip-js uses conditional exports (browser/node/electron/react-native) that
-// vue-tsc cannot resolve with moduleResolution=Bundler. Vite picks the browser
-// bundle correctly at runtime. Suppress the TS module-not-found error here.
-// @ts-expect-error -- conditional exports not resolved by vue-tsc
-// eslint-disable-next-line import/no-unresolved
-import bwipjs from 'bwip-js';
 // eslint-disable-next-line import/no-unresolved
 import type { TemplateElement } from '@template-printing/schema';
 
@@ -47,7 +41,7 @@ const wrapStyle = computed(() => ({
   justifyContent: 'center',
 }));
 
-function render(): void {
+async function render(): Promise<void> {
   if (!hasContent.value) return;
   if (!canvasRef.value) return;
   const v = value.value;
@@ -58,10 +52,22 @@ function render(): void {
   const estModules = v.length * 11 + 20;
   const scale = Math.max(1, Math.floor((elPxW * 0.85) / estModules));
   const height = Math.max(8, Math.floor(elPxH * 0.75));
-  // begin/end 在同一次同步 render 内严格配平(bwip-js 同步);active() 一次求值复用到 finally。
+  // active() 一次求值复用到 finally。
   const ctx = active();
+  // 🔴 begin() 同步先行:pending>0 必须早于 await import,settle barrier 才会
+  // 等到 bwip-js 懒 chunk 加载 + toCanvas 完成,worker 不会提前截图漏渲条码。
   ctx?.begin();
   try {
+    // bwip-js 走条件导出(browser/node/...),vue-tsc 无法解析;Vite 运行时取
+    // browser bundle。动态 import 把库拆成懒 chunk,无条码页面不加载。
+    // @ts-expect-error -- conditional exports not resolved by vue-tsc
+    // eslint-disable-next-line import/no-unresolved
+    const mod = await import('bwip-js');
+    const bwipjs = ((mod as { default?: unknown }).default ?? mod) as {
+      toCanvas: (c: HTMLCanvasElement, o: object) => void;
+    };
+    // await 后组件可能已卸载 / canvas 被移除。
+    if (!canvasRef.value) return;
     bwipjs.toCanvas(canvasRef.value, {
       bcid: props.element.symbology,
       text: v,
@@ -104,7 +110,7 @@ watch(
   async (next) => {
     if (next.isResizing) return;
     await nextTick();
-    render();
+    void render();
   },
   { deep: true, immediate: true },
 );
@@ -112,7 +118,7 @@ watch(
 onMounted(() => {
   // Defensive: ensure first render fires after DOM commit even if the
   // immediate watch raced with mount.
-  render();
+  void render();
 });
 </script>
 
