@@ -56,6 +56,9 @@ export const EnvSchema = z.object({
     .optional(),
   // 群里识别 @ 机器人时需要它（飞书后台 应用功能 → 机器人 → 概览 拿到 open_id 填入）
   LARK_BOT_OPEN_ID: z.string().optional(),
+  // bot 长连接(WS)开关:'true' 才在 api 进程内起 WSClient。单副本部署时仅一个副本设 true
+  // (进程内 event_id 去重不跨副本,多副本各开一条连接会重复处理)。
+  LARK_BOT_LONG_CONN_ENABLED: z.enum(['true', 'false']).optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -86,12 +89,16 @@ export function validateEnv(): Env {
     console.warn(`[env] ${msg}`);
   }
 
-  // 配了 bot verification token 却没配 bot open_id:群里 @ 机器人无法识别 → 静默吞掉全部群消息
-  // (fail-closed 安全但无反应)。保持 fail-closed,启动期 warn 提醒补配。
-  if (env.LARK_BOT_VERIFICATION_TOKEN && !env.LARK_BOT_OPEN_ID) {
+  // bot 已启用(长连接 或 配了 verification token)却没配 bot open_id:群里 @ 机器人无法识别
+  // → 静默吞掉全部群消息(fail-closed 安全但无反应)。启动期 warn 提醒补配。
+  // (WS 模式由握手期 app 凭证鉴权,不校验 verification token;但 open_id 仍是群 @ 检测所必需。)
+  if (
+    (env.LARK_BOT_LONG_CONN_ENABLED === 'true' || env.LARK_BOT_VERIFICATION_TOKEN) &&
+    !env.LARK_BOT_OPEN_ID
+  ) {
     // eslint-disable-next-line no-console
     console.warn(
-      '[env] LARK_BOT_VERIFICATION_TOKEN is set but LARK_BOT_OPEN_ID is missing — group @-mentions to the bot will be silently ignored. Set LARK_BOT_OPEN_ID to enable group triggers.',
+      '[env] bot 已启用(长连接/verification token)但缺 LARK_BOT_OPEN_ID — 群内 @ 机器人无法识别,群消息将被忽略。',
     );
   }
 
