@@ -25,11 +25,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { RenderService } from '../render/render.service.js';
 
 import {
-  TemplateFieldMeta,
   buildFieldFormCard,
   buildRenderingCard,
   buildResultCard,
   buildSelectTemplateCard,
+  extractFields,
   // eslint-disable-next-line import/no-unresolved
 } from './lark-bot-cards.js';
 // eslint-disable-next-line import/no-unresolved
@@ -523,48 +523,4 @@ export class LarkBotController {
       data: { state: 'failed', errorMsg },
     });
   }
-}
-
-// ---------------- helpers ----------------
-
-/**
- * 从模板 data 中提取 schema 字段，转成 LarkBotCards 期望的 TemplateFieldMeta 数组。
- *
- * 兼容两种 schema 结构（设计器存的时候漏了 fields 包裹层，长期 bug）：
- *   - 老 zod 声明形态：{ schema: { fields: { fieldKey: FieldDef } } }
- *   - 设计器实际存形态：{ schema: { fieldKey: FieldDef } }  ← 多数模板是这个
- */
-function extractFields(templateData: unknown): TemplateFieldMeta[] {
-  if (!templateData || typeof templateData !== 'object') return [];
-  const schema = (templateData as { schema?: Record<string, unknown> }).schema;
-  if (!schema || typeof schema !== 'object') return [];
-
-  // 先尝试 schema.fields；找不到则 fallback 到 schema 直接（设计器存的形态）
-  const fieldsMap: Record<string, unknown> =
-    schema.fields && typeof schema.fields === 'object'
-      ? (schema.fields as Record<string, unknown>)
-      : (schema as Record<string, unknown>);
-
-  const result: TemplateFieldMeta[] = [];
-  for (const [key, def] of Object.entries(fieldsMap)) {
-    if (!def || typeof def !== 'object') continue;
-    const d = def as {
-      type?: string;
-      label?: string;
-      required?: boolean;
-      example?: unknown;
-      options?: Array<{ value: string; label: string }>;
-    };
-    // 跳过非字段定义键（safeguard：如果 schema 顶层混了其他属性）
-    if (!d.type) continue;
-    result.push({
-      key,
-      label: d.label ?? key,
-      type: (d.type as TemplateFieldMeta['type']) ?? 'string',
-      required: !!d.required,
-      example: d.example,
-      options: d.options,
-    });
-  }
-  return result;
 }
