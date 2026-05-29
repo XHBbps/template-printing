@@ -42,6 +42,10 @@ const isAdmin = computed(
 const activeTab = ref<'mine' | 'public'>('mine');
 const publicItems = ref<PublicTemplateListItem[]>([]);
 const publicLoading = ref(false);
+// 公共 tab：均匀翻页（无「新建卡」，整页同尺寸），每页 24 条，与 mine 翻页体验一致（F10）。
+const PUBLIC_PAGE_SIZE = 24;
+const publicPage = ref(1);
+const publicTotal = ref(0);
 const route = useRoute();
 const router = useRouter();
 
@@ -177,19 +181,31 @@ async function refreshAfterMutation(): Promise<void> {
   await refreshRecentId();
 }
 
-async function loadPublic(): Promise<void> {
+async function loadPublicPage(p: number): Promise<void> {
   publicLoading.value = true;
   try {
     const res = await templates.fetchPublicSlice({
-      offset: 0,
-      limit: 100,
+      offset: (p - 1) * PUBLIC_PAGE_SIZE,
+      limit: PUBLIC_PAGE_SIZE,
       search: searchQuery.value,
       sort: sortBy.value === 'created' ? 'updated' : sortBy.value,
     });
     publicItems.value = res.items;
+    publicTotal.value = res.total;
   } finally {
     publicLoading.value = false;
   }
+}
+
+function onPublicPageChange(p: number): void {
+  publicPage.value = p;
+  void loadPublicPage(p);
+}
+
+/** 公共 tab：回到第 1 页并加载（首次进入 / 搜索 / 排序变化时）。 */
+async function loadPublic(): Promise<void> {
+  publicPage.value = 1;
+  await loadPublicPage(1);
 }
 
 async function copyPublic(t: PublicTemplateListItem): Promise<void> {
@@ -669,6 +685,16 @@ const countLabel = computed(() => {
                   </button>
                 </div>
               </div>
+            </div>
+
+            <!-- 分页：与 mine 网格一致的翻页体验（每页 24 条均匀分页） -->
+            <div v-if="!publicLoading && publicTotal > 0" class="tv-pagination">
+              <BrandPagination
+                :current-page="publicPage"
+                :total="publicTotal"
+                :page-size="PUBLIC_PAGE_SIZE"
+                @update:current-page="onPublicPageChange"
+              />
             </div>
           </div>
         </div>
