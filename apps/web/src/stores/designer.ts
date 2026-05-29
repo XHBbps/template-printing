@@ -163,6 +163,12 @@ export const useDesignerStore = defineStore('designer', {
     selectedIds: [] as string[],
     history: [] as string[],
     historyIndex: -1,
+    // Monotonic counter incremented on every content-changing edit (snapshot /
+    // undo / redo). DesignerView watches this (shallow number watch) instead of
+    // deep-watching `template`, avoiding a full-object traversal on each edit.
+    // Load/reset intentionally do NOT bump it so opening a template never
+    // auto-saves it straight back to the backend.
+    editVersion: 0,
     dirty: false,
     isResizing: false,
     view: { zoom: 1 } as { zoom: number },
@@ -221,18 +227,23 @@ export const useDesignerStore = defineStore('designer', {
         this.historyIndex++;
       }
       this.dirty = true;
+      this.editVersion++;
       this.persistDebounced();
     },
     undo(): void {
       if (!this.canUndo) return;
       this.historyIndex--;
       this.template = JSON.parse(this.history[this.historyIndex]);
+      // undo/redo replace template content post-load — keep auto-save in sync
+      // (the old deep watch fired here too).
+      this.editVersion++;
       this.persist();
     },
     redo(): void {
       if (!this.canRedo) return;
       this.historyIndex++;
       this.template = JSON.parse(this.history[this.historyIndex]);
+      this.editVersion++;
       this.persist();
     },
     persist(): void {

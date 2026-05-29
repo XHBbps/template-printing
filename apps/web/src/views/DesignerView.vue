@@ -107,12 +107,12 @@ const SAVE_DEBOUNCE_MS = 1500;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 watch(
-  () => store.template,
+  () => store.editVersion,
   () => {
     if (!store.templateId) return;
-    // Skip while drag/resize is active — every pointermove mutates anchor and
-    // the deep watch traversal accumulates cost. We catch up via the isResizing
-    // watcher below when the gesture ends.
+    // Skip while drag/resize is active — the gesture's transient mutations don't
+    // bump editVersion, but guard anyway. We catch up via the isResizing watcher
+    // below when the gesture ends.
     if (store.isResizing) return;
     store.markPendingSave();
     if (saveTimer) clearTimeout(saveTimer);
@@ -121,7 +121,6 @@ watch(
       saveTimer = null;
     }, SAVE_DEBOUNCE_MS);
   },
-  { deep: true },
 );
 
 // When a drag/resize gesture completes (isResizing becomes false), schedule
