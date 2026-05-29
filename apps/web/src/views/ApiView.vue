@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, onBeforeUnmount, nextTick } from 'vue';
+import { ref, reactive, watch, onMounted, computed, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 // eslint-disable-next-line import/no-unresolved
 import { ElDialog, ElMessage } from 'element-plus';
@@ -61,7 +61,9 @@ interface FieldDef {
 const templates = ref<TemplateListItem[]>([]);
 const detailCache = ref<Record<string, TemplateDetail>>({});
 const expanded = ref<Record<string, boolean>>({});
-const loading = ref(true);
+// 改为按 tab 懒拉：未首次拉取时不应让 schemas tab 永远转圈，故初值 false；
+// ensureTemplates 首次触发时自行置 true（见下）。
+const loading = ref(false);
 
 /* ============================================================
  * 凭证（Tokens tab）— 合并自 ApiTokensView
@@ -75,7 +77,8 @@ interface TokenSummary {
   createdAt: string;
 }
 const tokens = ref<TokenSummary[]>([]);
-const tokensLoading = ref(true);
+// 同 loading：按 tab 懒拉，未首次拉取前不应转圈，故初值 false；refreshTokens 触发时自行置 true。
+const tokensLoading = ref(false);
 const createDialogOpen = ref(false);
 const newName = ref('');
 const creating = ref(false);
@@ -198,8 +201,20 @@ function fieldsOf(id: string): Array<{ key: string; def: FieldDef }> {
     .map(([key, def]) => ({ key, def }));
 }
 
-onMounted(async () => {
-  void refreshTokens();
+// 按 tab 懒拉：tokens / schemas 各只拉一次，docs 默认不拉。
+let tokensLoaded = false;
+let templatesLoaded = false;
+
+async function ensureTokens(): Promise<void> {
+  if (tokensLoaded) return;
+  tokensLoaded = true;
+  await refreshTokens();
+}
+
+async function ensureTemplates(): Promise<void> {
+  if (templatesLoaded) return;
+  templatesLoaded = true;
+  loading.value = true;
   try {
     // 服务端分页后 /templates 返 { items, total, ... }；API 参考页取首段（上限 100）即可
     const res = await apiFetch<{ items: TemplateListItem[] }>('/templates?limit=100');
@@ -207,6 +222,18 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+}
+
+// 仅对初始 activeTab 对应数据 ensure（route.query.to 已在上方 onMounted 里设好 activeTab）
+onMounted(() => {
+  if (activeTab.value === 'tokens') void ensureTokens();
+  else if (activeTab.value === 'schemas') void ensureTemplates();
+});
+
+// 切到 tokens / schemas 时按需懒拉（守卫保证不重拉）
+watch(activeTab, (t) => {
+  if (t === 'tokens') void ensureTokens();
+  else if (t === 'schemas') void ensureTemplates();
 });
 
 const hasTemplates = computed(() => templates.value.length > 0);
