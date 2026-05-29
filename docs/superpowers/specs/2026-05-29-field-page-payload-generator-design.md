@@ -25,10 +25,18 @@
 
 ## 4. helper(纯函数,落 `packages/schema`,可测可复用)
 
-新增 `packages/schema/src/render-payload.ts`,从 `packages/schema/src/index.ts` 导出。放共享包的理由:纯函数、只吃 `FieldDef` 类型、有现成 vitest 覆盖,且天然支撑日后 ApiView 复用同一口径(避免两处漂移);避免为一个纯函数给 `apps/web` 起一整套测试基建。
+新增 `packages/schema/src/render-payload.ts`。放共享包的理由:纯函数、只吃 `FieldDef` 类型、有现成 vitest 覆盖,且天然支撑日后 ApiView 复用同一口径(避免两处漂移);避免为一个纯函数给 `apps/web` 起一整套测试基建。
+
+### ⚠️ 4.0 必须经专用子路径导出,且不进 `index.ts`(否则 zod 进 web bundle,违背 F1–F11 优化)
+- web 当前运行时**不 bundle zod**(只 import 过 type)。`index.ts`/`template.ts` 顶层有 ~100 处 `z.object(...)` 实例化(模块级带副作用 const,tree-shaking 未必删净);若 helper 经 `index.ts` 导出、FieldManager 从**包根** import,会执行整个 index → 把 zod + 全部 schema 打进 web bundle。
+- 修法(让落共享包真·零成本):
+  1. `packages/schema/package.json` 的 `exports` 加 `"./render-payload": "./src/render-payload.ts"`(指向**原始 src**,与根 `"."` 一致;Vite 转译 TS、tsc 都已验证可吃原始 src)。**不**从 `index.ts` 导出。
+  2. `FieldManager.vue` 从 `@template-printing/schema/render-payload` import(**不**从包根)。
+  3. `render-payload.ts` 内**只** `import type { FieldDef }`(编译期擦除)→ web bundle 一个 runtime 依赖都不拖。
+- **前置依赖**:`template.ts` 目前**只导出 `FieldDefSchema`(zod 值),未导出 `FieldDef` 类型**(designer store 在 `designer.ts:14` 本地自造)。plan 须在 `template.ts` 加 `export type FieldDef = z.infer<typeof FieldDefSchema>;`,否则下面的 `import type { FieldDef }` 编译失败。(顺带可让 store 改用导出的类型,属 spec 外小清理,可不动。)
 
 ```ts
-import type { FieldDef } from './template.js';
+import type { FieldDef } from './template.js'; // 仅类型,编译期擦除,不拖 runtime
 
 export type RenderPayloadTarget = 'render' | 'bitable';
 
@@ -103,8 +111,10 @@ export function buildRenderPayload(
 
 ## 8. 受影响文件
 
-- 新增:`packages/schema/src/render-payload.ts` + 从 `index.ts` 导出 + `packages/schema/test/render-payload.spec.ts`。
-- 改:`apps/web/src/designer/FieldManager.vue`(加按钮 + 弹窗 + computed + 复制)。
+- 新增:`packages/schema/src/render-payload.ts`(`import type { FieldDef }` 仅类型)+ `packages/schema/test/render-payload.spec.ts`。
+- 改:`packages/schema/src/template.ts`(加 `export type FieldDef = z.infer<typeof FieldDefSchema>;`)。
+- 改:`packages/schema/package.json`(`exports` 加 `"./render-payload": "./src/render-payload.ts"`;**不**改 `index.ts`)。
+- 改:`apps/web/src/designer/FieldManager.vue`(从 `@template-printing/schema/render-payload` 子路径 import;加按钮 + 弹窗 + computed + 复制)。
 
 ## 9. 不做(YAGNI / 明确排除)
 
