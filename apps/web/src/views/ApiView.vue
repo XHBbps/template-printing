@@ -2,7 +2,7 @@
 import { ref, reactive, watch, onMounted, computed, onBeforeUnmount, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 // eslint-disable-next-line import/no-unresolved
-import { ElDialog, ElMessage } from 'element-plus';
+import { ElButton, ElDialog, ElMessage, ElOption, ElSelect } from 'element-plus';
 // eslint-disable-next-line import/no-unresolved
 import {
   AlertTriangle,
@@ -12,6 +12,11 @@ import {
   Copy,
   Plus,
 } from 'lucide-vue-next';
+// eslint-disable-next-line import/no-unresolved
+import {
+  buildRenderPayload,
+  type RenderPayloadTarget,
+} from '@template-printing/schema/render-payload';
 // eslint-disable-next-line import/no-unresolved
 import { apiFetch } from '../lib/api';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
@@ -199,6 +204,36 @@ function fieldsOf(id: string): Array<{ key: string; def: FieldDef }> {
   return Object.entries(fieldsMap)
     .filter(([, v]) => v && typeof v === 'object' && (v as FieldDef).type)
     .map(([key, def]) => ({ key, def }));
+}
+
+// ===== 「操作」列:按模板生成入参示例 =====
+const payloadDialogOpen = ref(false);
+const payloadTarget = ref<RenderPayloadTarget>('render');
+const payloadTplId = ref<string | null>(null);
+const payloadTplName = ref('');
+const generatedPayload = computed(() =>
+  payloadTplId.value
+    ? buildRenderPayload(
+        payloadTplId.value,
+        // ApiView 本地 FieldDef 是宽松 { type: string };运行时即真实 schema 字段,cast 到 helper 入参类型
+        fieldsOf(payloadTplId.value) as unknown as Parameters<typeof buildRenderPayload>[1],
+        payloadTarget.value,
+      )
+    : '',
+);
+async function openPayload(id: string, name: string): Promise<void> {
+  await ensureDetail(id); // 未展开过的行先拉字段,保证 data 完整
+  payloadTplId.value = id;
+  payloadTplName.value = name;
+  payloadDialogOpen.value = true;
+}
+async function copyPayload(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(generatedPayload.value);
+    ElMessage.success('已复制入参示例');
+  } catch {
+    ElMessage.error('复制失败,请手动选择文本复制');
+  }
 }
 
 // 按 tab 懒拉：tokens / schemas 各只拉一次，docs 默认不拉。
@@ -1047,6 +1082,7 @@ function copySample(ep: Endpoint): void {
             <div class="tpl-row head">
               <div>模板</div>
               <div>自定义字段 (schema.fields)</div>
+              <div>操作</div>
             </div>
             <template v-for="t in templates" :key="t.id">
               <div class="tpl-row" @click="toggle(t.id)">
@@ -1083,6 +1119,11 @@ function copySample(ep: Endpoint): void {
                     </li>
                   </ul>
                 </div>
+                <div class="tpl-actions" @click.stop>
+                  <button class="gen-btn" type="button" @click="openPayload(t.id, t.name)">
+                    生成入参
+                  </button>
+                </div>
               </div>
               <div v-if="expanded[t.id] && detailCache[t.id]" class="tpl-schema">
                 <details>
@@ -1097,6 +1138,19 @@ function copySample(ep: Endpoint): void {
         </div>
       </div>
     </div>
+
+    <!-- ============ 生成入参示例 dialog ============ -->
+    <ElDialog v-model="payloadDialogOpen" :title="`生成入参示例 · ${payloadTplName}`" width="560px">
+      <ElSelect v-model="payloadTarget" style="width: 100%; margin-bottom: 12px">
+        <ElOption label="渲染 API (POST /api/render)" value="render" />
+        <ElOption label="多维表格 webhook (POST /lark/print-trigger)" value="bitable" />
+      </ElSelect>
+      <pre class="payload-json">{{ generatedPayload }}</pre>
+      <template #footer>
+        <ElButton @click="payloadDialogOpen = false">关闭</ElButton>
+        <ElButton type="primary" @click="copyPayload">复制</ElButton>
+      </template>
+    </ElDialog>
 
     <!-- ============ 吊销 Token confirm ============ -->
     <ConfirmDialog
@@ -1899,13 +1953,48 @@ table.tokens-table .prefix {
 /* ============ 模板字段行 ============ */
 .tpl-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.2fr 1.8fr auto;
   padding: 16px 18px;
   border-bottom: 1px solid var(--stone);
   gap: 24px;
   align-items: start;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-default);
+}
+.tpl-actions {
+  display: flex;
+  align-items: flex-start;
+}
+.gen-btn {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border: 1px solid var(--stone);
+  border-radius: var(--radius-1);
+  background: var(--paper-white);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-default),
+    color var(--dur-fast) var(--ease-default);
+}
+.gen-btn:hover {
+  border-color: var(--yangli-red);
+  color: var(--yangli-red);
+}
+.payload-json {
+  max-height: 320px;
+  overflow: auto;
+  background: var(--ink);
+  color: var(--paper-white);
+  padding: 12px;
+  border-radius: var(--radius-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  margin: 0;
 }
 .tpl-row:hover {
   background: rgba(220, 216, 210, 0.25);
