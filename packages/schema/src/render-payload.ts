@@ -21,8 +21,12 @@ function fieldValue(def: FieldDef): unknown {
       return hasEx ? ex : '2026-01-01';
     case 'datetime':
       return hasEx ? ex : '2026-01-01 12:00';
-    case 'enum':
-      return hasEx ? ex : def.options[0]?.value ?? '';
+    case 'enum': {
+      // example 优先,但必须是合法选项值;否则(含未填)回退首个选项,避免生成非法 enum 值。
+      const fallback = def.options[0]?.value ?? '';
+      if (hasEx && def.options.some((o) => o.value === ex)) return ex;
+      return fallback;
+    }
     case 'image':
       return hasEx ? ex : 'https://example.com/sample.png';
     case 'array':

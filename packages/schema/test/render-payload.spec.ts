@@ -83,6 +83,24 @@ describe('buildRenderPayload', () => {
     expect(o.data).toEqual({ n1: 50, n2: 0, n3: 0, bt: true, dd: '2026-05-29' });
   });
 
+  it('enum example 必须是合法选项值,否则回退首个选项', () => {
+    const opts = {
+      type: 'enum',
+      options: [
+        { value: 'A', label: '甲' },
+        { value: 'B', label: '乙' },
+      ],
+    };
+    const valid = JSON.parse(
+      buildRenderPayload('t', [f('e', { ...opts, example: 'B' })], 'render'),
+    );
+    expect(valid.data.e).toBe('B'); // 合法 → 用 example
+    const invalid = JSON.parse(
+      buildRenderPayload('t', [f('e', { ...opts, example: '不存在' })], 'render'),
+    );
+    expect(invalid.data.e).toBe('A'); // 非法 → 回退 options[0]
+  });
+
   it('未保存模板(templateId 空)→ 占位字符串', () => {
     expect(JSON.parse(buildRenderPayload(null, [], 'render')).templateId).toBe('<保存模板后获得>');
   });
