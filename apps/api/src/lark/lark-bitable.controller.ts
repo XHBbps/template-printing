@@ -15,6 +15,7 @@ import {
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
+import type { LarkPrintRequest } from '@prisma/client';
 import { z } from 'zod';
 
 // eslint-disable-next-line import/no-unresolved
@@ -192,18 +193,18 @@ export class LarkBitableController {
           data: { callbackStatus: 'done', errorMsg: null },
         });
       } catch (e) {
-        await this.markFailed(req.id, (e as Error).message);
+        await this.markFailed(req, (e as Error).message);
       }
     } else {
-      await this.markFailed(req.id, dto.errorMsg ?? 'render_failed');
+      await this.markFailed(req, dto.errorMsg ?? 'render_failed');
     }
 
     return { ok: true };
   }
 
-  private async markFailed(reqId: string, errorMsg: string): Promise<void> {
-    const req = await this.prisma.larkPrintRequest.findUnique({ where: { id: reqId } });
-    if (!req) return;
+  // P9：复用调用方（renderCallback）已取的记录，免重复 findUnique。
+  // appToken/tableId/recordId/statusField 创建后不可变，调用方的副本与重查等价。
+  private async markFailed(req: LarkPrintRequest, errorMsg: string): Promise<void> {
     // best-effort 写入多维表格状态字段 = 失败
     this.bitable
       .updateRecord({
@@ -214,11 +215,11 @@ export class LarkBitableController {
       })
       .catch((e) => {
         this.logger.warn(
-          `bitable updateRecord 'failed' failed for req ${reqId}: ${(e as Error).message}`,
+          `bitable updateRecord 'failed' failed for req ${req.id}: ${(e as Error).message}`,
         );
       });
     await this.prisma.larkPrintRequest.update({
-      where: { id: reqId },
+      where: { id: req.id },
       data: { callbackStatus: 'failed', errorMsg },
     });
   }

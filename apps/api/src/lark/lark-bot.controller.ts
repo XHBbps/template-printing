@@ -14,6 +14,7 @@ import {
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
+import type { LarkBotSession } from '@prisma/client';
 import { z } from 'zod';
 
 // eslint-disable-next-line import/no-unresolved
@@ -487,17 +488,21 @@ export class LarkBotController {
           data: { state: 'done', errorMsg: null },
         });
       } catch (e) {
-        await this.markFailed(session.id, tplName, (e as Error).message);
+        await this.markFailed(session, tplName, (e as Error).message);
       }
     } else {
-      await this.markFailed(session.id, tplName, dto.errorMsg ?? 'render_failed');
+      await this.markFailed(session, tplName, dto.errorMsg ?? 'render_failed');
     }
     return { ok: true };
   }
 
-  private async markFailed(sessionId: string, tplName: string, errorMsg: string): Promise<void> {
-    const session = await this.prisma.larkBotSession.findUnique({ where: { id: sessionId } });
-    if (!session) return;
+  // P9：复用调用方（renderCallback）已取的 session，免重复 findUnique。
+  // chatId/triggerOpenId/cardMessageId 创建后不可变，调用方的副本与重查等价。
+  private async markFailed(
+    session: LarkBotSession,
+    tplName: string,
+    errorMsg: string,
+  ): Promise<void> {
     try {
       await this.bot.sendTextWithMention({
         chatId: session.chatId,
@@ -514,7 +519,7 @@ export class LarkBotController {
       this.logger.warn(`markFailed side-effect failed: ${(e as Error).message}`);
     }
     await this.prisma.larkBotSession.update({
-      where: { id: sessionId },
+      where: { id: session.id },
       data: { state: 'failed', errorMsg },
     });
   }
