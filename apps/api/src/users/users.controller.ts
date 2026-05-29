@@ -86,8 +86,16 @@ export class UsersController {
   @Post(':id/reset-password')
   async resetPassword(@CurrentUser() me: JwtClaims, @Param('id') id: string, @Req() req: Request) {
     const result = await this.svc.resetPassword(id);
-    // 重置后 mustChangePassword=true,evict 缓存让强制改密闸下一请求即生效(与 disable/role 一致)。
-    this.userState.evict(id);
+    // 重置密码常用于失陷处置:必须像 disable 一样吊销该用户现有 refresh + API token,
+    // 否则攻击者持有的旧 token 在合法用户改密(mustChangePassword→false)后立即恢复全权
+    //(强制改密闸只在 mustChangePassword=true 期间临时挡住,不等于吊销)。
+    // evict 必须执行(即使吊销抛错),让强制改密闸下一请求即生效(与 disable 一致)。
+    try {
+      await this.refresh.revokeAllForUser(id);
+      await this.apiTokens.revokeAllForUser(id);
+    } finally {
+      this.userState.evict(id);
+    }
     void this.audit.log({
       actor: { id: me.sub, name: null },
       action: 'user.password.reset',

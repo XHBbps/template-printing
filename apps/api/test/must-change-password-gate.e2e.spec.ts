@@ -10,6 +10,8 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 // eslint-disable-next-line import/no-unresolved
 import { ApiTokenService } from '../src/auth/api-token/api-token.service.js';
+// eslint-disable-next-line import/no-unresolved
+import { GlobalExceptionFilter } from '../src/common/exception.filter.js';
 
 /**
  * P1 强制改密后端落地:mustChangePassword=true 时,后端除白名单(读 me / 改密)外一律 403,
@@ -52,6 +54,9 @@ describe('强制改密后端闸 e2e', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
+    // 装上生产同款全局过滤器,使 403 响应体形如 { ok:false, error:{ code } }(与生产一致),
+    // 提高测试保真度——否则只验到 Nest 原始 { code },捕捉不到 filter 层 bug(A3)。
+    app.useGlobalFilters(new GlobalExceptionFilter());
     await app.init();
   });
 
@@ -73,9 +78,9 @@ describe('强制改密后端闸 e2e', () => {
     expect(login.body.mustChangePassword).toBe(true);
     const csrf = login.body.csrf as string;
 
-    // 2) 业务 API(GET /templates)被闸住 → 403 MUST_CHANGE_PASSWORD
+    // 2) 业务 API(GET /templates)被闸住 → 403 MUST_CHANGE_PASSWORD(生产 filter 包装形态)
     const blocked = await agent.get('/templates').expect(403);
-    expect(blocked.body.code).toBe('MUST_CHANGE_PASSWORD');
+    expect(blocked.body.error.code).toBe('MUST_CHANGE_PASSWORD');
 
     // 3) 关键绕过点:创建长期 API token 也被闸住 → 403
     await agent
@@ -90,7 +95,7 @@ describe('强制改密后端闸 e2e', () => {
       .set('authorization', `Bearer ${tokenPlain}`)
       .send({ templateId: 'whatever' })
       .expect(403);
-    expect(bearerBlocked.body.code).toBe('MUST_CHANGE_PASSWORD');
+    expect(bearerBlocked.body.error.code).toBe('MUST_CHANGE_PASSWORD');
 
     // 5) 白名单:读 me 放行(前端据此判断弹窗)
     const me = await agent.get('/users/me').expect(200);
