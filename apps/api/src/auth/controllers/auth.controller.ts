@@ -31,6 +31,9 @@ import { JwtAuthService } from '../jwt/jwt.service.js';
 // eslint-disable-next-line import/no-unresolved
 import { RefreshTokenService } from '../jwt/refresh-token.service.js';
 
+// eslint-disable-next-line import/no-unresolved
+import { buildMeResponse, type MeResponse } from './me.controller.js';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -82,7 +85,7 @@ export class AuthController {
   async refresh_(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ ok: true; csrf: string }> {
+  ): Promise<{ ok: true; csrf: string; user: MeResponse }> {
     const cookies = (req as Request & { cookies?: Record<string, string> }).cookies ?? {};
     const refreshToken = cookies[REFRESH_COOKIE];
     if (!refreshToken) throw new UnauthorizedException('No refresh token');
@@ -104,6 +107,7 @@ export class AuthController {
     // 续签时延续登录时的 remember 选择:tp_remember='0' → session;'1' 或缺失 → 持久(兼容存量会话)
     const remember = cookies[REMEMBER_COOKIE] !== '0';
     setAuthCookies(res, this.cookieEnv, { access: newAccess, refresh: newRefresh }, { remember });
-    return { ok: true, csrf };
+    // F-#14:同时返回 user,前端 tryRefresh 免再打一次 /users/me。csrf 仍保留在顶层(向后兼容)。
+    return { ok: true, csrf, user: buildMeResponse(user, csrf) };
   }
 }

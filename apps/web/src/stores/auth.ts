@@ -32,6 +32,8 @@ interface LocalLoginResponse {
 interface RefreshResponse {
   ok: true;
   csrf: string;
+  // F-#14:/auth/refresh 现同时返回 user,tryRefresh 不再二次 /users/me。
+  user: AuthUser & { csrf: string };
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -68,12 +70,11 @@ export const useAuthStore = defineStore('auth', {
     },
     async tryRefresh(): Promise<void> {
       try {
-        const { csrf } = await apiFetch<RefreshResponse>('/auth/refresh', { method: 'POST' });
-        this.csrf = csrf;
-        const { user } = await apiFetch<MeResponse>('/users/me');
-        const { csrf: csrf2, ...rest } = user;
+        // F-#14:/auth/refresh 直接带回 user(同 /users/me 的 shape),省一次往返。
+        const { user } = await apiFetch<RefreshResponse>('/auth/refresh', { method: 'POST' });
+        const { csrf, ...rest } = user;
         this.user = rest;
-        this.csrf = csrf2;
+        this.csrf = csrf;
       } catch {
         this.user = null;
         this.csrf = null;

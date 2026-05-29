@@ -10,7 +10,7 @@ import {
   // eslint-disable-next-line import/no-unresolved
 } from '@nestjs/common';
 // eslint-disable-next-line import/no-unresolved
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type User } from '@prisma/client';
 // eslint-disable-next-line import/no-unresolved
 import bcrypt from 'bcryptjs';
 import type { Request } from 'express';
@@ -42,6 +42,25 @@ export interface MeResponse {
   csrf: string;
 }
 
+/** 由 User 行 + 当前 csrf 拼出 /users/me 的响应体。me 与 /auth/refresh 共用,避免重复映射。 */
+export function buildMeResponse(user: User, csrf: string): MeResponse {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    avatarUrl: user.avatarUrl,
+    role: user.role as MeResponse['role'],
+    mustChangePassword: user.mustChangePassword,
+    larkUserId: user.larkUserId,
+    localUsername: user.localUsername,
+    hasLocalPassword: Boolean(user.localPasswordHash),
+    mobile: user.mobile,
+    externalCode: user.externalCode,
+    isInternal: isInternal(user),
+    csrf,
+  };
+}
+
 const SetPasswordDtoSchema = z.object({
   newPassword: z.string().min(8).max(72),
   // Required if user already has a localPasswordHash (changing password vs. setting first time)
@@ -69,24 +88,7 @@ export class MeController {
   async me(@CurrentUser() jwt: JwtClaims): Promise<{ ok: true; user: MeResponse }> {
     const user = await this.prisma.user.findUnique({ where: { id: jwt.sub } });
     if (!user) throw new NotFoundException('User not found');
-    return {
-      ok: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        avatarUrl: user.avatarUrl,
-        role: user.role as MeResponse['role'],
-        mustChangePassword: user.mustChangePassword,
-        larkUserId: user.larkUserId,
-        localUsername: user.localUsername,
-        hasLocalPassword: Boolean(user.localPasswordHash),
-        mobile: user.mobile,
-        externalCode: user.externalCode,
-        isInternal: isInternal(user),
-        csrf: jwt.csrf,
-      },
-    };
+    return { ok: true, user: buildMeResponse(user, jwt.csrf) };
   }
 
   @Patch('me/profile')

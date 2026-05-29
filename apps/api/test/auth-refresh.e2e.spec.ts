@@ -68,6 +68,11 @@ describe('Refresh + logout e2e', () => {
       .set('Cookie', cookies)
       .expect(200);
     expect(res.body.ok).toBe(true);
+    // F-#14:refresh 同时带回 user(前端据此免二次 /users/me);csrf 仍在顶层(向后兼容)
+    expect(res.body.csrf).toBeTruthy();
+    expect(res.body.user.id).toBeTruthy();
+    expect(res.body.user.role).toBe('emergency_admin');
+    expect(res.body.user.csrf).toBe(res.body.csrf);
     const newCookies = (res.headers['set-cookie'] as unknown as string[]).join(';');
     expect(newCookies).toMatch(/tp_access=/);
     expect(newCookies).toMatch(/tp_refresh=/);
