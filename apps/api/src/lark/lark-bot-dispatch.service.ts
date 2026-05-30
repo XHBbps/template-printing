@@ -1,5 +1,7 @@
 // eslint-disable-next-line import/no-unresolved
 import { Injectable, Logger } from '@nestjs/common';
+// eslint-disable-next-line import/no-unresolved
+import { Prisma } from '@prisma/client';
 
 // eslint-disable-next-line import/no-unresolved
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -17,8 +19,19 @@ import type { NormalizedCardAction, NormalizedMessageEvent } from './lark-bot-pa
 // eslint-disable-next-line import/no-unresolved
 import { LarkBotService } from './lark-bot.service.js';
 
-/** 飞书机器人可见模板过滤:仅公共且已发布(防越权渲染他人/未发布模板)。 */
-const BOT_TEMPLATE_WHERE = { visibility: 'public', publishedVersion: { not: null } } as const;
+/** 机器人选择卡片每页模板数。 */
+const BOT_TEMPLATE_PAGE_SIZE = 20;
+
+/**
+ * 飞书机器人可见模板过滤:已发布,且「公开 OR 属于本人」。
+ * - userId=null(发起人未绑定平台账号)→ 仅公开模板,行为同旧版。
+ * - 防越权:他人的私有模板永远不可见/不可渲染(只放行 ownerId === 本人)。
+ */
+function botTemplateWhere(userId: string | null): Prisma.TemplateWhereInput {
+  const orVisible: Prisma.TemplateWhereInput[] = [{ visibility: 'public' }];
+  if (userId) orVisible.push({ ownerId: userId });
+  return { publishedVersion: { not: null }, OR: orVisible };
+}
 
 /**
  * bot 事件 + 卡片回调的纯业务处理(脱离传输层)。WS 长连接(LarkBotWsService)与
@@ -39,14 +52,44 @@ export class LarkBotDispatchService {
     private readonly render: RenderService,
   ) {}
 
-  /** 仅返回「公共且已发布」模板,防止越权列出/渲染他人私有模板。 */
-  listBotTemplates(): Promise<Array<{ id: string; name: string }>> {
-    return this.prisma.template.findMany({
-      where: BOT_TEMPLATE_WHERE,
+  /**
+   * 返回机器人可见模板的一页(公开 OR 本人,且已发布),按最近更新倒序。
+   * 同时返回 total 供卡片分页。userId=null 时仅公开。
+   */
+  async listBotTemplates(opts: {
+    userId: string | null;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    templates: Array<{ id: string; name: string }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const pageSize = opts.pageSize ?? BOT_TEMPLATE_PAGE_SIZE;
+    const where = botTemplateWhere(opts.userId);
+    const total = await this.prisma.template.count({ where });
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    // 夹紧页码到 [0, totalPages-1],防越界(翻页按钮过期 / 数据变化)。
+    const page = Math.min(Math.max(0, opts.page ?? 0), totalPages - 1);
+    const templates = await this.prisma.template.findMany({
+      where,
       select: { id: true, name: true },
       orderBy: { updatedAt: 'desc' },
-      take: 50,
+      skip: page * pageSize,
+      take: pageSize,
     });
+    return { templates, total, page, pageSize };
+  }
+
+  /** 飞书 open_id → 平台账号 id(经飞书 SSO 登录过才有);无匹配返回 null(仅见公开模板)。 */
+  private async resolveUserId(openId: string | null | undefined): Promise<string | null> {
+    if (!openId) return null;
+    const u = await this.prisma.user.findUnique({
+      where: { larkOpenId: openId },
+      select: { id: true },
+    });
+    return u?.id ?? null;
   }
 
   /** 返回 true=首次见到(应处理);false=重推(应跳过)。 */
@@ -101,8 +144,9 @@ export class LarkBotDispatchService {
       },
     });
     try {
-      const templates = await this.listBotTemplates();
-      if (templates.length === 0) {
+      const userId = await this.resolveUserId(p.senderOpenId);
+      const { templates, total, page, pageSize } = await this.listBotTemplates({ userId, page: 0 });
+      if (total === 0) {
         await this.bot.sendTextWithMention({
           chatId: p.message.chatId,
           atOpenId: p.senderOpenId,
@@ -114,7 +158,13 @@ export class LarkBotDispatchService {
         });
         return;
       }
-      const card = buildSelectTemplateCard({ sessionId: session.id, templates });
+      const card = buildSelectTemplateCard({
+        sessionId: session.id,
+        templates,
+        page,
+        pageSize,
+        total,
+      });
       const cardMessageId = await this.bot.sendCard(p.message.chatId, card);
       await this.prisma.larkBotSession.update({
         where: { id: session.id },
@@ -155,13 +205,33 @@ export class LarkBotDispatchService {
       const session = await this.prisma.larkBotSession.findUnique({ where: { id: sessionId } });
       if (!session) return { ok: true };
 
+      // 发起人对应的平台账号(用于「本人私有已发布」可见 + 防越权校验)。
+      const userId = await this.resolveUserId(session.triggerOpenId);
+
+      // --- select_template + select_page(翻页,仅换卡片,不改状态)---
+      if (session.state === 'select_template' && action === 'select_page') {
+        const targetPage = Number(p.action.value?.page ?? 0);
+        const { templates, total, page, pageSize } = await this.listBotTemplates({
+          userId,
+          page: targetPage,
+        });
+        const card = buildSelectTemplateCard({
+          sessionId: session.id,
+          templates,
+          page,
+          pageSize,
+          total,
+        });
+        return { card: { type: 'raw', data: card } };
+      }
+
       // --- select_template + template_selected ---
       if (session.state === 'select_template' && action === 'template_selected') {
         const templateId = p.action.option;
         if (!templateId) return { toast: { type: 'error', content: '未选择模板' } };
-        // 仅允许「公共且已发布」,防越权渲染他人私有模板
+        // 仅允许「公开 OR 本人」且已发布,防越权渲染他人私有模板
         const tpl = await this.prisma.template.findFirst({
-          where: { id: templateId, ...BOT_TEMPLATE_WHERE },
+          where: { id: templateId, ...botTemplateWhere(userId) },
         });
         if (!tpl) return { toast: { type: 'error', content: '模板不可用或未发布' } };
         await this.prisma.larkBotSession.update({
@@ -186,7 +256,7 @@ export class LarkBotDispatchService {
       if (session.state === 'fill_fields' && action === 'submit_render') {
         const tpl = session.templateId
           ? await this.prisma.template.findFirst({
-              where: { id: session.templateId, ...BOT_TEMPLATE_WHERE },
+              where: { id: session.templateId, ...botTemplateWhere(userId) },
             })
           : null;
         if (!tpl) return { toast: { type: 'error', content: '模板不可用或未发布' } };

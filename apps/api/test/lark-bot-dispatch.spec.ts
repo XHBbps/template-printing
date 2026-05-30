@@ -12,9 +12,15 @@ function makeSvc() {
   const update = jest.fn(async () => ({}));
   const findFirst = jest.fn(async () => null);
   const templateFindMany = jest.fn(async () => [{ id: 't1', name: '模板A' }]);
+  const templateCount = jest.fn(async () => 1);
   const prisma = {
     larkBotSession: { findFirst, create, update, findUnique: jest.fn(async () => null) },
-    template: { findMany: templateFindMany, findFirst: jest.fn(async () => null) },
+    template: {
+      findMany: templateFindMany,
+      count: templateCount,
+      findFirst: jest.fn(async () => null),
+    },
+    user: { findUnique: jest.fn(async () => null) },
   } as never;
   const bot = { sendCard, sendTextWithMention } as never;
   const render = { enqueue: jest.fn(async () => ({ jobId: 'j1' })) } as never;

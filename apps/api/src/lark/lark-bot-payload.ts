@@ -18,7 +18,7 @@ export interface NormalizedCardAction {
   eventId?: string;
   operatorOpenId?: string;
   action: {
-    value?: { sessionId?: string; action?: string };
+    value?: { sessionId?: string; action?: string; page?: number };
     name?: string;
     option?: string;
     inputValue?: string;
@@ -38,7 +38,7 @@ interface RawSender {
   sender_type?: string;
 }
 interface RawAction {
-  value?: { sessionId?: string; action?: string };
+  value?: { sessionId?: string; action?: string; page?: number };
   name?: string;
   option?: string;
   input_value?: string;

@@ -32,11 +32,58 @@ function actionValue(v: CardAction): CardAction {
 export function buildSelectTemplateCard(args: {
   sessionId: string;
   templates: Array<{ id: string; name: string }>;
+  // 分页(可选):省略时按单页处理,不显示翻页按钮(向后兼容)。
+  page?: number;
+  pageSize?: number;
+  total?: number;
 }): object {
   const options = args.templates.map((t) => ({
     text: { tag: 'plain_text', content: t.name },
     value: t.id,
   }));
+  const page = args.page ?? 0;
+  const total = args.total ?? args.templates.length;
+  const pageSize = args.pageSize ?? (args.templates.length || 1);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const elements: object[] = [
+    { tag: 'div', text: { tag: 'lark_md', content: '请选择要渲染的模板：' } },
+    {
+      tag: 'select_static',
+      placeholder: { tag: 'plain_text', content: '点这里选模板…' },
+      value: actionValue({ sessionId: args.sessionId, action: 'template_selected' }),
+      options,
+    },
+  ];
+
+  // 翻页:仅多于一页时显示页码 + 上/下页按钮。普通按钮(非 form),飞书会原样回传 value,
+  // 故页码编进 value.page,回调里 action=select_page 据此换页。
+  if (totalPages > 1) {
+    elements.push({
+      tag: 'div',
+      text: {
+        tag: 'lark_md',
+        content: `<font color="grey">第 ${page + 1} / ${totalPages} 页 · 共 ${total} 个模板</font>`,
+      },
+    });
+    if (page > 0) {
+      elements.push({
+        tag: 'button',
+        text: { tag: 'plain_text', content: '⬅️ 上一页' },
+        type: 'default',
+        value: actionValue({ sessionId: args.sessionId, action: 'select_page', page: page - 1 }),
+      });
+    }
+    if (page < totalPages - 1) {
+      elements.push({
+        tag: 'button',
+        text: { tag: 'plain_text', content: '下一页 ➡️' },
+        type: 'default',
+        value: actionValue({ sessionId: args.sessionId, action: 'select_page', page: page + 1 }),
+      });
+    }
+  }
+
   return {
     schema: '2.0',
     config: { wide_screen_mode: true },
@@ -44,20 +91,7 @@ export function buildSelectTemplateCard(args: {
       title: { tag: 'plain_text', content: '🖨️ 模板渲染' },
       template: 'blue',
     },
-    body: {
-      elements: [
-        {
-          tag: 'div',
-          text: { tag: 'lark_md', content: '请选择要渲染的模板：' },
-        },
-        {
-          tag: 'select_static',
-          placeholder: { tag: 'plain_text', content: '点这里选模板…' },
-          value: actionValue({ sessionId: args.sessionId, action: 'template_selected' }),
-          options,
-        },
-      ],
-    },
+    body: { elements },
   };
 }
 
