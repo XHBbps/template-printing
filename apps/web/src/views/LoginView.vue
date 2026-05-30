@@ -39,6 +39,7 @@ const messages = {
     signingIn: '登录中…',
     or: '或',
     larkBtn: '使用飞书登录',
+    larkRedirecting: '正在跳转飞书…',
     footNote:
       '登录即表示同意《使用规范》与《数据保密协议》。本系统仅供扬力集团内部使用,所有渲染日志可追溯。',
     statusLink: '系统状态',
@@ -86,6 +87,7 @@ const messages = {
     signingIn: 'Signing in…',
     or: 'OR',
     larkBtn: 'Sign in with Lark',
+    larkRedirecting: 'Redirecting to Lark…',
     footNote:
       'By signing in you agree to the Usage Policy and Data Confidentiality Agreement. For internal Yangli Group use only; all render logs are auditable.',
     statusLink: 'System status',
@@ -229,13 +231,17 @@ const changelogItems = computed(() =>
   changelog.map((e) => ({ v: e.v, date: e.date, items: lang.value === 'cn' ? e.cn : e.en })),
 );
 
+const redirecting = ref(false);
+
 async function goLark(): Promise<void> {
+  if (redirecting.value) return;
+  redirecting.value = true; // 立刻给反馈,避免点击后页面「无反应」
   const continueTo = (router.currentRoute.value.query.continue as string | undefined) ?? '/';
-  try {
-    await authStore.logout();
-  } catch {
+  // 预登出改为非阻塞:马上要跳转飞书,SSO 回调会签发全新 cookie 覆盖旧会话,
+  // 无需为这次冗余的登出再多等一个慢往返。best-effort 即可。
+  void authStore.logout().catch(() => {
     // ignore — logout endpoint may 401 if already logged out
-  }
+  });
   window.location.assign(buildLarkLoginUrl(continueTo));
 }
 
@@ -412,13 +418,13 @@ async function submitLocal(): Promise<void> {
 
         <div class="tp-l-or">{{ t.or }}</div>
 
-        <button type="button" class="tp-l-lark-btn" @click="goLark">
+        <button type="button" class="tp-l-lark-btn" :disabled="redirecting" @click="goLark">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
             <rect x="3" y="5" width="18" height="14" />
             <path d="M3 8h18" />
             <circle cx="7" cy="13.5" r="1.2" fill="currentColor" />
           </svg>
-          {{ t.larkBtn }}
+          {{ redirecting ? t.larkRedirecting : t.larkBtn }}
         </button>
 
         <div class="tp-l-foot-note">{{ t.footNote }}</div>
