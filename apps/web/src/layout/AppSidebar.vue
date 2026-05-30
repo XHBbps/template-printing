@@ -33,6 +33,9 @@ const isInternal = (): boolean => auth.user?.isInternal ?? false;
 
 const initial = (): string => (auth.user?.name ?? '?').charAt(0).toUpperCase();
 
+// 头像图片加载失败时回退到姓名首字母
+const avatarFailed = ref(false);
+
 function toggle(): void {
   emit('update:collapsed', !props.collapsed);
   localStorage.setItem('tp_sidebar_collapsed', props.collapsed ? 'false' : 'true');
@@ -119,7 +122,16 @@ async function confirmLogout(): Promise<void> {
     </nav>
 
     <div class="sidebar-foot">
-      <div class="avatar">{{ initial() }}</div>
+      <div class="avatar">
+        <img
+          v-if="auth.user?.avatarUrl && !avatarFailed"
+          :src="auth.user.avatarUrl"
+          alt=""
+          referrerpolicy="no-referrer"
+          @error="avatarFailed = true"
+        />
+        <template v-else>{{ initial() }}</template>
+      </div>
       <div v-if="!collapsed" class="user-meta">
         <div class="name">{{ auth.user?.name ?? '未登录' }}</div>
       </div>
