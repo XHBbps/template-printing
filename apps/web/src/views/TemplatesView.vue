@@ -301,7 +301,12 @@ function openTemplate(id: string): void {
   void transitionTo('editor', id);
 }
 
+const creating = ref(false);
 async function createNew(): Promise<void> {
+  // 防连点:创建进行中直接忽略后续点击,避免一次新建产生多个「未命名模板」
+  // (后端 POST /templates 无幂等,连点会建多份;经隧道时 await ~1s 窗口更大)。
+  if (creating.value) return;
+  creating.value = true;
   const data = defaultTemplate();
   data.meta.name = '未命名模板';
   try {
@@ -309,6 +314,8 @@ async function createNew(): Promise<void> {
     void transitionTo('editor', tpl.id);
   } catch {
     ElMessage.error('创建失败');
+  } finally {
+    creating.value = false;
   }
 }
 
@@ -501,7 +508,12 @@ const countLabel = computed(() => {
 
             <!-- 网格视图：新建卡在第一排第一个（仅第 1 页），其余为当前页模板 -->
             <div v-else-if="viewMode === 'grid'" class="tpl-grid">
-              <div v-if="gridPage === 1" class="tpl new" @click="createNew">
+              <div
+                v-if="gridPage === 1"
+                class="tpl new"
+                :class="{ 'is-busy': creating }"
+                @click="createNew"
+              >
                 <span class="plus">
                   <Plus :size="16" :stroke-width="1.8" />
                 </span>
@@ -570,7 +582,11 @@ const countLabel = computed(() => {
             <!-- 列表视图：无限滚动，新建卡固定第一个，滚到底自动加载下一批 -->
             <div v-else class="tpl-list">
               <ElScrollbar ref="listScrollRef" max-height="660px" @scroll="onListScroll">
-                <div class="tpl-row tpl-row--new" @click="createNew">
+                <div
+                  class="tpl-row tpl-row--new"
+                  :class="{ 'is-busy': creating }"
+                  @click="createNew"
+                >
                   <span class="plus">
                     <Plus :size="14" :stroke-width="1.8" />
                   </span>
@@ -1073,6 +1089,12 @@ const countLabel = computed(() => {
 }
 
 /* ============ New template tile ============ */
+/* 创建进行中:禁用点击 + 降透明,配合 createNew() 的重入守卫防连点建多份 */
+.tpl.new.is-busy,
+.tpl-row--new.is-busy {
+  pointer-events: none;
+  opacity: 0.55;
+}
 .tpl.new {
   background: var(--paper-white);
   border: 1px dashed var(--stone);
