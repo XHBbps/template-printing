@@ -827,9 +827,23 @@ table.log .mono {
   background: var(--paper-white);
   border: 1px solid var(--stone);
   border-radius: var(--radius-1);
-  padding: 3px 6px;
+  padding: 3px 10px;
   cursor: pointer;
   height: 28px;
+  /* A2:去原生下拉外观,补自定义箭头。文字左对齐(原生 select 按最宽选项「普通用户」
+     定宽,短值「管理员」若居中 + 右箭头会左侧空洞);标准下拉=文字左、箭头右,紧凑不空。 */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  text-align: left;
+}
+/* 仅真正的 <select> 补自定义下拉箭头 + 右留箭头位(只读 span 不加) */
+select.role-select {
+  padding-right: 24px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23999' stroke-width='1.5' d='M2.5 4.5l3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 9px;
 }
 .role-select:disabled {
   opacity: 0.45;
@@ -856,6 +870,10 @@ table.log .mono {
   padding: 3px 10px;
   height: 28px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   transition:
     background var(--dur-fast) var(--ease-default),
     color var(--dur-fast) var(--ease-default);
