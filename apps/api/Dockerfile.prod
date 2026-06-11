@@ -42,6 +42,11 @@ RUN pnpm --filter @template-printing/api deploy --prod /prod/api
 # at runtime. Install it (and its deps) as REAL files in an isolated dir — installing into
 # /prod/api directly fails because the deployed package.json still carries `workspace:*`
 # specifiers that npm can't resolve — then merge that flat node_modules into the deployed tree.
+# 构建期预取「运行时平台(Alpine OpenSSL 3 = linux-musl-openssl-3.0.x)」的 schema/migration 引擎,
+# 让 `prisma migrate deploy`(init/update.sh 部署期)零下载——否则 @prisma/engines 只按宿主探测
+# 拉到 linux-musl(普通版),运行时再去 binaries.prisma.sh 下 openssl-3.0.x 版,内网/国内会卡死。
+# 与 schema.prisma 的 binaryTargets 对齐。
+ENV PRISMA_CLI_BINARY_TARGETS="native,linux-musl-openssl-3.0.x"
 RUN mkdir -p /tmp/prisma-cli \
     && npm install --prefix /tmp/prisma-cli --no-save --no-package-lock prisma@5.16.2 \
     && cp -R /tmp/prisma-cli/node_modules/. /prod/api/node_modules/
