@@ -18,3 +18,5 @@ docs
 .pgdata
 .redisdata
 .filestore
+.pnpm-store
+storage
