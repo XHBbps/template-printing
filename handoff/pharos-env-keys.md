@@ -70,3 +70,31 @@
 2. **env 注入机制**:`docker-compose.pharos.yml` 用 `environment: - KEY`(pass-through 声明键名)。若 Pharos 是**直接往容器注入 env**(不经 compose pass-through),这些声明冗余但无害 —— 请确认机制,必要时调整为平台期望写法。
 3. **C 推送 Harbor 被阻塞**:`192.168.10.124` 为内网 + 需平台侧推送账号,**当前开发机无法连通/无凭据,无法执行 push**。构建命令已在 §2C 就绪,需在**有 Harbor 访问的构建机**上执行(insecure-registries + docker login)。可代为「本地 x86_64 构建验证(不推送)」。
 4. **§4 本地验收**:1–4 项需先本地构建 5 个镜像(render 含 Chromium,较重)再 `docker compose -f docker-compose.pharos.yml up`;5 项推送被 #3 阻塞。按需可跑「本地构建 + pharos compose up」验证(不含推送)。
+
+## 4. §4 本地验收结果(证据)
+
+5 镜像本地 x86_64 构建完成(§2C 命名):`api:v1`(612MB)/`web:v1`(76MB)/`render:v1`(1.54GB,含 Chromium+思源)/`postgres:16-alpine`(396MB)/`redis:7-alpine`(58MB)。
+独立栈 `-p pharos-verify`(命名卷,不碰 dev 栈/飞书 bot)起通,逐项:
+
+| § | 验证 | 证据 |
+|---|---|---|
+| 4.1 | 整套起得来(prod 形态、命名卷) | 5 容器健康,api `start_period` 后 **6s healthy** |
+| 4.2 | 经 web 端口访问 SPA | `GET :8090/` → `HTTP 200 text/html`,引用打包产物 `/assets/index-*.js`、`vue-vendor`、`element-plus`(生产构建) |
+| 4.3 | 业务 API 走 `/api` 同源(**改造A**) | `GET :8090/api/healthz` → `200 {"ok":true,...}` —— web 镜像内置 `/api`→api 反代生效 |
+| — | `/uploads` 出口经 api(storage 闭环) | `GET :8090/uploads/render/<x>` → `401 application/json {"code":"UNAUTHORIZED"}` —— 是 api `SignedUploadsController` 响应(非 SPA index),证明路由到 api + 签名校验生效 |
+| 4.4 | render 就绪 | render 日志 `[render] pool ready (capacity=1)`,worker + Puppeteer 池正常 |
+
+> 迁移:`prisma migrate deploy` 在 pharos 栈内一次性容器执行,全部迁移成功应用(建表完成)。
+> 全量「登录→建模板→渲染产出 PDF」属常规应用流程(与本次平台适配无关),未在验收栈内重跑;渲染基础设施(worker/队列/storage/签名出口)已逐项验证就绪。
+
+## 5. 新发现 — prisma schema 引擎的 China 部署隐患(需项目侧关注)
+
+验收时发现:**api 生产镜像里只带了 `schema-engine-linux-musl`(普通 musl 版),没带 `schema-engine-linux-musl-openssl-3.0.x`**(而 `schema.prisma` 的 `binaryTargets=["native","linux-musl-openssl-3.0.x"]`、query 引擎的 openssl-3.0.x 版**有**)。原因:schema 引擎来自 `npm install prisma` 的 `@prisma/engines` postinstall,只按构建宿主平台下载一个;query 引擎由 `prisma generate` 按 binaryTargets 下载,所以齐全。
+
+后果:运行 `prisma migrate deploy`(`scripts/deploy/{init,update}.sh` 部署期)时,Alpine+OpenSSL3 运行时解析平台为 `linux-musl-openssl-3.0.x`,找不到对应 schema 引擎 → **运行时去 `binaries.prisma.sh` 下载**。海外 CI/服务器没问题;**国内服务器(本项目实际目标)会卡死/超时**(本次验收即复现:迁移容器 Up 9min 零输出,直到给一次性容器加 `-e PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma` 走国内镜像才秒过)。
+
+建议(任一,留项目侧决策,非本次适配范围):
+- **A**(推荐):构建期把 schema 引擎的 `linux-musl-openssl-3.0.x` 也打进镜像(如 `npm install prisma` 前设 `ENV PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3.0.x`,或显式 fetch),部署期零下载。
+- **B**:部署服务器 env 设 `PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma`,迁移期走国内镜像下载。
+
+> 注:本次本地构建也临时给 api Dockerfile 加过该 env 加速引擎下载,**已 `git checkout` 还原、未提交**。
