@@ -1,0 +1,125 @@
+# 灯塔 Pharos 平台部署形态(见 handoff/pharos-adaptation.md)。
+#
+# 与 docker-compose.prod.yml(GHCR + 边缘 nginx 形态)**并存、互不影响**:
+# prod 仍被现有 release.yml/deploy.yml/update.sh 依赖,本文件专供 Pharos onboarding。
+#
+# 平台约束(§1):
+#  - 宿主端口由平台分配 → 不写 ports;仅 web「对外」(平台映射其容器 80)。
+#  - 镜像相对路径 tools/template-printing/<服务> → 部署时平台注入 registry(192.168.10.124)前缀与 tag。
+#  - env 由平台部署界面注入 → 无 env_file;此处仅「声明 key」(固定值内联,敏感/连接串声明键名由平台填值)。
+#    完整 key 清单见 handoff/pharos-env-keys.md。
+#  - 数据用命名卷(回滚只回代码不回数据)。
+#  - restart: unless-stopped(匹配平台「停用」语义)。
+#  - 无边缘 nginx/443/certbot:/api 与 /uploads 反代已内置进 web 镜像(docker/web-nginx.conf)。
+services:
+  postgres:
+    image: tools/template-printing/postgres
+    mem_limit: 512m
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: tools/template-printing/redis
+    mem_limit: 256m
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: tools/template-printing/api
+    mem_limit: 512m
+    # 固定值内联;其余(含密码的 DATABASE_URL/REDIS_URL 整值 + 各密钥)由平台注入。
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL # postgres://USER:PASS@postgres:5432/template_printing(整值,服务名 DNS)
+      - REDIS_URL # redis://redis:6379
+      - JWT_SECRET
+      - FILE_SIG_SECRET
+      - LARK_SSO_APP_ID
+      - LARK_SSO_APP_SECRET
+      - LARK_SSO_REDIRECT_URI
+      - INITIAL_ADMIN_LARK_USER_IDS
+      - INITIAL_ADMIN_LOCAL_USERNAME
+      - INITIAL_ADMIN_LOCAL_PASSWORD
+      - CORS_ORIGIN
+      - COOKIE_DOMAIN
+      - LARK_BITABLE_VERIFICATION_TOKEN
+      - LARK_BOT_VERIFICATION_TOKEN
+      - LARK_BOT_OPEN_ID
+      - LARK_BOT_LONG_CONN_ENABLED
+      - LARK_ALERT_CHAT_ID
+      - RENDER_CALLBACK_SECRET
+      - API_INTERNAL_BASE
+      - UPLOAD_ORPHAN_GRACE_DAYS
+      - AUDIT_LOG_RETENTION_DAYS
+      - BOT_SESSION_RETENTION_DAYS
+    volumes:
+      - storage:/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/healthz || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  web:
+    image: tools/template-printing/web
+    mem_limit: 128m
+    # 对外服务:平台分配宿主端口映射到容器 80(web nginx)。平台探活 http `/`。
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  render:
+    image: tools/template-printing/render
+    mem_limit: 2g
+    environment:
+      - STORAGE_ROOT=/storage
+      - WEB_BASE=http://web:80
+      - DATABASE_URL
+      - REDIS_URL
+      - FILE_SIG_SECRET # render 侧签名 /uploads/render URL,须与 api 同值
+      - RENDER_BROWSERS
+      - RENDER_PAGES_PER_BROWSER
+      - RENDER_JOB_TIMEOUT_MS
+      - RENDER_ACQUIRE_TIMEOUT_MS
+      - RENDER_LOCK_DURATION_MS
+      - RENDER_PAGE_MAX_USES
+      - RENDER_STUCK_TIMEOUT_MIN
+      - RENDER_DEVICE_SCALE_FACTOR
+      - RENDER_BACKOFF_BASE_MS
+      - CALLBACK_RESEND_MAX_ATTEMPTS
+    volumes:
+      - storage:/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  redis_data:
+  storage:
