@@ -62,7 +62,8 @@
 | postgres | tools/template-printing/postgres | 否 | tcp 5432 | `pg_data` | POSTGRES_USER/PASSWORD/DB |
 | redis | tools/template-printing/redis | 否 | tcp 6379 | `redis_data` | — |
 
-> 镜像 tag(平台注入):api/web/render = 发布版本(如 `v1`);postgres = `16-alpine`;redis = `7-alpine`。
+> 镜像 tag(平台注入):api/web/render = 发布版本;postgres = `16-alpine`;redis = `7-alpine`。
+> **tag 规范(灯塔侧定,发布习惯)**:**不可变 tag、每次更新递增**(v1 → v2 → v3…),**不覆盖推送在跑的 tag** —— 平台回滚语义依赖 tag 不可变(坏了能真滚回上一版)。当前:v1 = 首发(Pharos 验收版),v2 = SSO cookie 部署形态自适应修复(`9e3726b4`)。
 
 ## 3. 待灯塔侧确认 / 冲突反馈(§5「不要绕」)
 
