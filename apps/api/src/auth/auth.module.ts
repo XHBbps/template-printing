@@ -44,7 +44,10 @@ import { UserStateService } from './user-state.service.js';
 const env = validateEnv();
 
 const cookieEnv: CookieEnv = {
-  nodeEnv: env.NODE_ENV,
+  // 按部署形态(对外 URL 协议)而非 NODE_ENV 决定 cookie 安全属性:
+  // http 部署(内网 ip,无证书)下 Secure / SameSite=None 会被浏览器拒存 → 登录态存不住;
+  // 将来切 https(证书就位)redirect URI 改 https 即自动回到 None+Secure。
+  secure: env.LARK_SSO_REDIRECT_URI.startsWith('https:'),
   cookieDomain: env.COOKIE_DOMAIN,
   accessTtlSeconds: env.JWT_TTL_SECONDS,
   refreshTtlSeconds: env.REFRESH_TTL_SECONDS,
@@ -76,7 +79,6 @@ const providers: Provider[] = [
     provide: 'LARK_CONFIG',
     useValue: {
       redirectUri: env.LARK_SSO_REDIRECT_URI,
-      nodeEnv: env.NODE_ENV,
       initialAdminLarkUserIds: env.INITIAL_ADMIN_LARK_USER_IDS
         ? env.INITIAL_ADMIN_LARK_USER_IDS.split(',')
             .map((s) => s.trim())

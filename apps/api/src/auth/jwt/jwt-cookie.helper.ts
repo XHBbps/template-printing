@@ -5,20 +5,22 @@ export const REFRESH_COOKIE = 'tp_refresh';
 export const REMEMBER_COOKIE = 'tp_remember';
 
 export interface CookieEnv {
-  nodeEnv: string;
+  /** 部署形态是否 https(由 LARK_SSO_REDIRECT_URI 协议判定,见 auth.module)。 */
+  secure: boolean;
   cookieDomain: string;
   accessTtlSeconds: number;
   refreshTtlSeconds: number;
 }
 
 function baseOptions(env: CookieEnv): CookieOptions {
-  const isProd = env.nodeEnv === 'production';
   return {
     httpOnly: true,
-    // SameSite=None+Secure required for Lark webview iframe; in dev we still
-    // set Secure=false because http://localhost serves cookies fine without TLS.
-    sameSite: isProd ? 'none' : 'lax',
-    secure: isProd,
+    // https 部署:SameSite=None+Secure(飞书 webview iframe 需要)。
+    // http 部署(内网 ip / 平台分配端口,无证书):必须省略 Secure —— 浏览器对 http 拒存
+    // Secure cookie,且 SameSite=None 强制 Secure(死锁);Lax 对登录流足够。
+    // 不能按 NODE_ENV 判定:生产也可能跑在 http(如灯塔内网部署),故按部署 URL 协议自适应。
+    sameSite: env.secure ? 'none' : 'lax',
+    secure: env.secure,
     path: '/',
     domain: env.cookieDomain || undefined,
   };

@@ -30,7 +30,7 @@ function fakeRes() {
 }
 
 const ENV: CookieEnv = {
-  nodeEnv: 'test',
+  secure: false,
   cookieDomain: '',
   accessTtlSeconds: 86400,
   refreshTtlSeconds: 2592000,

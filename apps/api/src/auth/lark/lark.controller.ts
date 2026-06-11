@@ -40,7 +40,6 @@ const STATE_TTL_SECONDS = 300;
 
 export interface LarkConfig {
   redirectUri: string;
-  nodeEnv: string;
   initialAdminLarkUserIds: string[];
   cookieEnv: CookieEnv;
 }
@@ -66,10 +65,15 @@ export class LarkController {
     const safeContinue = sanitizeContinue(continueTo);
     const cookieOpts = {
       httpOnly: true,
-      sameSite: this.cfg.nodeEnv === 'production' ? ('none' as const) : ('lax' as const),
-      secure: this.cfg.nodeEnv === 'production',
+      // 与会话 cookie 同步按部署形态自适应(cookieEnv.secure 由 redirect URI 协议判定):
+      // http 部署下 SameSite=None 强制 Secure 会被浏览器拒存(死锁);OAuth 回调是
+      // 顶级导航 GET,Lax 放行。https 部署保持 None+Secure。
+      sameSite: this.cfg.cookieEnv.secure ? ('none' as const) : ('lax' as const),
+      secure: this.cfg.cookieEnv.secure,
       maxAge: STATE_TTL_SECONDS * 1000,
-      path: '/auth/lark/callback',
+      // path 必须 '/':容器内回调路径是 /auth/lark/callback,但经 web 反代后浏览器
+      // 真实路径带 /api 前缀 —— 写死容器内部路径会 path 不匹配、回调时 cookie 不发送。
+      path: '/',
     };
     res.cookie(STATE_COOKIE, state, cookieOpts);
     if (safeContinue) res.cookie(CONTINUE_COOKIE, safeContinue, cookieOpts);
@@ -97,7 +101,7 @@ export class LarkController {
     }
     const continueTo = cookies[CONTINUE_COOKIE] ?? '/';
 
-    const clearOpts = { path: '/auth/lark/callback' };
+    const clearOpts = { path: '/' };
     res.clearCookie(STATE_COOKIE, clearOpts);
     res.clearCookie(CONTINUE_COOKIE, clearOpts);
 
