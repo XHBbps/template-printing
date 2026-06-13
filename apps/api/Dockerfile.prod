@@ -68,8 +68,16 @@ RUN apk add --no-cache tini openssl
 # /prod/api is fully self-contained: package.json + flat node_modules (real files) + dist + prisma.
 COPY --from=build /prod/api ./
 
+# Entrypoint: fix shared /storage volume ownership before launching node. The shared named
+# volume defaults to root:root; the render container runs non-root (uid 100) and can't write
+# it (EACCES). api runs root + starts before render (render depends_on api:service_healthy),
+# so it chowns the volume to render on startup — fresh volumes self-heal. Script lives in the
+# build context (not in pnpm-deployed /prod/api), copied separately; strip CRLF + make +x.
+COPY apps/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 3000
 ENV NODE_ENV=production
 
-ENTRYPOINT ["/sbin/tini", "--"]
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "dist/src/main.js"]
