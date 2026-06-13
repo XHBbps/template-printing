@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia';
 
 import { apiFetch, ApiClientError, setCsrfTokenGetter, setRefreshOn401 } from '../lib/api';
+import { clearLarkAutoLoginMarkers, markLarkLogout } from '../lib/lark-auto-login';
 
 export interface AuthUser {
   id: string;
@@ -56,6 +57,7 @@ export const useAuthStore = defineStore('auth', {
         const { csrf, ...rest } = user;
         this.user = rest;
         this.csrf = csrf;
+        clearLarkAutoLoginMarkers(); // 登录成功:清退出抑制 / 防循环标记,恢复自动登入
       } catch (e) {
         if (e instanceof ApiClientError && e.status === 401) {
           await this.tryRefresh();
@@ -75,6 +77,7 @@ export const useAuthStore = defineStore('auth', {
         const { csrf, ...rest } = user;
         this.user = rest;
         this.csrf = csrf;
+        clearLarkAutoLoginMarkers(); // 静默续期成功亦视为有会话:清标记
       } catch {
         this.user = null;
         this.csrf = null;
@@ -89,6 +92,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         await apiFetch('/auth/logout', { method: 'POST' });
       } finally {
+        markLarkLogout(); // user 置空前同步设退出标记:本会话内抑制飞书自动登入,免被秒登回
         this.user = null;
         this.csrf = null;
       }

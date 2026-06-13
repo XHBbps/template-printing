@@ -1,6 +1,7 @@
 // eslint-disable-next-line import/no-unresolved
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { maybeStartLarkAutoLogin } from '../lib/lark-auto-login';
 import { useAuthStore } from '../stores/auth';
 
 const router = createRouter({
@@ -141,10 +142,18 @@ router.beforeEach((to) => {
   }
   // Subsequent navigations: synchronous enforcement against known auth state.
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    // 飞书客户端内 + 无会话:整页跳 Lark OAuth 直进工作区(命中则跳转接管,取消本次路由);
+    // 外网 / 被退出抑制 / 已尝试过(防循环)则落登录页(维持现状)。
+    if (maybeStartLarkAutoLogin(to.fullPath)) return false;
     return { path: '/login', query: { continue: to.fullPath } };
   }
   if (to.path === '/login' && auth.isAuthenticated) {
     return { path: '/templates' };
+  }
+  // 无会话直达 /login:飞书客户端内同样尝试自动登入(命中则取消落地、跳转接管)。
+  if (to.path === '/login' && !auth.isAuthenticated) {
+    const cont = typeof to.query.continue === 'string' ? to.query.continue : '/';
+    if (maybeStartLarkAutoLogin(cont)) return false;
   }
   if (to.meta.adminOnly) {
     const role = auth.user?.role;

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import MustChangePasswordDialog from '../components/MustChangePasswordDialog.vue';
 import AppSidebar from './AppSidebar.vue';
+import { maybeStartLarkAutoLogin } from '../lib/lark-auto-login';
 import { useAuthStore } from '../stores/auth';
 
 const route = useRoute();
@@ -43,7 +44,16 @@ watch(
 function enforceAfterHydrate(): void {
   const r = route;
   if (r.meta.requiresAuth && !auth.isAuthenticated) {
+    // 首屏 hydrate 落定仍无会话:飞书客户端内整页跳 Lark OAuth 直进工作区(命中即跳转接管,
+    // 不再落登录页);外网 / 退出抑制 / 防循环命中则维持「落登录页」现状。
+    if (maybeStartLarkAutoLogin(r.fullPath)) return;
     void router.replace({ path: '/login', query: { continue: r.fullPath } });
+    return;
+  }
+  // 无会话直达 /login(如配置首页即 /login):飞书客户端内同样尝试自动登入。
+  if (r.path === '/login' && !auth.isAuthenticated) {
+    const cont = typeof r.query.continue === 'string' ? r.query.continue : '/';
+    maybeStartLarkAutoLogin(cont);
     return;
   }
   if (r.path === '/login' && auth.isAuthenticated) {
