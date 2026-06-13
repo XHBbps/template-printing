@@ -63,7 +63,11 @@
 | redis | tools/template-printing/redis | 否 | tcp 6379 | `redis_data` | — |
 
 > 镜像 tag(平台注入):api/web/render = 发布版本;postgres = `16-alpine`;redis = `7-alpine`。
-> **tag 规范(灯塔侧定,发布习惯)**:**不可变 tag、每次更新递增**(v1 → v2 → v3…),**不覆盖推送在跑的 tag** —— 平台回滚语义依赖 tag 不可变(坏了能真滚回上一版)。当前:v1 = 首发(Pharos 验收版),v2 = SSO cookie 部署形态自适应修复(`9e3726b4`)。
+> **tag 规范(灯塔侧定,发布习惯)**:**不可变 tag、每次更新递增**(v1 → v2 → v3…),**不覆盖推送在跑的 tag** —— 平台回滚语义依赖 tag 不可变(坏了能真滚回上一版)。
+> **api 镜像版本史**(其余四镜像仍 v1 起始,未变):
+> - **v1** = Pharos 首发验收版。
+> - **v2** = SSO/会话 cookie 部署形态自适应修复(`9e3726b4`,Path=/、http 下 Lax 无 Secure)。
+> - **v3**(当前在跑,digest `eec6c7b`)= `/storage` 共享卷归属 entrypoint 持久修复(`b9d01777`,render 非 root 写 EACCES);携带 v2 全部修复。entrypoint 进镜像实证(755),更新流 20.1s success,全新卷自愈、不再需手动 chown。
 
 ## 3. 待灯塔侧确认 / 冲突反馈(§5「不要绕」)
 
